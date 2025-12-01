@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useRouter } from "next/navigation"; 
+import LanguageToggle from "@/components/language/LanguageToggle";
 
 export default function LoginPage() {
   const [tab, setTab] = useState<"signin" | "signup">("signin");
@@ -74,6 +75,11 @@ export default function LoginPage() {
         bg-linear-to-br from-[#EEF4FF] to-[#F8FAFF]
       "
     >
+        <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
+          <LanguageToggle
+           />
+        </div>
+
       {/* LOGIN CARD */}
       <div
         className="
