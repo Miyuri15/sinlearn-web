@@ -9,6 +9,7 @@ import AppearanceToggle from "@/components/settings/AppearanceToggle";
 import ProfileSettings from "@/components/settings/ProfileSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import PrivacySettings from "@/components/settings/PrivacySettings";
+import LanguageToggle from "@/components/language/LanguageToggle";
 
 export default function SettingsPage() {
   const { t } = useTranslation("common");
@@ -26,6 +27,9 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#EEF4FF] to-[#F8FAFF] p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
+        <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
+          <LanguageToggle />
+        </div>
         {/* Header */}
         <div className="mb-8">
           <button
