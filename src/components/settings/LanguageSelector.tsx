@@ -1,14 +1,14 @@
 "use client";
-
+import "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 
 export default function LanguageSelector() {
   const { i18n, t } = useTranslation("common");
-  const [currentLang, setCurrentLang] = useState(i18n.language);
+  const [currentLang, setCurrentLang] = useState(i18n.language || "en");
 
   useEffect(() => {
-    setCurrentLang(i18n.language);
+    setCurrentLang(i18n.language || "en");
   }, [i18n.language]);
 
   const languages = [
@@ -22,25 +22,25 @@ export default function LanguageSelector() {
   };
 
   return (
-    <div className="border-b border-[#E2E8F0] pb-6">
+    <div className="border-b border-gray-200 dark:border-gray-700 pb-6">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h3 className="text-sm font-medium text-[#0A0A0A]">
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">
             {t("settings.language") || "Language"}
           </h3>
-          <p className="text-sm text-[#64748B] mt-1">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             {t("settings.language_desc") || "Select interface language"}
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-full">
+        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-full">
           {languages.map((lang) => (
             <button
               key={lang.code}
               onClick={() => handleLanguageChange(lang.code)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
                 currentLang === lang.code
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-700 hover:text-gray-900"
+                  ? "bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm"
+                  : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
               }`}
             >
               {lang.native}
@@ -48,8 +48,8 @@ export default function LanguageSelector() {
           ))}
         </div>
       </div>
-      <div className="bg-blue-50 p-4 rounded-lg">
-        <p className="text-sm text-blue-800">
+      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800/30">
+        <p className="text-sm text-blue-800 dark:text-blue-300">
           ⚠️ {t("settings.language_note") || 
             "All AI responses and evaluations are always in Sinhala. Language setting only changes the UI."}
         </p>
