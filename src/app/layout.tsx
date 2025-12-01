@@ -35,7 +35,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }}
         />
       </head>
-      <body className="min-h-screen">
+      <body className="min-h-screen transition-colors duration-300">
         {children}
       </body>
     </html>
