@@ -37,21 +37,20 @@ export default function Chat() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
     setTranscript("student asking about solar systems…");
   }, []);
 
   useEffect(() => {
     if (i18n.isInitialized) {
       setIsI18nReady(true);
+      setLoading(false);
       return;
     }
 
-    const handleInit = () => setIsI18nReady(true);
+    const handleInit = () => {
+      setIsI18nReady(true);
+      setLoading(false);
+    };
 
     i18n.on("initialized", handleInit);
     return () => {
