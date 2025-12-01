@@ -6,6 +6,7 @@ import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import InputBar from "./components/InputBar";
+import RecordBar from "./components/RecordBar";
 
 export default function Chat() {
   const { t } = useTranslation("chat");
@@ -135,14 +136,22 @@ export default function Chat() {
         </div>
 
         {/* INPUT BAR */}
-        <InputBar
-          isRecording={isRecording}
-          setIsRecording={setIsRecording}
-          setTranscript={setTranscript}
-          transcript={transcript}
-          message={message}
-          handleInputChange={handleInputChange}
-        />
+        <div className="p-4 border-t bg-white">
+          {isRecording && (
+            <RecordBar
+              setIsRecording={setIsRecording}
+              setTranscript={setTranscript}
+            />
+          )}
+
+          <InputBar
+            isRecording={isRecording}
+            setIsRecording={setIsRecording}
+            transcript={transcript}
+            message={message}
+            handleInputChange={handleInputChange}
+          />
+        </div>
       </div>
 
       {/* RIGHT SIDEBAR */}
