@@ -1,8 +1,10 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
+"use client";
+import NoSSR from "@/components/NoSSR";
 import AuthPage from "../page";
 
 export default function SignUpPage() {
-  return <AuthPage defaultTab="signup" />;
+  return <NoSSR>
+  <AuthPage defaultTab="signup" />;
+  </NoSSR>
 }
