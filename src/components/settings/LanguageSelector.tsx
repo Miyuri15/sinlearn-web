@@ -3,13 +3,18 @@ import "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 
+// LocalStorage helpers
+import { setLanguage, getLanguage } from "@/lib/localStore";
+
 export default function LanguageSelector() {
   const { i18n, t } = useTranslation("common");
   const [currentLang, setCurrentLang] = useState(i18n.language || "en");
 
   useEffect(() => {
-    setCurrentLang(i18n.language || "en");
-  }, [i18n.language]);
+    const stored = getLanguage();
+    i18n.changeLanguage(stored);
+    setCurrentLang(stored);
+  }, []);
 
   const languages = [
     { code: "en", name: "English", native: "English" },
@@ -18,6 +23,7 @@ export default function LanguageSelector() {
 
   const handleLanguageChange = (langCode: string) => {
     i18n.changeLanguage(langCode);
+    setLanguage(langCode as "en" | "si");
     setCurrentLang(langCode);
   };
 
@@ -32,6 +38,7 @@ export default function LanguageSelector() {
             {t("settings.language_desc") || "Select interface language"}
           </p>
         </div>
+
         <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-full">
           {languages.map((lang) => (
             <button
@@ -48,10 +55,12 @@ export default function LanguageSelector() {
           ))}
         </div>
       </div>
+
       <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800/30">
         <p className="text-sm text-blue-800 dark:text-blue-300">
-          ⚠️ {t("settings.language_note") || 
-            "All AI responses and evaluations are always in Sinhala. Language setting only changes the UI."}
+          ⚠️{" "}
+          {t("settings.language_note") ||
+            "All AI responses are Sinhala. Language setting only changes the UI."}
         </p>
       </div>
     </div>
