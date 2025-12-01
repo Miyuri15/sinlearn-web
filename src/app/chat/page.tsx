@@ -75,10 +75,10 @@ export default function Chat() {
         <div className="flex items-center justify-between bg-white p-4 border-b">
           <div className="flex items-center gap-3">
             <button className="px-4 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium border border-blue-200">
-              Learning Mode
+              {t("learning_mode")}
             </button>
             <button className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium border">
-              Evaluation Mode
+              {t("evaluation_mode")}
             </button>
           </div>
 
