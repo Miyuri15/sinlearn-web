@@ -8,10 +8,11 @@ export default function LanguageToggle() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // This is necessary to avoid SSR/hydration mismatches with i18n.language
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReady(true);
   }, []);
-
-  // Prevent SSR mismatch
+  
   if (!ready) return null;
 
   const current = i18n.language;

@@ -6,10 +6,31 @@ import { useState } from "react";
 import NoSSR from "@/components/NoSSR";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { useRouter } from "next/navigation"; 
 
 export default function LoginPage() {
   const [tab, setTab] = useState<"signin" | "signup">("signin");
+  const [role, setRole] = useState<"student" | "teacher">("student");
   const { t } = useTranslation("common");
+  const router = useRouter();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (tab === "signin") {
+      console.log("Signing in...");
+      // Add actual sign in logic here
+      // If sign in is successful, navigate to dashboard
+      router.push("/dashboard");
+    } else {
+      console.log(`Signing up as ${role}...`);
+      // Add actual sign up logic here
+      // After successful sign up, switch to sign in tab
+      setTab("signin");
+      // Optionally show a success message
+      // alert("Account created successfully! Please sign in.");
+    }
+  };
 
   return (
     <NoSSR>
@@ -17,7 +38,7 @@ export default function LoginPage() {
       <div
         className="
           min-h-screen flex items-center justify-center
-          bg-gradient-to-br from-[#EEF4FF] to-[#F8FAFF]
+          bg-linear-to-br from-[#EEF4FF] to-[#F8FAFF]
         "
       >
         {/* LOGIN CARD */}
@@ -96,7 +117,22 @@ export default function LoginPage() {
           </div>
 
           {/* Form */}
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {tab === "signup" && (
+              <div>
+                <label
+                  className="
+                    block text-sm mb-1
+                    text-[#0A0A0A]
+                  "
+                >
+                  {t("name")} 
+                </label>
+                <Input type="text" placeholder={t("name_placeholder") || "Your Name"} /> 
+              </div>
+            )}
+
+            {/* Email input */}
             <div>
               <label
                 className="
@@ -109,6 +145,7 @@ export default function LoginPage() {
               <Input type="email" placeholder="example@email.com" />
             </div>
 
+            {/* Password input */}
             <div>
               <label
                 className="
@@ -120,8 +157,53 @@ export default function LoginPage() {
               </label>
               <Input type="password" placeholder="••••••••" />
             </div>
+            
+            {/* Conditional Role selection (only for signup) */}
+            {tab === "signup" && (
+              <div className="flex gap-4">
+                {/* Student Role Button */}
+                <button
+                  type="button" 
+                  onClick={() => setRole("student")}
+                  className={`
+                    flex-1 py-4 flex flex-col items-center justify-center space-y-1 rounded-xl transition
+                    border
+                    ${
+                      role === "student"
+                        ? "bg-[#E0EEFF] border-blue-600 text-blue-600 shadow-inner"
+                        : "bg-white border-[#E2E8F0] text-[#64748B] hover:bg-gray-50" 
+                    }
+                  `}
+                >
+                  <div className="text-2xl">📖</div> 
+                  <span className="text-sm font-medium">
+                    {t("role_student") || "Student"} 
+                  </span>
+                </button>
 
-            <Button>
+                {/* Teacher Role Button */}
+                <button
+                  type="button" 
+                  onClick={() => setRole("teacher")}
+                  className={`
+                    flex-1 py-4 flex flex-col items-center justify-center space-y-1 rounded-xl transition
+                    border
+                    ${
+                      role === "teacher"
+                        ? "bg-[#E0EEFF] border-blue-600 text-blue-600 shadow-inner" 
+                        : "bg-white border-[#E2E8F0] text-[#64748B] hover:bg-gray-50" 
+                    }
+                  `}
+                >
+                  <div className="text-2xl">🎓</div> 
+                  <span className="text-sm font-medium">
+                    {t("role_teacher") || "Teacher"}
+                  </span>
+                </button>
+              </div>
+            )}
+
+            <Button type="submit">
               {tab === "signin" ? t("button_signin") : t("button_signup")}
             </Button>
           </form>
