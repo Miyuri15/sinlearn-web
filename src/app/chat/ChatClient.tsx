@@ -8,7 +8,7 @@ import InputBar from "./components/InputBar";
 import RecordBar from "./components/RecordBar";
 import FullPageSkeleton from "./components/FullPageSkeleton";
 
-export default function Chat() {
+export default function ChatClient() {
   const { t } = useTranslation("chat");
 
   const [loading, setLoading] = useState(false);
