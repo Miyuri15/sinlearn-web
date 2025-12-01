@@ -6,5 +6,7 @@
   "button_signin": "පුරවන්න",
   "button_signup": "ලියාපදිංචි වන්න",
   "title": "SinhalaLearn",
-  "subtitle": "AI-බලගැන්වූ සිංහල අධ්‍යාපන සහායක"
+  "subtitle": "AI-බලගැන්වූ සිංහල අධ්‍යාපන සහායක",
+  "role_teacher" : "ගුරු",
+  "role_student" : "ශිෂ්‍ය"
 }
