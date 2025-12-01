@@ -11,7 +11,7 @@ import RecordBar from "./components/RecordBar";
 export default function Chat() {
   const { t } = useTranslation("chat");
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -28,11 +28,24 @@ export default function Chat() {
     e.target.style.height = `${e.target.scrollHeight}px`; // grow
   };
 
+  const handleStopRecording = () => {
+    setIsRecording(false);
+    setMessage(transcript);
+  };
+
+  const handleCancelRecording = () => {
+    setIsRecording(false);
+    setTranscript("");
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200);
-    setTranscript("student asking about solar systems…");
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    setTranscript("student asking about solar systems…");
+  }, [setTranscript]);
 
   if (loading) {
     return (
@@ -139,8 +152,8 @@ export default function Chat() {
         <div className="p-4 border-t bg-white">
           {isRecording && (
             <RecordBar
-              setIsRecording={setIsRecording}
-              setTranscript={setTranscript}
+              onCancelRecording={handleCancelRecording}
+              onStopRecording={handleStopRecording}
             />
           )}
 

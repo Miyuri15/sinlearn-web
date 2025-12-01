@@ -1,11 +1,11 @@
 type RecordBarProps = Readonly<{
-  setIsRecording: (value: boolean) => void;
-  setTranscript: (value: string) => void;
+  onCancelRecording?: () => void;
+  onStopRecording?: () => void;
 }>;
 
 export default function RecordBar({
-  setIsRecording,
-  setTranscript,
+  onCancelRecording,
+  onStopRecording,
 }: RecordBarProps) {
   return (
     <div className="flex justify-center px-4 pb-2">
@@ -31,10 +31,7 @@ export default function RecordBar({
         <div className="flex items-center gap-5 text-sm">
           {/* Cancel */}
           <button
-            onClick={() => {
-              setIsRecording(false);
-              setTranscript("");
-            }}
+            onClick={() => onCancelRecording?.()}
             className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
           >
             ✕ Cancel
@@ -42,9 +39,7 @@ export default function RecordBar({
 
           {/* Stop */}
           <button
-            onClick={() => {
-              setIsRecording(false);
-            }}
+            onClick={() => onStopRecording?.()}
             className="text-red-600 font-medium hover:text-red-700"
           >
             Stop

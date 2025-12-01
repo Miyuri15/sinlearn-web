@@ -1,3 +1,4 @@
+import "@/lib/i18n";
 import { Mic, Paperclip, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -25,15 +26,14 @@ export default function InputBar({
 
       <textarea
         placeholder={t("typing_placeholder")}
-        value={message}
+        value={isRecording ? transcript : message}
         onChange={handleInputChange}
         rows={1}
-        className="flex-1 bg-transparent outline-none px-3 resize-none overflow-hidden leading-relaxed max-h-40"
+        disabled={isRecording} // prevent editing during recording
+        className={`flex-1 bg-transparent outline-none px-3 resize-none overflow-hidden leading-relaxed max-h-40 ${
+          isRecording ? "text-gray-700 italic" : "text-gray-800"
+        }`}
       ></textarea>
-
-      {isRecording && transcript && (
-        <p className="text-gray-500 mt-2 italic">{transcript}</p>
-      )}
 
       <button
         className={`mx-2 transition-all duration-300 ${
