@@ -17,13 +17,19 @@ export default function LoginPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-  
     if (tab === "signin") {
-      console.log("Attempting sign in...");
+      console.log("Signing in...");
+      // Add actual sign in logic here
+      // If sign in is successful, navigate to dashboard
+      router.push("/dashboard");
     } else {
-      console.log(`Attempting sign up as ${role}...`);
+      console.log(`Signing up as ${role}...`);
+      // Add actual sign up logic here
+      // After successful sign up, switch to sign in tab
+      setTab("signin");
+      // Optionally show a success message
+      // alert("Account created successfully! Please sign in.");
     }
-    router.push("/dashboard");
   };
 
   return (
@@ -189,7 +195,6 @@ export default function LoginPage() {
                     }
                   `}
                 >
-                  {/* Placeholder for Graduation Cap Icon (ගුරුවරයා - Teacher) */}
                   <div className="text-2xl">🎓</div> 
                   <span className="text-sm font-medium">
                     {t("role_teacher") || "Teacher"}
@@ -197,7 +202,6 @@ export default function LoginPage() {
                 </button>
               </div>
             )}
-
 
             <Button type="submit">
               {tab === "signin" ? t("button_signin") : t("button_signup")}
