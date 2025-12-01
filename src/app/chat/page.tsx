@@ -1,4 +1,5 @@
 "use client";
+
 import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
 import MarkingRubic from "@/app/chat/components/MarkingRubic";
 import { Menu } from "lucide-react";
@@ -9,23 +10,20 @@ import RecordBar from "./components/RecordBar";
 import FullPageSkeleton from "./components/FullPageSkeleton";
 
 export default function Chat() {
-  const { t } = useTranslation("chat");
+  const { t, i18n } = useTranslation("chat");
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
-
-  const toggleRubricSidebar = () => {
-    setIsRubricOpen(!isRubricOpen);
-  };
+  const [isI18nReady, setIsI18nReady] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
 
-    e.target.style.height = "auto"; // reset
-    e.target.style.height = `${e.target.scrollHeight}px`; // grow
+    e.target.style.height = "auto";
+    e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
   const handleStopRecording = () => {
@@ -39,15 +37,29 @@ export default function Chat() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1200);
+    const timer = setTimeout(() => setLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     setTranscript("student asking about solar systems…");
-  }, [setTranscript]);
+  }, []);
 
-  if (loading) {
+  useEffect(() => {
+    if (i18n.isInitialized) {
+      setIsI18nReady(true);
+      return;
+    }
+
+    const handleInit = () => setIsI18nReady(true);
+
+    i18n.on("initialized", handleInit);
+    return () => {
+      i18n.off("initialized", handleInit);
+    };
+  }, [i18n]);
+
+  if (!isI18nReady || loading) {
     return <FullPageSkeleton />;
   }
 
@@ -58,7 +70,7 @@ export default function Chat() {
         <Menu className="w-6 h-6 text-gray-700 cursor-pointer" />
       </div>
 
-      {/* MAIN CONTENT */}
+      {/* MAIN AREA */}
       <div className="flex-1 flex flex-col">
         {/* TOP BAR */}
         <div className="flex items-center justify-between bg-white p-4 border-b">
@@ -71,12 +83,12 @@ export default function Chat() {
             </button>
           </div>
 
-          {/* Right buttons */}
+          {/* Right side controls */}
           <div className="flex items-center gap-4">
             <ChatLanguageToggle />
 
             <button
-              onClick={() => toggleRubricSidebar()}
+              onClick={() => setIsRubricOpen(true)}
               className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700"
             >
               Rubric
@@ -92,18 +104,17 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* MAIN CHAT AREA */}
+        {/* CENTER CONTENT */}
         <div className="flex-1 flex items-center justify-center text-center px-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-700">
               {t("start_conversation")}
             </h2>
-
             <p className="text-gray-500 mt-2">{t("start_conversation_sub")}</p>
           </div>
         </div>
 
-        {/* INPUT BAR */}
+        {/* INPUT AREA */}
         <div className="p-4 border-t bg-white">
           {isRecording && (
             <RecordBar
@@ -122,12 +133,10 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* RIGHT SIDEBAR */}
+      {/* RIGHT SLIDE SIDEBAR */}
       <div
-        className={`
-          fixed right-0 top-0 h-full transition-transform duration-300
-          ${isRubricOpen ? "translate-x-0" : "translate-x-full"}
-        `}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 
+        ${isRubricOpen ? "translate-x-0" : "translate-x-full"}`}
       >
         <MarkingRubic
           loading={loading}
