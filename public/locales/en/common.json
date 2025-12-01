@@ -5,9 +5,77 @@
   "password": "Password",
   "button_signin": "Sign In",
   "button_signup": "Sign Up",
-  "title": "SinLearn",
+  "title": "SinhalaLearn",
   "subtitle": "AI-Powered Sinhala Educational Assistant",
   "role_teacher" : "Teacher",
-  "role_student" : "Student"
+  "role_student" : "Student" ,
+  "name_placeholder": "Enter your name",
+  "dont_have_account": "Don't have an account?",
+  "already_have_account": "Already have an account?",
+  "signup_link": "Sign Up",
+  "signin_link": "Sign In",
+  
+  
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your preferences",
+    "back": "Back",
+    "sections": "Settings",
+    
+    "general": "General",
+    "general_desc": "Basic application preferences",
+    
+    "profile": "Profile",
+    "profile_desc": "Your account information",
+    
+    "notifications": "Notifications",
+    "notifications_desc": "Manage notification preferences",
+    
+    "privacy": "Privacy & Security",
+    "privacy_desc": "Data and privacy settings",
+    
+    "about": "About",
+    "about_desc": "Application information",
+    
+    "language": "Language",
+    "language_desc": "Select interface language",
+    "language_note": "All AI responses and evaluations are always in Sinhala. Language setting only changes the UI.",
+    
+    "appearance": "Appearance",
+    "appearance_desc": "Customize theme and display preferences",
+    "light": "Light",
+    "dark": "Dark",
+    
+    "user_type": "User Type",
+    "name": "Name",
+    "name_placeholder": "Enter your name",
+    "email": "Email",
+    "email_placeholder": "Enter your email",
+    
+    "message_notifications": "Message Notifications",
+    "message_notifications_desc": "Notifications for new messages",
+    
+    "evaluation_notifications": "Evaluation Notifications",
+    "evaluation_notifications_desc": "Notify when evaluations are complete",
+    
+    "save_history": "Save Chat History",
+    "save_history_desc": "Save conversations locally",
+    
+    "data_collection": "Data collection",
+    "data_collection_desc": "For improving experience",
+    
+    "delete_chats": "Delete All Chats",
+    "delete_confirm": "Are you sure you want to delete all chat history?",
+    
+    "version": "Version",
+    "license": "License",
+    "terms": "Terms and Conditions",
+    "privacy_policy": "Privacy Policy",
+    
+    "save_changes": "Save Changes"
+  }
+
+
+  
 
 }

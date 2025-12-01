@@ -1,12 +1,78 @@
 {
-  "signin": "පුරන වන්න",
+  "signin": "පුරවන්න",
   "signup": "ලියාපදිංචි වන්න",
   "email": "විද්‍යුත් තැපැල ",
   "password": "මුරපදය",
-  "button_signin": "පුරන වන්න",
+  "button_signin": "පුරවන්න",
   "button_signup": "ලියාපදිංචි වන්න",
-  "title": "SinLearn",
+  "title": "SinhalaLearn",
   "subtitle": "AI-බලගැන්වූ සිංහල අධ්‍යාපන සහායක",
   "role_teacher" : "ගුරු",
-  "role_student" : "ශිෂ්‍ය"
+  "role_student" : "ශිෂ්‍ය",
+  "name_placeholder": "ඔබගේ නම ඇතුලත් කරන්න",
+  "dont_have_account": "ගිණුමක් නැද්ද?",
+  "already_have_account": "දැනටමත් ගිණුමක් තිබේද?",
+  "signup_link": "ලියාපදිංචි වන්න",
+  "signin_link": "පිවිසෙන්න",
+
+  
+  "settings": {
+    "title": "සැකසුම්",
+    "subtitle": "ඔබේ අභිමතයන් කළමනාකරණය කරන්න",
+    "back": "පසුපසට",
+    "sections": "සැකසුම්",
+    
+    "general": "පොදු",
+    "general_desc": "මූලික යෙදුම් අභිමතයන්",
+    
+    "profile": "පැතිකඩ",
+    "profile_desc": "ඔබගේ ගිණුම් තොරතුරු",
+    
+    "notifications": "දැනුම්දීම්",
+    "notifications_desc": "දැනුම්දීම් අභිමතයන් කළමනාකරණය කරන්න",
+    
+    "privacy": "පෞද්ගලිකත්වය හා ආරක්ෂාව",
+    "privacy_desc": "දත්ත සහ පෞද්ගලිකත්ව සැකසුම්",
+    
+    "about": "මෙතෙක්",
+    "about_desc": "යෙදුම් තොරතුරු",
+    
+    "language": "භාෂාව",
+    "language_desc": "අතුරු මුහුණත භාෂාව තෝරන්න",
+    "language_note": "සියලුම AI ප්‍රතිචාර සහ ඇගයීම් සැමවිටම සිංහලෙන් ඇත. භාෂා සැකසුම අතුරු මුහුණත පමණක් වෙනස් කරයි.",
+    
+    "appearance": "පෙනුම",
+    "appearance_desc": "තේමාව සහ සංදර්ශන අභිමතයන් අභිරුචිකරණය කරන්න",
+    "light": "දීප්තිමත්",
+    "dark": "අඳුරු",
+    
+    "user_type": "පරිශීලක වර්ගය",
+    "name": "නම",
+    "name_placeholder": "ඔබගේ නම ඇතුලත් කරන්න",
+    "email": "විද්‍යුත් තැපෑල",
+    "email_placeholder": "ඔබගේ විද්‍යුත් තැපෑල ඇතුලත් කරන්න",
+    
+    "message_notifications": "පණිවිඩ දැනුම්දීම්",
+    "message_notifications_desc": "නව පණිවිඩ සඳහා දැනුම්දීම්",
+    
+    "evaluation_notifications": "ඇගයීම් දැනුම්දීම්",
+    "evaluation_notifications_desc": "ඇගයීම් සම්පූර්ණ වූ විට දැනුම් දෙන්න",
+    
+    "save_history": "සංවාද ඉතිහාසය සුරකින්න",
+    "save_history_desc": "සංවාද දේශීයව සුරකින්න",
+    
+    "data_collection": "දත්ත එකතු කිරීම",
+    "data_collection_desc": "පළපුරුද්ද වැඩිදියුණු කිරීම සඳහා",
+    
+    "delete_chats": "සියලුම සංවාද මකන්න",
+    "delete_confirm": "ඔබට සියලුම සංවාද ඉතිහාසය මැකීමට අවශ්‍ය බව විශ්වාසද?",
+    
+    "version": "ප්‍රභේදය",
+    "license": "බලපත්‍රය",
+    "terms": "නියම හා කොන්දේසි",
+    "privacy_policy": "පෞද්ගලිකත්ව ප්‍රතිපත්තිය",
+    
+    "save_changes": "වෙනස්කම් සුරකින්න"
+  }
+
 }
