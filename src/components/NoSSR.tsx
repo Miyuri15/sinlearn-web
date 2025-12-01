@@ -1,14 +1,15 @@
 "use client";
+
 import { useEffect, useState } from "react";
 
 export default function NoSSR({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReady(true);
   }, []);
 
-  if (!mounted) return null;
-
+  if (!ready) return null;
   return <>{children}</>;
 }
