@@ -40,16 +40,15 @@ export default function ProfileSettings() {
       title={t("settings.profile") || "Profile"}
       description={t("settings.profile_desc") || "Your account information"}
     >
-      {/* User Type */}
-      <div className="space-y-2">
+      {/* User Type (LOCKED - Not editable) */}
+      <div className="space-y-2 opacity-60 cursor-not-allowed">
         <label className="text-sm font-medium text-gray-900 dark:text-white">
           {t("settings.user_type") || "User Type"}
         </label>
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 pointer-events-none">
           <button
             type="button"
-            onClick={() => setUserType("student")}
             className={`flex-1 py-3 px-4 rounded-xl border transition ${
               userType === "student"
                 ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400"
@@ -61,7 +60,6 @@ export default function ProfileSettings() {
 
           <button
             type="button"
-            onClick={() => setUserType("teacher")}
             className={`flex-1 py-3 px-4 rounded-xl border transition ${
               userType === "teacher"
                 ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400"
@@ -71,6 +69,11 @@ export default function ProfileSettings() {
             👩‍🏫 {t("role_teacher") || "Teacher"}
           </button>
         </div>
+
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          {t("settings.user_type_locked") ||
+            "User type cannot be changed after registration."}
+        </p>
       </div>
 
       {/* Name Input */}
