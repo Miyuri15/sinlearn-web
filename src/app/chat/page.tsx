@@ -1,25 +1,86 @@
 "use client";
-
+import "@/lib/i18n";
 import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
 import MarkingRubic from "@/components/ui/MarkingRubic";
 import { Menu, Mic, Paperclip, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
 
-export default function Home() {
-  const { t, i18n } = useTranslation("chat");
+export default function Chat() {
+  const { t } = useTranslation("chat");
+
+  const [loading, setLoading] = useState(true);
+  const [isRubricOpen, setIsRubricOpen] = useState(false);
+
+  const toggleRubricSidebar = () => {
+    setIsRubricOpen(!isRubricOpen);
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex bg-gray-100">
+        {/* LEFT SIDEBAR SKELETON */}
+        <div className="w-16 bg-white border-r flex items-start justify-center p-4">
+          <div className="w-6 h-6 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+
+        {/* MAIN SKELETON */}
+        <div className="flex-1 flex flex-col">
+          {/* TOP BAR */}
+          <div className="flex items-center justify-between bg-white p-4 border-b">
+            {/* Left buttons */}
+            <div className="flex items-center gap-3">
+              <div className="w-32 h-10 bg-gray-200 rounded animate-pulse"></div>
+              <div className="w-36 h-10 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+
+            {/* Right buttons */}
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+              <div className="w-20 h-10 bg-gray-200 rounded animate-pulse"></div>
+              <div className="w-20 h-10 bg-gray-200 rounded animate-pulse"></div>
+              <div className="w-9 h-9 bg-gray-200 rounded-lg animate-pulse"></div>
+            </div>
+          </div>
+
+          {/* CHAT AREA SKELETON */}
+          <div className="flex-1 flex items-center justify-center text-center px-4">
+            <div className="space-y-4 w-full max-w-sm">
+              <div className="h-8 bg-gray-200 rounded w-3/4 mx-auto animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto animate-pulse"></div>
+            </div>
+          </div>
+
+          {/* INPUT BAR SKELETON */}
+          <div className="p-4 border-t bg-white">
+            <div className="flex items-center bg-gray-100 rounded-xl px-4 py-3 border gap-3">
+              <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
+              <div className="flex-1 h-5 bg-gray-200 rounded animate-pulse"></div>
+              <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
+              <div className="w-8 h-8 bg-gray-200 rounded-lg animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <main className="flex min-h-screen bg-gray-100 text-gray-900">
+    <main className="flex min-h-screen bg-gray-100 text-gray-900 relative overflow-hidden">
       {/* LEFT SIDEBAR */}
       <div className="w-16 bg-white border-r flex items-start justify-center p-4">
         <Menu className="w-6 h-6 text-gray-700 cursor-pointer" />
       </div>
 
-      {/* MAIN MIDDLE SECTION */}
+      {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col">
         {/* TOP BAR */}
         <div className="flex items-center justify-between bg-white p-4 border-b">
-          {/* Left buttons */}
           <div className="flex items-center gap-3">
             <button className="px-4 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium border border-blue-200">
               Learning Mode
@@ -33,7 +94,10 @@ export default function Home() {
           <div className="flex items-center gap-4">
             <ChatLanguageToggle />
 
-            <button className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700">
+            <button
+              onClick={() => toggleRubricSidebar()}
+              className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700"
+            >
               Rubric
             </button>
 
@@ -58,7 +122,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* BOTTOM INPUT BAR */}
+        {/* INPUT BAR */}
         <div className="p-4 border-t bg-white">
           <div className="flex items-center bg-gray-100 rounded-xl px-4 py-2 border">
             <button className="text-gray-600">
@@ -82,11 +146,19 @@ export default function Home() {
       </div>
 
       {/* RIGHT SIDEBAR */}
-      <MarkingRubic
-        onClose={() => console.log("Closed")}
-        onSelectRubric={(id) => console.log("Selected:", id)}
-        onUpload={() => console.log("Upload pressed")}
-      />
+      <div
+        className={`
+          fixed right-0 top-0 h-full transition-transform duration-300
+          ${isRubricOpen ? "translate-x-0" : "translate-x-full"}
+        `}
+      >
+        <MarkingRubic
+          loading={loading}
+          onClose={() => setIsRubricOpen(false)}
+          onSelectRubric={(id) => console.log("Selected:", id)}
+          onUpload={() => console.log("Upload pressed")}
+        />
+      </div>
     </main>
   );
 }

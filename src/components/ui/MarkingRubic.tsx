@@ -2,17 +2,33 @@
 
 import { ChevronDown, Upload } from "lucide-react";
 
-interface MarkingRubicProps {
+type MarkingRubicProps = Readonly<{
+  loading?: boolean;
   onClose?: () => void;
   onSelectRubric?: (rubricId: string) => void;
   onUpload?: () => void;
-}
+}>;
 
 export default function MarkingRubic({
+  loading = false,
   onClose,
   onSelectRubric,
   onUpload,
 }: MarkingRubicProps) {
+  if (loading) {
+    return (
+      <div className="min-h-screen w-80 bg-white border-l p-6">
+        <div className="w-32 h-6 bg-gray-200 mb-6 rounded animate-pulse"></div>
+
+        <div className="space-y-3">
+          <div className="w-full h-10 bg-gray-200 rounded animate-pulse"></div>
+          <div className="w-40 h-4 bg-gray-200 rounded animate-pulse"></div>
+          <div className="w-full h-24 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-80 bg-white border-l p-6 h-full flex flex-col">
       {/* Header */}
