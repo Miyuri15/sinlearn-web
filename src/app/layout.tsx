@@ -13,31 +13,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              (function() {
-                try {
-                  // Get stored theme or system preference
-                  const stored = localStorage.getItem('theme');
-                  const system = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                  const theme = stored || system;
-                  
-                  // Apply theme immediately to prevent flash
-                  document.documentElement.classList.add(theme);
-                  
-                  // Also add to body for Tailwind
-                  if (theme === 'dark') {
-                    document.body.classList.add('dark');
-                  }
-                } catch (e) {
-                  console.error('Theme initialization error:', e);
-                }
-              })();
-            `,
+      (function() {
+        try {
+          const stored = localStorage.getItem("sinlearn_theme");
+          const system = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          const theme = stored || system;
+
+          document.documentElement.classList.add(theme);
+        } catch (e) {}
+      })();
+    `,
           }}
         />
       </head>
-      <body className="min-h-screen">
-        {children}
-      </body>
+      <body className="min-h-screen">{children}</body>
     </html>
   );
 }
