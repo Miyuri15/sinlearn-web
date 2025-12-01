@@ -10,6 +10,10 @@
   "role_teacher" : "Teacher",
   "role_student" : "Student" ,
   "name_placeholder": "Enter your name",
+  "dont_have_account": "Don't have an account?",
+  "already_have_account": "Already have an account?",
+  "signup_link": "Sign Up",
+  "signin_link": "Sign In",
   
   
   "settings": {

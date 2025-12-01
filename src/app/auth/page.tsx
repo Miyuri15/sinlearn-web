@@ -7,9 +7,14 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useRouter } from "next/navigation"; 
 import LanguageToggle from "@/components/language/LanguageToggle";
+import Link from "next/link";
 
-export default function LoginPage() {
-  const [tab, setTab] = useState<"signin" | "signup">("signin");
+interface AuthPageProps {
+  defaultTab?: "signin" | "signup";
+}
+
+export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
+  const [tab, setTab] = useState<"signin" | "signup">(defaultTab);
   const [role, setRole] = useState<"student" | "teacher">("student");
   const { t, i18n } = useTranslation("common");
   const router = useRouter();
@@ -38,7 +43,8 @@ export default function LoginPage() {
       router.push("/dashboard");
     } else {
       console.log(`Signing up as ${role}...`);
-      setTab("signin");
+      // Redirect to sign-in after successful signup
+      router.push("/auth/sign-in");
     }
   };
 
@@ -46,7 +52,7 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
         <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl p-10 shadow-xl">
-          {/* Loading skeleton - same as before */}
+          {/* Loading skeleton */}
         </div>
       </div>
     );
@@ -60,7 +66,7 @@ export default function LoginPage() {
 
       {/* LOGIN CARD */}
       <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl p-10 shadow-xl border border-gray-200 dark:border-gray-700">
-        {/* Logo - REMOVED the dark:invert filter */}
+        {/* Logo */}
         <div className="flex justify-center mb-6">
           <Image
             src="/images/AuthPage.png"
@@ -68,7 +74,6 @@ export default function LoginPage() {
             width={80}
             height={80}
             priority
-            // Removed: className="dark:invert dark:brightness-90"
           />
         </div>
 
@@ -81,29 +86,29 @@ export default function LoginPage() {
           {t("subtitle")}
         </p>
 
-        {/* Tabs */}
+        {/* Tabs - Now using Next.js Link for proper navigation */}
         <div className="flex rounded-xl p-1 mb-6 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
-          <button
-            onClick={() => setTab("signin")}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
+          <Link
+            href="/auth/sign-in"
+            className={`flex-1 py-2 rounded-xl text-sm font-medium transition text-center ${
               tab === "signin"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400"
             }`}
           >
             {t("signin")}
-          </button>
+          </Link>
 
-          <button
-            onClick={() => setTab("signup")}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
+          <Link
+            href="/auth/sign-up"
+            className={`flex-1 py-2 rounded-xl text-sm font-medium transition text-center ${
               tab === "signup"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400"
             }`}
           >
             {t("signup")}
-          </button>
+          </Link>
         </div>
 
         {/* Form */}
@@ -113,7 +118,11 @@ export default function LoginPage() {
               <label className="block text-sm mb-1 text-gray-900 dark:text-white">
                 {t("name")} 
               </label>
-              <Input type="text" placeholder={t("name_placeholder") || "Your Name"} /> 
+              <Input 
+                type="text" 
+                placeholder={t("name_placeholder") || "Your Name"}
+                className="text-gray-900 dark:text-white"
+              /> 
             </div>
           )}
 
@@ -122,7 +131,11 @@ export default function LoginPage() {
             <label className="block text-sm mb-1 text-gray-900 dark:text-white">
               {t("email")}
             </label>
-            <Input type="email" placeholder="example@email.com" />
+            <Input 
+              type="email" 
+              placeholder="example@email.com"
+              className="text-gray-900 dark:text-white"
+            />
           </div>
 
           {/* Password input */}
@@ -130,7 +143,11 @@ export default function LoginPage() {
             <label className="block text-sm mb-1 text-gray-900 dark:text-white">
               {t("password")}
             </label>
-            <Input type="password" placeholder="••••••••" />
+            <Input 
+              type="password" 
+              placeholder="••••••••"
+              className="text-gray-900 dark:text-white"
+            />
           </div>
           
           {/* Conditional Role selection */}
@@ -168,9 +185,36 @@ export default function LoginPage() {
             </div>
           )}
 
-          <Button type="submit">
+          <Button type="submit" className="w-full">
             {tab === "signin" ? t("button_signin") : t("button_signup")}
           </Button>
+
+          {/* Switch between sign-in and sign-up */}
+          <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {tab === "signin" ? (
+                <>
+                  {t("dont_have_account") || "Don't have an account?"}{" "}
+                  <Link 
+                    href="/auth/sign-up" 
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+                  >
+                    {t("signup_link") || "Sign Up"}
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {t("already_have_account") || "Already have an account?"}{" "}
+                  <Link 
+                    href="/auth/sign-in" 
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+                  >
+                    {t("signin_link") || "Sign In"}
+                  </Link>
+                </>
+              )}
+            </p>
+          </div>
         </form>
       </div>
     </div>
