@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 "use client";
 import "@/lib/i18n";
 import Image from "next/image";
