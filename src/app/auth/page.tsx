@@ -1,7 +1,7 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 "use client";
+
+
 import "@/lib/i18n";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
@@ -15,6 +15,7 @@ import Link from "next/link";
 // LocalStorage helpers
 import { setUser, getUser } from "@/lib/localStore";
 import { setLanguage, getLanguage } from "@/lib/localStore";
+import NoSSR from "@/components/NoSSR";
 
 interface AuthPageProps {
   defaultTab?: "signin" | "signup";
@@ -93,6 +94,7 @@ const handleSubmit = (e: React.FormEvent) => {
   }
 
   return (
+    <NoSSR>
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
         <LanguageToggle />
@@ -249,5 +251,6 @@ const handleSubmit = (e: React.FormEvent) => {
         </form>
       </div>
     </div>
+    </NoSSR>
   );
 }
