@@ -1,6 +1,7 @@
 import "@/lib/i18n";
 import { Mic, Paperclip, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { KeyboardEvent } from "react";
 
 type InputBarProps = Readonly<{
   isRecording: boolean;
@@ -8,7 +9,7 @@ type InputBarProps = Readonly<{
   transcript: string;
   message: string;
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onSend?: () => void;
+  onSend: () => void;
 }>;
 
 export default function InputBar({
@@ -20,23 +21,36 @@ export default function InputBar({
   onSend,
 }: InputBarProps) {
   const { t } = useTranslation("chat");
+
+  // SEND WHEN PRESS ENTER
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      onSend();
+    }
+  };
+
   return (
     <div className="flex items-center bg-gray-100 rounded-xl px-4 py-2 border">
+      {/* ATTACHMENT */}
       <button className="text-gray-600">
         <Paperclip className="w-5 h-5" />
       </button>
 
+      {/* INPUT */}
       <textarea
         placeholder={t("typing_placeholder")}
         value={isRecording ? transcript : message}
         onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
         rows={1}
-        disabled={isRecording} // prevent editing during recording
+        disabled={isRecording} // block editing when recording
         className={`flex-1 bg-transparent outline-none px-3 resize-none overflow-hidden leading-relaxed max-h-40 ${
           isRecording ? "text-gray-700 italic" : "text-gray-800"
         }`}
       ></textarea>
 
+      {/* MIC BUTTON */}
       <button
         className={`mx-2 transition-all duration-300 ${
           isRecording ? "text-red-600 scale-110" : "text-gray-600"
@@ -46,7 +60,11 @@ export default function InputBar({
         <Mic className="w-6 h-6" />
       </button>
 
-      <button className="bg-blue-600 text-white rounded-lg p-2">
+      {/* SEND BUTTON */}
+      <button
+        onClick={onSend}
+        className="bg-blue-600 hover:bg-blue-700 transition text-white rounded-lg p-2"
+      >
         <Send className="w-5 h-5" />
       </button>
     </div>

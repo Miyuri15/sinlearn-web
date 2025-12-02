@@ -8,10 +8,12 @@ import { useEffect, useState } from "react";
 import InputBar from "./components/InputBar";
 import RecordBar from "./components/RecordBar";
 import FullPageSkeleton from "./components/FullPageSkeleton";
+import EvaluationCard from "./components/EvaluationCard";
 
 export default function Chat() {
   const { t, i18n } = useTranslation("chat");
-  const [mode, setMode] = useState<"learning" | "evaluation">("learning");
+
+  // --- STATES ---
   const [loading, setLoading] = useState(true);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -19,9 +21,12 @@ export default function Chat() {
   const [message, setMessage] = useState("");
   const [isI18nReady, setIsI18nReady] = useState(false);
 
+  const [mode, setMode] = useState<"learning" | "evaluation">("learning");
+  const [messages, setMessages] = useState<any[]>([]);
+
+  // --- INPUT HANDLERS ---
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
-
     e.target.style.height = "auto";
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
@@ -36,10 +41,49 @@ export default function Chat() {
     setTranscript("");
   };
 
-  useEffect(() => {
-    setTranscript("student asking about solar systems…");
-  }, []);
+  // --- HARDCODED LEARNING MODE RESPONSE ---
+  const mockLearningReply =
+    "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
 
+  // --- HARDCODED EVALUATION REPORT ---
+  const mockEvaluation = {
+    grade: "B+",
+    coverage: 76,
+    accuracy: 85,
+    clarity: 72,
+    strengths: ["Correct substitution", "Steps shown clearly"],
+    weaknesses: ["Could improve explanation clarity"],
+    missing: ["Final conclusion missing"],
+    feedback:
+      "Your answer is mostly correct. However, adding a final conclusion would improve clarity.",
+  };
+
+  // --- SEND BUTTON HANDLER ---
+  const handleSend = () => {
+    if (!message.trim()) return;
+
+    const userMsg = { role: "user", content: message };
+
+    if (mode === "learning") {
+      // Add user msg + hardcoded AI
+      setMessages((prev) => [
+        ...prev,
+        userMsg,
+        { role: "assistant", content: mockLearningReply },
+      ]);
+    } else {
+      // Add user msg + evaluation card
+      setMessages((prev) => [
+        ...prev,
+        userMsg,
+        { role: "evaluation", content: mockEvaluation },
+      ]);
+    }
+
+    setMessage("");
+  };
+
+  // --- I18N LOADING ---
   useEffect(() => {
     if (i18n.isInitialized) {
       setIsI18nReady(true);
@@ -47,20 +91,16 @@ export default function Chat() {
       return;
     }
 
-    const handleInit = () => {
+    const init = () => {
       setIsI18nReady(true);
       setLoading(false);
     };
 
-    i18n.on("initialized", handleInit);
-    return () => {
-      i18n.off("initialized", handleInit);
-    };
+    i18n.on("initialized", init);
+    return () => i18n.off("initialized", init);
   }, [i18n]);
 
-  if (!isI18nReady || loading) {
-    return <FullPageSkeleton />;
-  }
+  if (!isI18nReady || loading) return <FullPageSkeleton />;
 
   return (
     <main className="flex min-h-screen bg-gray-100 text-gray-900 relative overflow-hidden">
@@ -73,10 +113,12 @@ export default function Chat() {
       <div className="flex-1 flex flex-col">
         {/* TOP BAR */}
         <div className="flex items-center justify-between bg-white p-4 border-b">
+          {/* MODE TOGGLE */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMode("learning")}
-              className={`px-4 py-2 rounded-lg font-medium border ${
+              className={`px-4 py-2 rounded-lg font-medium border 
+              ${
                 mode === "learning"
                   ? "bg-blue-50 text-blue-700 border-blue-300"
                   : "bg-gray-100 text-gray-700"
@@ -87,7 +129,8 @@ export default function Chat() {
 
             <button
               onClick={() => setMode("evaluation")}
-              className={`px-4 py-2 rounded-lg font-medium border ${
+              className={`px-4 py-2 rounded-lg font-medium border 
+              ${
                 mode === "evaluation"
                   ? "bg-blue-50 text-blue-700 border-blue-300"
                   : "bg-gray-100 text-gray-700"
@@ -97,7 +140,7 @@ export default function Chat() {
             </button>
           </div>
 
-          {/* Right side controls */}
+          {/* RIGHT OPTIONS */}
           <div className="flex items-center gap-4">
             <ChatLanguageToggle />
 
@@ -118,14 +161,39 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* CENTER CONTENT */}
-        <div className="flex-1 flex items-center justify-center text-center px-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-700">
-              {t("start_conversation")}
-            </h2>
-            <p className="text-gray-500 mt-2">{t("start_conversation_sub")}</p>
+        {/* CENTER CONTENT (only show when no messages) */}
+        {messages.length === 0 && (
+          <div className="flex-1 flex items-center justify-center text-center px-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-700">
+                {t("start_conversation")}
+              </h2>
+              <p className="text-gray-500 mt-2">
+                {t("start_conversation_sub")}
+              </p>
+            </div>
           </div>
+        )}
+
+        {/* MESSAGE AREA */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {messages.map((m, i) => (
+            <div key={i}>
+              {m.role === "user" && (
+                <div className="bg-blue-100 p-3 rounded-lg max-w-lg ml-auto text-blue-900">
+                  {m.content}
+                </div>
+              )}
+
+              {m.role === "assistant" && (
+                <div className="bg-white p-4 rounded-lg shadow max-w-xl">
+                  {m.content}
+                </div>
+              )}
+
+              {m.role === "evaluation" && <EvaluationCard data={m.content} />}
+            </div>
+          ))}
         </div>
 
         {/* INPUT AREA */}
@@ -143,6 +211,7 @@ export default function Chat() {
             transcript={transcript}
             message={message}
             handleInputChange={handleInputChange}
+            onSend={handleSend}
           />
         </div>
       </div>
