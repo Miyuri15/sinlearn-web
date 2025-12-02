@@ -32,7 +32,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen transition-colors duration-300">
-        {children}
+        <I18nProvider>{children}</I18nProvider>
       </body>
     </html>
   );
