@@ -72,37 +72,37 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
+      <div className="absolute top-5 right-5 z-50 flex items-center gap-2.5">
         <LanguageToggle />
       </div>
 
       {/* LOGIN CARD */}
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl p-10 shadow-xl border border-gray-200 dark:border-gray-700">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-200 dark:border-gray-700">
         {/* Logo */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-5">
           <Image
             src="/images/AuthPage.png"
             alt="SinLearn Logo"
-            width={80}
-            height={80}
+            width={70}
+            height={70}
             priority
           />
         </div>
 
         {/* Title */}
-        <h1 className="text-center text-3xl font-semibold mb-1 text-gray-900 dark:text-white">
+        <h1 className="text-center text-2xl font-semibold mb-1.5 text-gray-900 dark:text-white">
           {t("title")}
         </h1>
 
-        <p className="text-center text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-center text-sm text-gray-600 dark:text-gray-400 mb-5">
           {t("subtitle")}
         </p>
 
         {/* TABS */}
-        <div className="flex rounded-xl p-1 mb-6 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+        <div className="flex rounded-lg p-1 mb-5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
           <Link
             href="/auth/sign-in"
-            className={`flex-1 py-2 rounded-xl text-sm font-medium transition text-center ${
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition text-center ${
               tab === "signin"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400"
@@ -113,7 +113,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
 
           <Link
             href="/auth/sign-up"
-            className={`flex-1 py-2 rounded-xl text-sm font-medium transition text-center ${
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition text-center ${
               tab === "signup"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-400"
@@ -124,52 +124,52 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         </div>
 
         {/* FORM */}
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-3.5" onSubmit={handleSubmit}>
           {/* Name only for sign-up */}
           {tab === "signup" && (
             <div>
-              <label className="block text-sm mb-1 text-gray-900 dark:text-white">
+              <label className="block text-sm mb-1.5 text-gray-900 dark:text-white">
                 {t("name")}
               </label>
               <Input
                 type="text"
                 placeholder={t("name_placeholder") || "Your Name"}
-                className="text-gray-900 dark:text-white"
+                className="text-gray-900 dark:text-white py-2.5"
               />
             </div>
           )}
 
           {/* Email input */}
           <div>
-            <label className="block text-sm mb-1 text-gray-900 dark:text-white">
+            <label className="block text-sm mb-1.5 text-gray-900 dark:text-white">
               {t("email")}
             </label>
             <Input
               type="email"
               placeholder="example@email.com"
-              className="text-gray-900 dark:text-white"
+              className="text-gray-900 dark:text-white py-2.5"
             />
           </div>
 
           {/* Password */}
           <div>
-            <label className="block text-sm mb-1 text-gray-900 dark:text-white">
+            <label className="block text-sm mb-1.5 text-gray-900 dark:text-white">
               {t("password")}
             </label>
             <Input
               type="password"
               placeholder="••••••••"
-              className="text-gray-900 dark:text-white"
+              className="text-gray-900 dark:text-white py-2.5"
             />
           </div>
 
           {/* Role selector (signup only) */}
           {tab === "signup" && (
-            <div className="flex gap-4">
+            <div className="flex gap-3.5">
               <button
                 type="button"
                 onClick={() => setRole("student")}
-                className={`flex-1 py-4 flex flex-col items-center justify-center space-y-1 rounded-xl transition border ${
+                className={`flex-1 py-3.5 flex flex-col items-center justify-center space-y-1 rounded-lg transition border ${
                   role === "student"
                     ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 shadow-inner"
                     : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
@@ -182,7 +182,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
               <button
                 type="button"
                 onClick={() => setRole("teacher")}
-                className={`flex-1 py-4 flex flex-col items-center justify-center space-y-1 rounded-xl transition border ${
+                className={`flex-1 py-3.5 flex flex-col items-center justify-center space-y-1 rounded-lg transition border ${
                   role === "teacher"
                     ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 shadow-inner"
                     : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
@@ -194,11 +194,11 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
             </div>
           )}
 
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full py-2.5">
             {tab === "signin" ? t("button_signin") : t("button_signup")}
           </Button>
 
-          <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="text-center pt-3.5 border-t border-gray-200 dark:border-gray-700">
             {tab === "signin" ? (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {t("dont_have_account")}{" "}
