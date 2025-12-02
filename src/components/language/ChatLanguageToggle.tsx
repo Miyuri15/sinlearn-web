@@ -8,8 +8,6 @@ export default function LanguageToggle() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // This is necessary to avoid SSR/hydration mismatches with i18n.language
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReady(true);
   }, []);
 
@@ -22,27 +20,40 @@ export default function LanguageToggle() {
   };
 
   return (
-    <div className="flex items-center gap-1 bg-gray-100 border rounded-full px-2 py-1">
+    <div
+      className="
+        flex items-center gap-1 px-2 py-1 rounded-full border
+        bg-gray-100 border-gray-300
+        dark:bg-[#111111] dark:border-[#2a2a2a]
+        transition-colors
+      "
+    >
+      {/* Sinhala Button */}
       <button
         onClick={() => change("si")}
-        className={`px-3 py-1 text-sm rounded-full transition
+        className={`
+          px-3 py-1 text-sm rounded-full transition
           ${
             current === "si"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:text-gray-800"
-          }`}
+              ? "bg-blue-600 text-white dark:bg-blue-500"
+              : "text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+          }
+        `}
       >
         සිංහල
       </button>
 
+      {/* English Button */}
       <button
         onClick={() => change("en")}
-        className={`px-3 py-1 text-sm rounded-full transition
+        className={`
+          px-3 py-1 text-sm rounded-full transition
           ${
             current === "en"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:text-gray-800"
-          }`}
+              ? "bg-blue-600 text-white dark:bg-blue-500"
+              : "text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+          }
+        `}
       >
         English
       </button>

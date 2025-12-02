@@ -1,7 +1,7 @@
 "use client";
 
 import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
-import MarkingRubic from "@/app/chat/components/MarkingRubic";
+import MarkingRubic from "./components/MarkingRubic";
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
@@ -93,25 +93,24 @@ export default function Chat() {
   }, [messages]);
 
   return (
-    <main className="flex min-h-screen bg-gray-100 text-gray-900 relative overflow-hidden">
+    <main className="flex min-h-screen bg-gray-100 text-gray-900 dark:bg-[#0C0C0C] dark:text-gray-200 relative overflow-hidden">
       {/* LEFT SIDEBAR */}
-      <div className="w-16 bg-white border-r flex items-start justify-center p-4">
-        <Menu className="w-6 h-6 text-gray-700 cursor-pointer" />
+      <div className="w-16 bg-white border-r dark:bg-[#111111] dark:border-[#2a2a2a] flex items-start justify-center p-4">
+        <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300 cursor-pointer" />
       </div>
 
       {/* MAIN AREA */}
       <div className="flex flex-col flex-1 min-h-screen h-screen justify-between">
         {/* TOP BAR */}
-        <div className="flex items-center justify-between bg-white p-4 border-b">
+        <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b dark:border-[#2a2a2a]">
           {/* MODE TOGGLE */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMode("learning")}
-              className={`px-4 py-2 rounded-lg font-medium border 
-              ${
+              className={`px-4 py-2 rounded-lg font-medium border ${
                 mode === "learning"
-                  ? "bg-blue-50 text-blue-700 border-blue-300"
-                  : "bg-gray-100 text-gray-700"
+                  ? "bg-blue-50 text-blue-700 border-blue-300 dark:bg-[#1E3A8A]/40 dark:text-blue-200 dark:border-blue-900"
+                  : "bg-gray-100 text-gray-700 dark:bg-[#222] dark:text-gray-300 dark:border-[#333]"
               }`}
             >
               {t("learning_mode")}
@@ -119,11 +118,10 @@ export default function Chat() {
 
             <button
               onClick={() => setMode("evaluation")}
-              className={`px-4 py-2 rounded-lg font-medium border 
-              ${
+              className={`px-4 py-2 rounded-lg font-medium border ${
                 mode === "evaluation"
-                  ? "bg-blue-50 text-blue-700 border-blue-300"
-                  : "bg-gray-100 text-gray-700"
+                  ? "bg-blue-50 text-blue-700 border-blue-300 dark:bg-[#1E3A8A]/40 dark:text-blue-200 dark:border-blue-900"
+                  : "bg-gray-100 text-gray-700 dark:bg-[#222] dark:text-gray-300 dark:border-[#333]"
               }`}
             >
               {t("evaluation_mode")}
@@ -136,31 +134,31 @@ export default function Chat() {
 
             <button
               onClick={() => setIsRubricOpen(true)}
-              className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700"
+              className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200"
             >
               Rubric
             </button>
 
-            <button className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700">
+            <button className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200">
               Syllabus
             </button>
 
-            <button className="w-9 h-9 flex items-center justify-center border rounded-lg bg-white text-gray-700">
+            <button className="w-9 h-9 flex items-center justify-center border rounded-lg bg-white text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200">
               +
             </button>
           </div>
         </div>
 
         {/* MESSAGE AREA */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 flex flex-col">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 flex flex-col bg-gray-100 dark:bg-[#0C0C0C]">
           {/* CENTER CONTENT (only show when no messages) */}
           {messages.length === 0 && (
             <div className="flex-1 flex items-center justify-center text-center px-4">
               <div>
-                <h2 className="text-xl font-semibold text-gray-700">
+                <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200">
                   {t("start_conversation")}
                 </h2>
-                <p className="text-gray-500 mt-2">
+                <p className="text-gray-500 mt-2 dark:text-gray-400">
                   {t("start_conversation_sub")}
                 </p>
               </div>
@@ -169,13 +167,13 @@ export default function Chat() {
           {messages.map((m, i) => (
             <div key={i}>
               {m.role === "user" && (
-                <div className="bg-blue-100 p-3 rounded-lg max-w-xl ml-auto text-blue-900 break-all">
+                <div className="p-3 rounded-lg max-w-xl ml-auto break-all bg-blue-100 text-blue-900 dark:bg-[#1E3A8A] dark:text-blue-100">
                   {m.content}
                 </div>
               )}
 
               {m.role === "assistant" && (
-                <div className="bg-white p-4 rounded-lg shadow max-w-xl">
+                <div className="p-4 rounded-lg shadow max-w-xl bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#1F2937] text-gray-900 dark:text-gray-200">
                   {m.content}
                 </div>
               )}
@@ -187,7 +185,7 @@ export default function Chat() {
         </div>
 
         {/* INPUT AREA */}
-        <div className="p-4 border-t bg-white">
+        <div className="p-4 border-t bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
           {isRecording && (
             <RecordBar
               onCancelRecording={handleCancelRecording}
@@ -196,14 +194,14 @@ export default function Chat() {
           )}
 
           <div className="mb-3">
-            <label className="text-sm text-gray-600 font-medium mr-2">
+            <label className="text-sm text-gray-600 dark:text-gray-300 font-medium mr-2">
               {t("response_level")}:
             </label>
 
             <select
               value={responseLevel}
               onChange={(e) => setResponseLevel(e.target.value)}
-              className="border text-sm rounded-lg px-3 py-1 bg-white text-gray-700"
+              className="border rounded-lg px-3 py-1 text-sm bg-white text-gray-700 dark:bg-[#1A1A1A] dark:text-gray-200 dark:border-[#2a2a2a] dark:focus:ring-indigo-500"
             >
               <option>Grades 1–5</option>
               <option>Grades 6–8</option>
