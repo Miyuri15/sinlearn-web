@@ -1,6 +1,4 @@
-
 "use client";
-
 
 import "@/lib/i18n";
 import Image from "next/image";
@@ -8,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation";
 import LanguageToggle from "@/components/language/LanguageToggle";
 import Link from "next/link";
 
@@ -49,39 +47,39 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
     };
   }, [i18n]);
 
-const handleSubmit = (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const emailInput = (
-    document.querySelector('input[type="email"]') as HTMLInputElement
-  )?.value;
+    const emailInput = (
+      document.querySelector('input[type="email"]') as HTMLInputElement
+    )?.value;
 
-  const nameInput = (
-    document.querySelector('input[type="text"]') as HTMLInputElement
-  )?.value;
+    const nameInput = (
+      document.querySelector('input[type="text"]') as HTMLInputElement
+    )?.value;
 
-  if (tab === "signin") {
-    // Load existing user if exists
-    const existing = getUser();
+    if (tab === "signin") {
+      // Load existing user if exists
+      const existing = getUser();
 
-    setUser({
-      name: existing?.name || nameInput || "User",
-      email: emailInput || existing?.email || "",
-      role: existing?.role || "student",
-    });
+      setUser({
+        name: existing?.name || nameInput || "User",
+        email: emailInput || existing?.email || "",
+        role: existing?.role || "student",
+      });
 
-    router.push("/dashboard");
-  } else {
-    // Signup → save user
-    setUser({
-      name: nameInput || "User",
-      email: emailInput || "",
-      role: role,
-    });
+      router.push("/dashboard");
+    } else {
+      // Signup → save user
+      setUser({
+        name: nameInput || "User",
+        email: emailInput || "",
+        role: role,
+      });
 
-    router.push("/auth/sign-in");
-  }
-};
+      router.push("/auth/sign-in");
+    }
+  };
 
   if (!isI18nReady) {
     return (
@@ -94,7 +92,6 @@ const handleSubmit = (e: React.FormEvent) => {
   }
 
   return (
-    <NoSSR>
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
         <LanguageToggle />
@@ -251,6 +248,5 @@ const handleSubmit = (e: React.FormEvent) => {
         </form>
       </div>
     </div>
-    </NoSSR>
   );
 }
