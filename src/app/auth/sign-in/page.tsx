@@ -1,5 +1,10 @@
+"use client";
+
+import NoSSR from "@/components/NoSSR";
 import AuthPage from "../page";
 
 export default function SignInPage() {
-  return <AuthPage defaultTab="signin" />;
+  return <NoSSR>
+  <AuthPage defaultTab="signin" />;
+  </NoSSR>
 }

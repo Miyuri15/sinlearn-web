@@ -1,4 +1,5 @@
 "use client";
+
 import "@/lib/i18n";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +11,7 @@ import ProfileSettings from "@/components/settings/ProfileSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import PrivacySettings from "@/components/settings/PrivacySettings";
 import LanguageToggle from "@/components/language/LanguageToggle";
+import NoSSR from "@/components/NoSSR";
 
 export default function SettingsPage() {
   const { t } = useTranslation("common");
@@ -30,11 +32,9 @@ export default function SettingsPage() {
   ];
 
   return (
+    <NoSSR>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-                <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
-          <LanguageToggle />
-        </div>
 
         {/* Header */}
         <div className="mb-8">
@@ -159,5 +159,6 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+    </NoSSR>
   );
 }
