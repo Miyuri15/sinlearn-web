@@ -11,7 +11,7 @@ import FullPageSkeleton from "./components/FullPageSkeleton";
 
 export default function Chat() {
   const { t, i18n } = useTranslation("chat");
-
+  const [mode, setMode] = useState<"learning" | "evaluation">("learning");
   const [loading, setLoading] = useState(true);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -74,10 +74,25 @@ export default function Chat() {
         {/* TOP BAR */}
         <div className="flex items-center justify-between bg-white p-4 border-b">
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium border border-blue-200">
+            <button
+              onClick={() => setMode("learning")}
+              className={`px-4 py-2 rounded-lg font-medium border ${
+                mode === "learning"
+                  ? "bg-blue-50 text-blue-700 border-blue-300"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
               {t("learning_mode")}
             </button>
-            <button className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium border">
+
+            <button
+              onClick={() => setMode("evaluation")}
+              className={`px-4 py-2 rounded-lg font-medium border ${
+                mode === "evaluation"
+                  ? "bg-blue-50 text-blue-700 border-blue-300"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
               {t("evaluation_mode")}
             </button>
           </div>

@@ -8,6 +8,7 @@ type InputBarProps = Readonly<{
   transcript: string;
   message: string;
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onSend?: () => void;
 }>;
 
 export default function InputBar({
@@ -16,6 +17,7 @@ export default function InputBar({
   transcript,
   message,
   handleInputChange,
+  onSend,
 }: InputBarProps) {
   const { t } = useTranslation("chat");
   return (
