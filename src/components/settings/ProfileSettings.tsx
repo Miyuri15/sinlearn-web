@@ -71,8 +71,8 @@ export default function ProfileSettings() {
         </div>
 
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          {t("settings.user_type_locked") ||
-            "User type cannot be changed after registration."}
+          {/* {t("settings.user_type_locked") || } */
+          "User type cannot be changed after registration."}
         </p>
       </div>
 

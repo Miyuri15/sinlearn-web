@@ -15,6 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Standard responsive viewport */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+        
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -31,7 +34,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen">
+      <body className="min-h-screen transition-colors duration-300">
         <I18nProvider>{children}</I18nProvider>
       </body>
     </html>

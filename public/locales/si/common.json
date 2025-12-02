@@ -51,6 +51,8 @@
     "name_placeholder": "ඔබගේ නම ඇතුලත් කරන්න",
     "email": "විද්‍යුත් තැපෑල",
     "email_placeholder": "ඔබගේ විද්‍යුත් තැපෑල ඇතුලත් කරන්න",
+    "settings.user_type_locked": "පරිශීලක වර්ගය අගුලු දමා ඇත",
+
     
     "message_notifications": "පණිවිඩ දැනුම්දීම්",
     "message_notifications_desc": "නව පණිවිඩ සඳහා දැනුම්දීම්",
