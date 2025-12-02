@@ -13,7 +13,7 @@ import Link from "next/link";
 import { setUser, getUser, getLanguage } from "@/lib/localStore";
 
 interface AuthPageProps {
-  defaultTab?: "signin" | "signup";
+  readonly defaultTab?: "signin" | "signup";
 }
 
 export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
