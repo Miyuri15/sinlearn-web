@@ -1,12 +1,17 @@
 import "./globals.css";
 import type { ReactNode } from "react";
+import I18nProvider from "./providers/I18nProvider";
 
 export const metadata = {
   title: "SinLearn",
   description: "AI-Powered Sinhala Educational Assistant",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  readonly children: ReactNode;
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -26,7 +31,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }}
         />
       </head>
-      <body className="min-h-screen">{children}</body>
+      <body className="min-h-screen">
+        <I18nProvider>{children}</I18nProvider>
+      </body>
     </html>
   );
 }
