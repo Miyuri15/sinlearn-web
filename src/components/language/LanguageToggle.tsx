@@ -3,6 +3,12 @@ import "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 
+// LocalStorage helpers for language
+import { setLanguage, getLanguage } from "@/lib/localStore";
+
+// Central theme system
+import { applyTheme, getStoredTheme } from "@/lib/theme";
+
 export default function LanguageToggle() {
   const { i18n } = useTranslation("common");
   const [ready, setReady] = useState(false);
@@ -10,25 +16,30 @@ export default function LanguageToggle() {
 
   useEffect(() => {
     setReady(true);
-    const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-    setIsDark(theme === 'dark');
+
+    // Load stored language on component mount
+    const storedLang = getLanguage();
+    i18n.changeLanguage(storedLang);
+
+    // Load stored theme
+    const theme = getStoredTheme();
+    setIsDark(theme === "dark");
+    applyTheme(theme);
   }, []);
 
+  // Change UI language
   const change = (lng: "en" | "si") => {
     i18n.changeLanguage(lng);
+    setLanguage(lng);
   };
 
+  // Change theme (compact toggle)
   const toggleTheme = () => {
     const newIsDark = !isDark;
     setIsDark(newIsDark);
-    
-    if (newIsDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
+
+    const newTheme = newIsDark ? "dark" : "light";
+    applyTheme(newTheme); // This updates DOM + LS
   };
 
   if (!ready) return null;
@@ -42,7 +53,9 @@ export default function LanguageToggle() {
         <button
           onClick={() => change("si")}
           className={`px-3 py-1 rounded-full text-sm transition ${
-            current === "si" ? "bg-blue-600 dark:bg-blue-500 text-white" : "text-gray-800 dark:text-gray-200"
+            current === "si"
+              ? "bg-blue-600 dark:bg-blue-500 text-white"
+              : "text-gray-800 dark:text-gray-200"
           }`}
         >
           සිංහල
@@ -51,21 +64,21 @@ export default function LanguageToggle() {
         <button
           onClick={() => change("en")}
           className={`px-3 py-1 rounded-full text-sm transition ${
-            current === "en" ? "bg-blue-600 dark:bg-blue-500 text-white" : "text-gray-800 dark:text-gray-200"
+            current === "en"
+              ? "bg-blue-600 dark:bg-blue-500 text-white"
+              : "text-gray-800 dark:text-gray-200"
           }`}
         >
           English
         </button>
       </div>
 
-      {/* Theme Toggle - Compact */}
+      {/* Theme Toggle (compact) */}
       <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-full shadow-xl">
         <button
           onClick={toggleTheme}
           className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-300 dark:bg-gray-700 transition-colors"
-          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
         >
-          <span className="sr-only">{isDark ? "Switch to light mode" : "Switch to dark mode"}</span>
           <span
             className={`inline-flex items-center justify-center h-4 w-4 transform rounded-full bg-white transition-transform ${
               isDark ? "translate-x-6" : "translate-x-1"
@@ -73,7 +86,7 @@ export default function LanguageToggle() {
           >
             {isDark ? (
               <svg className="w-3 h-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 18 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
               </svg>
             ) : (
               <svg className="w-3 h-3 text-gray-700 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">

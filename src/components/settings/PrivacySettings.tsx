@@ -1,18 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import SettingsSection from "./SettingsSection";
 
+// LocalStorage
+import { getSettings, setSettings } from "@/lib/localStore";
+
 export default function PrivacySettings() {
   const { t } = useTranslation("common");
+
   const [saveChatHistory, setSaveChatHistory] = useState(true);
   const [dataCollection, setDataCollection] = useState(false);
 
+  // Load saved preferences
+  useEffect(() => {
+    const s = getSettings();
+
+    setSaveChatHistory(s.saveHistory ?? true);
+    setDataCollection(s.dataCollection ?? false);
+  }, []);
+
+  // Save changes automatically
+  useEffect(() => {
+    setSettings({
+      saveHistory: saveChatHistory,
+      dataCollection: dataCollection,
+    });
+  }, [saveChatHistory, dataCollection]);
+
   const handleDeleteChats = () => {
-    if (confirm(t("settings.delete_confirm") || "Are you sure you want to delete all chat history?")) {
-      // Delete logic here
-      console.log("Deleting all chats...");
+    if (
+      confirm(
+        t("settings.delete_confirm") ||
+          "Are you sure you want to delete all chat history?"
+      )
+    ) {
+      console.log("Chat history deletion triggered");
     }
   };
 
@@ -24,13 +48,14 @@ export default function PrivacySettings() {
       {/* Save Chat History */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-sm font-medium text-[#0A0A0A]">
+          <h3 className="text-sm font-medium text-[#0A0A0A] dark:text-white">
             {t("settings.save_history") || "Save Chat History"}
           </h3>
           <p className="text-sm text-[#64748B] mt-1">
             {t("settings.save_history_desc") || "Save conversations locally"}
           </p>
         </div>
+
         <button
           onClick={() => setSaveChatHistory(!saveChatHistory)}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
@@ -48,13 +73,14 @@ export default function PrivacySettings() {
       {/* Data Collection */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-sm font-medium text-[#0A0A0A]">
-            {t("settings.data_collection") || "Data collection"}
+          <h3 className="text-sm font-medium text-[#0A0A0A] dark:text-white">
+            {t("settings.data_collection") || "Data Collection"}
           </h3>
           <p className="text-sm text-[#64748B] mt-1">
-            {t("settings.data_collection_desc") || "For improving experience"}
+            {t("settings.data_collection_desc") || "Used for improving experience"}
           </p>
         </div>
+
         <button
           onClick={() => setDataCollection(!dataCollection)}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
@@ -69,7 +95,7 @@ export default function PrivacySettings() {
         </button>
       </div>
 
-      {/* Delete All Chats */}
+      {/* Delete chats */}
       <div className="pt-6 border-t border-[#E2E8F0]">
         <button
           onClick={handleDeleteChats}
