@@ -12,7 +12,7 @@ import EvaluationCard from "./components/EvaluationCard";
 export default function Chat() {
   const { t } = useTranslation("chat");
   // --- STATES ---
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
