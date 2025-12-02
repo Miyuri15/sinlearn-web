@@ -11,20 +11,23 @@ import EvaluationCard from "./components/EvaluationCard";
 
 export default function Chat() {
   const { t } = useTranslation("chat");
-
   // --- STATES ---
   const [loading, setLoading] = useState(true);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
-
   const [mode, setMode] = useState<"learning" | "evaluation">("learning");
   const [messages, setMessages] = useState<any[]>([]);
 
   // --- INPUT HANDLERS ---
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value);
+    const value = e.target.value;
+    setMessage(value);
+    if (value.trim() === "") {
+      e.target.style.height = "auto";
+      return;
+    }
     e.target.style.height = "auto";
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
@@ -158,7 +161,7 @@ export default function Chat() {
           {messages.map((m, i) => (
             <div key={i}>
               {m.role === "user" && (
-                <div className="bg-blue-100 p-3 rounded-lg max-w-lg ml-auto text-blue-900">
+                <div className="bg-blue-100 p-3 rounded-lg max-w-xl ml-auto text-blue-900 break-all">
                   {m.content}
                 </div>
               )}

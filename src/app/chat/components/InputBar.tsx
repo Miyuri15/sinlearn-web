@@ -31,6 +31,7 @@ export default function InputBar({
     // ENTER → send message
     if (e.key === "Enter") {
       e.preventDefault();
+      e.currentTarget.style.height = "auto";
       onSend();
     }
   };
