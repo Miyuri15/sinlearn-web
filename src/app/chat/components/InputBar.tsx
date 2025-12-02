@@ -22,9 +22,14 @@ export default function InputBar({
 }: InputBarProps) {
   const { t } = useTranslation("chat");
 
-  // SEND WHEN PRESS ENTER
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    // SHIFT + ENTER → new line
+    if (e.key === "Enter" && e.shiftKey) {
+      return; // allow default behavior (new line)
+    }
+
+    // ENTER → send message
+    if (e.key === "Enter") {
       e.preventDefault();
       onSend();
     }

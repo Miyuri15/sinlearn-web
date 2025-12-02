@@ -4,14 +4,13 @@ import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
 import MarkingRubic from "@/app/chat/components/MarkingRubic";
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import InputBar from "./components/InputBar";
 import RecordBar from "./components/RecordBar";
-import FullPageSkeleton from "./components/FullPageSkeleton";
 import EvaluationCard from "./components/EvaluationCard";
 
 export default function Chat() {
-  const { t, i18n } = useTranslation("chat");
+  const { t } = useTranslation("chat");
 
   // --- STATES ---
   const [loading, setLoading] = useState(true);
@@ -19,7 +18,6 @@ export default function Chat() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
-  const [isI18nReady, setIsI18nReady] = useState(false);
 
   const [mode, setMode] = useState<"learning" | "evaluation">("learning");
   const [messages, setMessages] = useState<any[]>([]);
@@ -83,25 +81,6 @@ export default function Chat() {
     setMessage("");
   };
 
-  // --- I18N LOADING ---
-  useEffect(() => {
-    if (i18n.isInitialized) {
-      setIsI18nReady(true);
-      setLoading(false);
-      return;
-    }
-
-    const init = () => {
-      setIsI18nReady(true);
-      setLoading(false);
-    };
-
-    i18n.on("initialized", init);
-    return () => i18n.off("initialized", init);
-  }, [i18n]);
-
-  if (!isI18nReady || loading) return <FullPageSkeleton />;
-
   return (
     <main className="flex min-h-screen bg-gray-100 text-gray-900 relative overflow-hidden">
       {/* LEFT SIDEBAR */}
@@ -110,7 +89,7 @@ export default function Chat() {
       </div>
 
       {/* MAIN AREA */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex flex-col flex-1 min-h-screen h-screen justify-between">
         {/* TOP BAR */}
         <div className="flex items-center justify-between bg-white p-4 border-b">
           {/* MODE TOGGLE */}
@@ -161,22 +140,21 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* CENTER CONTENT (only show when no messages) */}
-        {messages.length === 0 && (
-          <div className="flex-1 flex items-center justify-center text-center px-4">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-700">
-                {t("start_conversation")}
-              </h2>
-              <p className="text-gray-500 mt-2">
-                {t("start_conversation_sub")}
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* MESSAGE AREA */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 flex flex-col">
+          {/* CENTER CONTENT (only show when no messages) */}
+          {messages.length === 0 && (
+            <div className="flex-1 flex items-center justify-center text-center px-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-700">
+                  {t("start_conversation")}
+                </h2>
+                <p className="text-gray-500 mt-2">
+                  {t("start_conversation_sub")}
+                </p>
+              </div>
+            </div>
+          )}
           {messages.map((m, i) => (
             <div key={i}>
               {m.role === "user" && (
