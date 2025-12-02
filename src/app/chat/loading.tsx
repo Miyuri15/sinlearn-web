@@ -19,6 +19,7 @@ export default function Loading() {
           {/* Right buttons */}
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+            <div className="w-15 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
             <div className="w-20 h-10 bg-gray-200 rounded animate-pulse"></div>
             <div className="w-20 h-10 bg-gray-200 rounded animate-pulse"></div>
             <div className="w-9 h-9 bg-gray-200 rounded-lg animate-pulse"></div>

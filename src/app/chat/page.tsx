@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import InputBar from "./components/InputBar";
 import RecordBar from "./components/RecordBar";
 import EvaluationCard from "./components/EvaluationCard";
+import ChatThemeToggle from "./components/ChatThemeToggle";
 
 export default function Chat() {
   const { t } = useTranslation("chat");
@@ -130,6 +131,7 @@ export default function Chat() {
 
           {/* RIGHT OPTIONS */}
           <div className="flex items-center gap-4">
+            <ChatThemeToggle />
             <ChatLanguageToggle />
 
             <button
