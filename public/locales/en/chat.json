@@ -3,5 +3,6 @@
     "start_conversation_sub": "Type a question or use voice input",
     "typing_placeholder": "Type your answer or upload a file...",
     "learning_mode": "Learning Mode",
-    "evaluation_mode": "Evaluation Mode"
+    "evaluation_mode": "Evaluation Mode",
+    "response_level": "Response Level"
 }

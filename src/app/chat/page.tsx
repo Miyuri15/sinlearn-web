@@ -20,6 +20,7 @@ export default function Chat() {
   const [mode, setMode] = useState<"learning" | "evaluation">("learning");
   const [messages, setMessages] = useState<any[]>([]);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const [responseLevel, setResponseLevel] = useState("Grades 9–11");
 
   // --- INPUT HANDLERS ---
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -193,6 +194,24 @@ export default function Chat() {
               onStopRecording={handleStopRecording}
             />
           )}
+
+          <div className="mb-3">
+            <label className="text-sm text-gray-600 font-medium mr-2">
+              {t("response_level")}:
+            </label>
+
+            <select
+              value={responseLevel}
+              onChange={(e) => setResponseLevel(e.target.value)}
+              className="border text-sm rounded-lg px-3 py-1 bg-white text-gray-700"
+            >
+              <option>Grades 1–5</option>
+              <option>Grades 6–8</option>
+              <option>Grades 9–11</option>
+              <option>Grades 12–13</option>
+              <option>University Level</option>
+            </select>
+          </div>
 
           <InputBar
             isRecording={isRecording}
