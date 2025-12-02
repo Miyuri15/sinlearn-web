@@ -4,7 +4,7 @@ import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
 import MarkingRubic from "@/app/chat/components/MarkingRubic";
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import InputBar from "./components/InputBar";
 import RecordBar from "./components/RecordBar";
 import EvaluationCard from "./components/EvaluationCard";
@@ -19,6 +19,7 @@ export default function Chat() {
   const [message, setMessage] = useState("");
   const [mode, setMode] = useState<"learning" | "evaluation">("learning");
   const [messages, setMessages] = useState<any[]>([]);
+  const endRef = useRef<HTMLDivElement | null>(null);
 
   // --- INPUT HANDLERS ---
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -83,6 +84,12 @@ export default function Chat() {
 
     setMessage("");
   };
+
+  useEffect(() => {
+    if (endRef.current) {
+      endRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   return (
     <main className="flex min-h-screen bg-gray-100 text-gray-900 relative overflow-hidden">
@@ -175,6 +182,7 @@ export default function Chat() {
               {m.role === "evaluation" && <EvaluationCard data={m.content} />}
             </div>
           ))}
+          <div ref={endRef} />
         </div>
 
         {/* INPUT AREA */}
