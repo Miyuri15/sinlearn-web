@@ -1,4 +1,19 @@
-export default function EvaluationCard({ data }) {
+interface EvaluationData {
+  grade: string;
+  coverage: number;
+  accuracy: number;
+  clarity: number;
+  strengths: string[];
+  weaknesses: string[];
+  missing: string[];
+  feedback: string;
+}
+
+interface EvaluationCardProps {
+  data: EvaluationData;
+}
+
+export default function EvaluationCard({ data }: EvaluationCardProps) {
   return (
     <div className="bg-green-50 border border-green-200 p-6 rounded-xl shadow-md">
       <div className="flex justify-between items-center mb-4">
@@ -22,7 +37,12 @@ export default function EvaluationCard({ data }) {
   );
 }
 
-function Score({ label, value }) {
+interface ScoreProps {
+  label: string;
+  value: number;
+}
+
+function Score({ label, value }: ScoreProps) {
   return (
     <div>
       <div className="flex justify-between text-sm font-medium">
@@ -39,8 +59,14 @@ function Score({ label, value }) {
   );
 }
 
-function Section({ title, items, color }) {
-  const colorMap = {
+interface SectionProps {
+  title: string;
+  items: string[];
+  color: "green" | "red" | "orange";
+}
+
+function Section({ title, items, color }: SectionProps) {
+  const colorMap: Record<SectionProps["color"], string> = {
     green: "text-green-700",
     red: "text-red-700",
     orange: "text-orange-700",
@@ -50,8 +76,8 @@ function Section({ title, items, color }) {
     <div className="mb-4">
       <h4 className={`font-bold ${colorMap[color]} mb-2`}>{title}</h4>
       <ul className="space-y-1 ml-4">
-        {items.map((item, i) => (
-          <li key={i} className="list-disc">
+        {items.map((item) => (
+          <li key={item} className="list-disc">
             {item}
           </li>
         ))}
