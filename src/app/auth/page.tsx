@@ -8,8 +8,6 @@ import Input from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
 import LanguageToggle from "@/components/language/LanguageToggle";
 import Link from "next/link";
-
-// LocalStorage helpers
 import { setUser, getUser, getLanguage } from "@/lib/localStore";
 
 interface AuthPageProps {
@@ -21,201 +19,218 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
   const [role, setRole] = useState<"student" | "teacher">("student");
   const { t, i18n } = useTranslation("common");
   const router = useRouter();
-
   const [ready, setReady] = useState(false);
 
-  // Load stored language ONCE (i18n is already initialized by provider)
+  // Load stored language
   useEffect(() => {
-    const storedLang = getLanguage();
-    i18n.changeLanguage(storedLang).finally(() => setReady(true));
+    const lang = getLanguage();
+    i18n.changeLanguage(lang).finally(() => setReady(true));
   }, [i18n]);
 
   if (!ready) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900"></div>
-    );
+    return <div className="min-h-screen bg-gray-100 dark:bg-gray-900"></div>;
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const emailInput = (
-      document.querySelector('input[type="email"]') as HTMLInputElement
-    )?.value;
-
-    const nameInput = (
-      document.querySelector('input[type="text"]') as HTMLInputElement
-    )?.value;
+    const email = (document.querySelector('input[type="email"]') as HTMLInputElement)?.value;
+    const name = (document.querySelector('input[type="text"]') as HTMLInputElement)?.value;
 
     if (tab === "signin") {
-      // Load existing user if exists
       const existing = getUser();
-
       setUser({
-        name: existing?.name || nameInput || "User",
-        email: emailInput || existing?.email || "",
+        name: existing?.name || name || "User",
+        email: email || existing?.email || "",
         role: existing?.role || "student",
       });
-
-      router.push("/chat");
+      router.push("/dashboard");
     } else {
-      // Signup → save user
       setUser({
-        name: nameInput || "User",
-        email: emailInput || "",
-        role: role,
+        name: name || "User",
+        email: email || "",
+        role,
       });
-
       router.push("/auth/sign-in");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="absolute top-5 right-5 z-50 flex items-center gap-2.5">
+    <div
+      className="
+        min-h-screen 
+        flex items-center justify-center 
+        bg-gradient-to-br 
+        from-blue-50 to-gray-100 
+        dark:from-gray-900 dark:to-gray-800
+        px-4 sm:px-6 lg:px-8
+        py-10
+      "
+    >
+      {/* TOP RIGHT LANGUAGE SWITCH */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50">
         <LanguageToggle />
       </div>
 
-      {/* LOGIN CARD */}
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-200 dark:border-gray-700">
+      {/* MAIN CARD */}
+      <div
+        className="
+          bg-white dark:bg-gray-800 
+          w-full 
+          max-w-sm sm:max-w-md lg:max-w-lg 
+          rounded-xl sm:rounded-2xl 
+          p-6 sm:p-8 lg:p-10 
+          shadow-lg 
+          border border-gray-200 dark:border-gray-700
+        "
+      >
         {/* Logo */}
-        <div className="flex justify-center mb-5">
+        <div className="flex justify-center mb-6">
           <Image
             src="/images/AuthPage.png"
             alt="SinLearn Logo"
-            width={70}
-            height={70}
+            width={80}
+            height={80}
+            className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24"
             priority
           />
         </div>
 
-        {/* Title */}
-        <h1 className="text-center text-2xl font-semibold mb-1.5 text-gray-900 dark:text-white">
+        <h1 className="text-center text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">
           {t("title")}
         </h1>
 
-        <p className="text-center text-sm text-gray-600 dark:text-gray-400 mb-5">
+        <p className="text-center text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-2 mb-6">
           {t("subtitle")}
         </p>
 
-        {/* TABS */}
-        <div className="flex rounded-lg p-1 mb-5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+        {/* Tabs */}
+        <div
+          className="
+            flex 
+            rounded-lg 
+            p-1 mb-6 
+            bg-gray-100 dark:bg-gray-700 
+            border border-gray-200 dark:border-gray-600
+          "
+        >
           <Link
             href="/auth/sign-in"
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition text-center ${
-              tab === "signin"
+            className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
+              ${tab === "signin"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                : "text-gray-600 dark:text-gray-400"
-            }`}
+                : "text-gray-600 dark:text-gray-300"
+              }
+            `}
           >
             {t("signin")}
           </Link>
 
           <Link
             href="/auth/sign-up"
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition text-center ${
-              tab === "signup"
+            className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
+              ${tab === "signup"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                : "text-gray-600 dark:text-gray-400"
-            }`}
+                : "text-gray-600 dark:text-gray-300"
+              }
+            `}
           >
             {t("signup")}
           </Link>
         </div>
 
-        {/* FORM */}
-        <form className="space-y-3.5" onSubmit={handleSubmit}>
-          {/* Name only for sign-up */}
+        {/* Form */}
+        <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit}>
           {tab === "signup" && (
             <div>
-              <label className="block text-sm mb-1.5 text-gray-900 dark:text-white">
+              <label className="block text-sm text-gray-900 dark:text-white mb-1">
                 {t("name")}
               </label>
               <Input
                 type="text"
                 placeholder={t("name_placeholder") || "Your Name"}
-                className="text-gray-900 dark:text-white py-2.5"
+                className="text-gray-900 dark:text-white"
               />
             </div>
           )}
 
-          {/* Email input */}
           <div>
-            <label className="block text-sm mb-1.5 text-gray-900 dark:text-white">
+            <label className="block text-sm text-gray-900 dark:text-white mb-1">
               {t("email")}
             </label>
             <Input
               type="email"
               placeholder="example@email.com"
-              className="text-gray-900 dark:text-white py-2.5"
+              className="text-gray-900 dark:text-white"
             />
           </div>
 
-          {/* Password */}
           <div>
-            <label className="block text-sm mb-1.5 text-gray-900 dark:text-white">
+            <label className="block text-sm text-gray-900 dark:text-white mb-1">
               {t("password")}
             </label>
             <Input
               type="password"
               placeholder="••••••••"
-              className="text-gray-900 dark:text-white py-2.5"
+              className="text-gray-900 dark:text-white"
             />
           </div>
 
-          {/* Role selector (signup only) */}
+          {/* Role selection */}
           {tab === "signup" && (
-            <div className="flex gap-3.5">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={() => setRole("student")}
-                className={`flex-1 py-3.5 flex flex-col items-center justify-center space-y-1 rounded-lg transition border ${
-                  role === "student"
-                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 shadow-inner"
+                className={`
+                  flex-1 py-3 
+                  flex flex-col items-center justify-center 
+                  rounded-lg border transition
+                  ${role === "student"
+                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
                     : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-                }`}
+                  }
+                `}
               >
-                <div className="text-2xl">📖</div>
-                <span className="text-sm font-medium">{t("role_student")}</span>
+                <div className="text-xl sm:text-2xl">📖</div>
+                <span className="text-sm mt-1">{t("role_student")}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setRole("teacher")}
-                className={`flex-1 py-3.5 flex flex-col items-center justify-center space-y-1 rounded-lg transition border ${
-                  role === "teacher"
-                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 shadow-inner"
+                className={`
+                  flex-1 py-3 
+                  flex flex-col items-center justify-center 
+                  rounded-lg border transition
+                  ${role === "teacher"
+                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
                     : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-                }`}
+                  }
+                `}
               >
-                <div className="text-2xl">🎓</div>
-                <span className="text-sm font-medium">{t("role_teacher")}</span>
+                <div className="text-xl sm:text-2xl">🎓</div>
+                <span className="text-sm mt-1">{t("role_teacher")}</span>
               </button>
             </div>
           )}
 
-          <Button type="submit" className="w-full py-2.5">
+          <Button type="submit" className="w-full">
             {tab === "signin" ? t("button_signin") : t("button_signup")}
           </Button>
 
-          <div className="text-center pt-3.5 border-t border-gray-200 dark:border-gray-700">
+          <div className="pt-4 text-center border-t border-gray-200 dark:border-gray-700">
             {tab === "signin" ? (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {t("dont_have_account")}{" "}
-                <Link
-                  href="/auth/sign-up"
-                  className="text-blue-600 dark:text-blue-400"
-                >
+                <Link href="/auth/sign-up" className="text-blue-600 dark:text-blue-400">
                   {t("signup_link")}
                 </Link>
               </p>
             ) : (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {t("already_have_account")}{" "}
-                <Link
-                  href="/auth/sign-in"
-                  className="text-blue-600 dark:text-blue-400"
-                >
+                <Link href="/auth/sign-in" className="text-blue-600 dark:text-blue-400">
                   {t("signin_link")}
                 </Link>
               </p>
