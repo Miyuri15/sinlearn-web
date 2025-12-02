@@ -57,7 +57,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         role: existing?.role || "student",
       });
 
-      router.push("/dashboard");
+      router.push("/chat");
     } else {
       // Signup → save user
       setUser({
