@@ -57,7 +57,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         role: existing?.role || "student",
       });
 
-      router.push("/chat");
+      router.push("/dashboard");
     } else {
       // Signup → save user
       setUser({
@@ -71,35 +71,36 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="absolute top-5 right-5 z-50 flex items-center gap-2.5">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
+      <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50 flex items-center gap-2">
         <LanguageToggle />
       </div>
 
       {/* LOGIN CARD */}
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-200 dark:border-gray-700">
+      <div className="w-full max-w-sm md:max-w-md bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-6 md:p-8 shadow-lg border border-gray-200 dark:border-gray-700">
         {/* Logo */}
-        <div className="flex justify-center mb-5">
+        <div className="flex justify-center mb-4 md:mb-6">
           <Image
             src="/images/AuthPage.png"
             alt="SinLearn Logo"
-            width={70}
-            height={70}
+            width={64}
+            height={64}
+            className="w-16 h-16 md:w-20 md:h-20"
             priority
           />
         </div>
 
         {/* Title */}
-        <h1 className="text-center text-2xl font-semibold mb-1.5 text-gray-900 dark:text-white">
+        <h1 className="text-center text-xl md:text-2xl font-semibold mb-1 md:mb-1.5 text-gray-900 dark:text-white">
           {t("title")}
         </h1>
 
-        <p className="text-center text-sm text-gray-600 dark:text-gray-400 mb-5">
+        <p className="text-center text-sm text-gray-600 dark:text-gray-400 mb-4 md:mb-6">
           {t("subtitle")}
         </p>
 
         {/* TABS */}
-        <div className="flex rounded-lg p-1 mb-5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+        <div className="flex rounded-lg p-1 mb-4 md:mb-6 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
           <Link
             href="/auth/sign-in"
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition text-center ${
@@ -124,81 +125,81 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         </div>
 
         {/* FORM */}
-        <form className="space-y-3.5" onSubmit={handleSubmit}>
+        <form className="space-y-3 md:space-y-4" onSubmit={handleSubmit}>
           {/* Name only for sign-up */}
           {tab === "signup" && (
             <div>
-              <label className="block text-sm mb-1.5 text-gray-900 dark:text-white">
+              <label className="block text-sm mb-1 md:mb-1.5 text-gray-900 dark:text-white">
                 {t("name")}
               </label>
               <Input
                 type="text"
                 placeholder={t("name_placeholder") || "Your Name"}
-                className="text-gray-900 dark:text-white py-2.5"
+                className="text-gray-900 dark:text-white"
               />
             </div>
           )}
 
           {/* Email input */}
           <div>
-            <label className="block text-sm mb-1.5 text-gray-900 dark:text-white">
+            <label className="block text-sm mb-1 md:mb-1.5 text-gray-900 dark:text-white">
               {t("email")}
             </label>
             <Input
               type="email"
               placeholder="example@email.com"
-              className="text-gray-900 dark:text-white py-2.5"
+              className="text-gray-900 dark:text-white"
             />
           </div>
 
           {/* Password */}
           <div>
-            <label className="block text-sm mb-1.5 text-gray-900 dark:text-white">
+            <label className="block text-sm mb-1 md:mb-1.5 text-gray-900 dark:text-white">
               {t("password")}
             </label>
             <Input
               type="password"
               placeholder="••••••••"
-              className="text-gray-900 dark:text-white py-2.5"
+              className="text-gray-900 dark:text-white"
             />
           </div>
 
           {/* Role selector (signup only) */}
           {tab === "signup" && (
-            <div className="flex gap-3.5">
+            <div className="flex gap-3 md:gap-4">
               <button
                 type="button"
                 onClick={() => setRole("student")}
-                className={`flex-1 py-3.5 flex flex-col items-center justify-center space-y-1 rounded-lg transition border ${
+                className={`flex-1 py-3 md:py-3.5 flex flex-col items-center justify-center space-y-1 rounded-lg transition border ${
                   role === "student"
                     ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 shadow-inner"
                     : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                 }`}
               >
-                <div className="text-2xl">📖</div>
+                <div className="text-xl md:text-2xl">📖</div>
                 <span className="text-sm font-medium">{t("role_student")}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setRole("teacher")}
-                className={`flex-1 py-3.5 flex flex-col items-center justify-center space-y-1 rounded-lg transition border ${
+                className={`flex-1 py-3 md:py-3.5 flex flex-col items-center justify-center space-y-1 rounded-lg transition border ${
                   role === "teacher"
                     ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 shadow-inner"
                     : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                 }`}
               >
-                <div className="text-2xl">🎓</div>
+                <div className="text-xl md:text-2xl">🎓</div>
                 <span className="text-sm font-medium">{t("role_teacher")}</span>
               </button>
             </div>
           )}
 
-          <Button type="submit" className="w-full py-2.5">
+          <Button type="submit" className="w-full">
             {tab === "signin" ? t("button_signin") : t("button_signup")}
           </Button>
 
-          <div className="text-center pt-3.5 border-t border-gray-200 dark:border-gray-700">
+          <div className="text-center pt-3 md:pt-4 border-t border-gray-200 dark:border-gray-700">
             {tab === "signin" ? (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {t("dont_have_account")}{" "}
