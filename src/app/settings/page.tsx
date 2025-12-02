@@ -1,6 +1,6 @@
 "use client";
-import "@/lib/i18n";
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import SettingsSection from "@/components/settings/SettingsSection";
@@ -9,50 +9,50 @@ import AppearanceToggle from "@/components/settings/AppearanceToggle";
 import ProfileSettings from "@/components/settings/ProfileSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import PrivacySettings from "@/components/settings/PrivacySettings";
-import LanguageToggle from "@/components/language/LanguageToggle";
 
 export default function SettingsPage() {
   const { t } = useTranslation("common");
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("general");
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const tabs = [
-    { id: "general", label: t("settings.general") || "General" },
-    { id: "profile", label: t("settings.profile") || "Profile" },
-    { id: "notifications", label: t("settings.notifications") || "Notifications" },
-    { id: "privacy", label: t("settings.privacy") || "Privacy & Security" },
-    { id: "about", label: t("settings.about") || "About" },
+    { id: "general", label: t("settings.general") },
+    { id: "profile", label: t("settings.profile") },
+    { id: "notifications", label: t("settings.notifications") },
+    { id: "privacy", label: t("settings.privacy") },
+    { id: "about", label: t("settings.about") },
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-                <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
-          <LanguageToggle />
-        </div>
-
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => router.back()}
             className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition mb-4"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
-            {t("settings.back") || "Back"}
+            {t("settings.back")}
           </button>
-          
+
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            {t("settings.title") || "Settings"}
+            {t("settings.title")}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            {t("settings.subtitle") || "Manage your preferences and account settings"}
+            {t("settings.subtitle")}
           </p>
         </div>
 
@@ -80,7 +80,7 @@ export default function SettingsPage() {
           <div className="hidden md:block w-64 flex-shrink-0">
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
-                {t("settings.sections") || "Settings"}
+                {t("settings.sections")}
               </h3>
               <nav className="space-y-1">
                 {tabs.map((tab) => (
@@ -102,48 +102,45 @@ export default function SettingsPage() {
 
           {/* Main Content */}
           <div className="flex-1">
-            {/* General Settings */}
-            <div className={activeTab === "general" ? "block" : "hidden md:block"}>
+            {activeTab === "general" && (
               <SettingsSection
-                title={t("settings.general") || "General"}
-                description={t("settings.general_desc") || "Basic application preferences"}
+                title={t("settings.general")}
+                description={t("settings.general_desc")}
               >
                 <LanguageSelector />
                 <AppearanceToggle />
               </SettingsSection>
-            </div>
+            )}
 
-            {/* Profile Settings */}
-            <div className={activeTab === "profile" ? "block" : "hidden md:block"}>
-              <ProfileSettings />
-            </div>
+            {activeTab === "profile" && <ProfileSettings />}
 
-            {/* Notification Settings */}
-            <div className={activeTab === "notifications" ? "block" : "hidden md:block"}>
-              <NotificationSettings />
-            </div>
+            {activeTab === "notifications" && <NotificationSettings />}
 
-            {/* Privacy & Security */}
-            <div className={activeTab === "privacy" ? "block" : "hidden md:block"}>
-              <PrivacySettings />
-            </div>
+            {activeTab === "privacy" && <PrivacySettings />}
 
-            {/* About */}
-            <div className={activeTab === "about" ? "block" : "hidden md:block"}>
+            {activeTab === "about" && (
               <SettingsSection
-                title={t("settings.about") || "About"}
-                description={t("settings.about_desc") || "Application information"}
+                title={t("settings.about")}
+                description={t("settings.about_desc")}
               >
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">{t("settings.version") || "Version"}</span>
-                    <span className="font-medium text-gray-900 dark:text-white">1.0.0</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      {t("settings.version") || "Version"}
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      1.0.0
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">{t("settings.license") || "License"}</span>
-                    <span className="font-medium text-gray-900 dark:text-white">MIT</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      {t("settings.license") || "License"}
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      MIT
+                    </span>
                   </div>
-                  
+
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm">
                       {t("settings.terms") || "Terms and Conditions"}
@@ -154,7 +151,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </SettingsSection>
-            </div>
+            )}
           </div>
         </div>
       </div>
