@@ -1,24 +1,19 @@
-
 "use client";
 
-
-import "@/lib/i18n";
-import Image from "next/image";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation";
 import LanguageToggle from "@/components/language/LanguageToggle";
 import Link from "next/link";
 
 // LocalStorage helpers
-import { setUser, getUser } from "@/lib/localStore";
-import { setLanguage, getLanguage } from "@/lib/localStore";
-import NoSSR from "@/components/NoSSR";
+import { setUser, getUser, getLanguage } from "@/lib/localStore";
 
 interface AuthPageProps {
-  defaultTab?: "signin" | "signup";
+  readonly defaultTab?: "signin" | "signup";
 }
 
 export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
@@ -27,74 +22,55 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
   const { t, i18n } = useTranslation("common");
   const router = useRouter();
 
-  const [isI18nReady, setIsI18nReady] = useState(false);
+  const [ready, setReady] = useState(false);
 
-  // Load saved language on page load
+  // Load stored language ONCE (i18n is already initialized by provider)
   useEffect(() => {
     const storedLang = getLanguage();
-    i18n.changeLanguage(storedLang);
-  }, []);
-
-  useEffect(() => {
-    if (i18n.isInitialized) {
-      setIsI18nReady(true);
-    } else {
-      i18n.on("initialized", () => {
-        setIsI18nReady(true);
-      });
-    }
-
-    return () => {
-      i18n.off("initialized");
-    };
+    i18n.changeLanguage(storedLang).finally(() => setReady(true));
   }, [i18n]);
 
-const handleSubmit = (e: React.FormEvent) => {
-  e.preventDefault();
-
-  const emailInput = (
-    document.querySelector('input[type="email"]') as HTMLInputElement
-  )?.value;
-
-  const nameInput = (
-    document.querySelector('input[type="text"]') as HTMLInputElement
-  )?.value;
-
-  if (tab === "signin") {
-    // Load existing user if exists
-    const existing = getUser();
-
-    setUser({
-      name: existing?.name || nameInput || "User",
-      email: emailInput || existing?.email || "",
-      role: existing?.role || "student",
-    });
-
-    router.push("/dashboard");
-  } else {
-    // Signup → save user
-    setUser({
-      name: nameInput || "User",
-      email: emailInput || "",
-      role: role,
-    });
-
-    router.push("/auth/sign-in");
-  }
-};
-
-  if (!isI18nReady) {
+  if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl p-10 shadow-xl">
-          {/* Loading skeleton */}
-        </div>
-      </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900"></div>
     );
   }
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const emailInput = (
+      document.querySelector('input[type="email"]') as HTMLInputElement
+    )?.value;
+
+    const nameInput = (
+      document.querySelector('input[type="text"]') as HTMLInputElement
+    )?.value;
+
+    if (tab === "signin") {
+      // Load existing user if exists
+      const existing = getUser();
+
+      setUser({
+        name: existing?.name || nameInput || "User",
+        email: emailInput || existing?.email || "",
+        role: existing?.role || "student",
+      });
+
+      router.push("/dashboard");
+    } else {
+      // Signup → save user
+      setUser({
+        name: nameInput || "User",
+        email: emailInput || "",
+        role: role,
+      });
+
+      router.push("/auth/sign-in");
+    }
+  };
+
   return (
-    <NoSSR>
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
         <LanguageToggle />
@@ -122,7 +98,7 @@ const handleSubmit = (e: React.FormEvent) => {
           {t("subtitle")}
         </p>
 
-        {/* Tabs */}
+        {/* TABS */}
         <div className="flex rounded-xl p-1 mb-6 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
           <Link
             href="/auth/sign-in"
@@ -147,7 +123,7 @@ const handleSubmit = (e: React.FormEvent) => {
           </Link>
         </div>
 
-        {/* Form */}
+        {/* FORM */}
         <form className="space-y-4" onSubmit={handleSubmit}>
           {/* Name only for sign-up */}
           {tab === "signup" && (
@@ -222,35 +198,31 @@ const handleSubmit = (e: React.FormEvent) => {
             {tab === "signin" ? t("button_signin") : t("button_signup")}
           </Button>
 
-          {/* Switch footer */}
           <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {tab === "signin" ? (
-                <>
-                  {t("dont_have_account")}{" "}
-                  <Link
-                    href="/auth/sign-up"
-                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-                  >
-                    {t("signup_link")}
-                  </Link>
-                </>
-              ) : (
-                <>
-                  {t("already_have_account")}{" "}
-                  <Link
-                    href="/auth/sign-in"
-                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-                  >
-                    {t("signin_link")}
-                  </Link>
-                </>
-              )}
-            </p>
+            {tab === "signin" ? (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {t("dont_have_account")}{" "}
+                <Link
+                  href="/auth/sign-up"
+                  className="text-blue-600 dark:text-blue-400"
+                >
+                  {t("signup_link")}
+                </Link>
+              </p>
+            ) : (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {t("already_have_account")}{" "}
+                <Link
+                  href="/auth/sign-in"
+                  className="text-blue-600 dark:text-blue-400"
+                >
+                  {t("signin_link")}
+                </Link>
+              </p>
+            )}
           </div>
         </form>
       </div>
     </div>
-    </NoSSR>
   );
 }
