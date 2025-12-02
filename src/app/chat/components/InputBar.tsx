@@ -39,13 +39,7 @@ export default function InputBar({
   };
 
   return (
-    <div
-      className="
-        flex items-center gap-3 px-4 py-2 rounded-xl border 
-        bg-gray-100 border-gray-300 
-        dark:bg-[#111111] dark:border-[#2a2a2a]
-      "
-    >
+    <div className="flex items-center gap-3 px-4 py-2 rounded-xl border bg-gray-100 border-gray-300 dark:bg-[#111111] dark:border-[#2a2a2a]      ">
       {/* ATTACHMENT BUTTON */}
       <button className="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white">
         <Paperclip className="w-5 h-5" />

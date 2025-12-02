@@ -4,5 +4,11 @@
     "typing_placeholder": "Type your answer or upload a file...",
     "learning_mode": "Learning Mode",
     "evaluation_mode": "Evaluation Mode",
-    "response_level": "Response Level"
+    "response_level": "Response Level",
+    "evaluation_settings_sub": "Enter the question structure before submitting your answer.",
+    "total_marks": "Total Marks",
+    "main_questions": "Main Questions",
+    "required_questions": "Required Questions to Answer",
+    "sub_questions": "Sub-questions per Question",
+    "send": "Send"
 }

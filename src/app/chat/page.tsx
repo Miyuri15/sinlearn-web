@@ -9,6 +9,7 @@ import InputBar from "./components/InputBar";
 import RecordBar from "./components/RecordBar";
 import EvaluationCard from "./components/EvaluationCard";
 import ChatThemeToggle from "./components/ChatThemeToggle";
+import EvaluationInputs from "./components/EvaluationInputs";
 
 export default function Chat() {
   const { t } = useTranslation("chat");
@@ -22,6 +23,12 @@ export default function Chat() {
   const [messages, setMessages] = useState<any[]>([]);
   const endRef = useRef<HTMLDivElement | null>(null);
   const [responseLevel, setResponseLevel] = useState("Grades 9–11");
+
+  // Evaluation inputs state (required by EvaluationInputs)
+  const [totalMarks, setTotalMarks] = useState<number>(0);
+  const [mainQuestions, setMainQuestions] = useState<number>(0);
+  const [requiredQuestions, setRequiredQuestions] = useState<number>(0);
+  const [subQuestions, setSubQuestions] = useState<number>(0);
 
   // --- INPUT HANDLERS ---
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -64,25 +71,37 @@ export default function Chat() {
 
   // --- SEND BUTTON HANDLER ---
   const handleSend = () => {
-    if (!message.trim()) return;
-
-    const userMsg = { role: "user", content: message };
-
     if (mode === "learning") {
-      // Add user msg + hardcoded AI
+      if (!message.trim()) return;
+
+      const userMsg = { role: "user", content: message };
+
       setMessages((prev) => [
         ...prev,
         userMsg,
         { role: "assistant", content: mockLearningReply },
       ]);
-    } else {
-      // Add user msg + evaluation card
-      setMessages((prev) => [
-        ...prev,
-        userMsg,
-        { role: "evaluation", content: mockEvaluation },
-      ]);
+
+      setMessage("");
+      return;
     }
+
+    // --- EVALUATION MODE ---
+    // build evaluation object
+    const evaluationPayload = {
+      totalMarks,
+      mainQuestions,
+      requiredQuestions,
+      subQuestions,
+    };
+
+    const userMsg = { role: "user", content: evaluationPayload };
+
+    setMessages((prev) => [
+      ...prev,
+      userMsg,
+      { role: "evaluation", content: mockEvaluation },
+    ]);
 
     setMessage("");
   };
@@ -170,7 +189,17 @@ export default function Chat() {
             <div key={i}>
               {m.role === "user" && (
                 <div className="p-3 rounded-lg max-w-xl ml-auto break-all bg-blue-100 text-blue-900 dark:bg-[#1E3A8A] dark:text-blue-100">
-                  {m.content}
+                  {typeof m.content === "string" ? (
+                    m.content
+                  ) : (
+                    <pre className="whitespace-pre-wrap text-sm">
+                      {`Total Marks: ${m.content.totalMarks}
+Main Questions: ${m.content.mainQuestions}
+Required Questions: ${m.content.requiredQuestions}
+Sub Questions: ${m.content.subQuestions}
+`}
+                    </pre>
+                  )}
                 </div>
               )}
 
@@ -188,39 +217,55 @@ export default function Chat() {
 
         {/* INPUT AREA */}
         <div className="p-4 border-t bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
+          {mode === "evaluation" && (
+            <EvaluationInputs
+              totalMarks={totalMarks}
+              setTotalMarks={setTotalMarks}
+              mainQuestions={mainQuestions}
+              setMainQuestions={setMainQuestions}
+              requiredQuestions={requiredQuestions}
+              setRequiredQuestions={setRequiredQuestions}
+              subQuestions={subQuestions}
+              setSubQuestions={setSubQuestions}
+              onSend={handleSend}
+            />
+          )}
           {isRecording && (
             <RecordBar
               onCancelRecording={handleCancelRecording}
               onStopRecording={handleStopRecording}
             />
           )}
+          {mode === "learning" && (
+            <>
+              <div className="mb-3">
+                <label className="text-sm text-gray-600 dark:text-gray-300 font-medium mr-2">
+                  {t("response_level")}:
+                </label>
 
-          <div className="mb-3">
-            <label className="text-sm text-gray-600 dark:text-gray-300 font-medium mr-2">
-              {t("response_level")}:
-            </label>
+                <select
+                  value={responseLevel}
+                  onChange={(e) => setResponseLevel(e.target.value)}
+                  className="border rounded-lg px-3 py-1 text-sm bg-white text-gray-700 dark:bg-[#1A1A1A] dark:text-gray-200 dark:border-[#2a2a2a] dark:focus:ring-indigo-500"
+                >
+                  <option>Grades 1–5</option>
+                  <option>Grades 6–8</option>
+                  <option>Grades 9–11</option>
+                  <option>Grades 12–13</option>
+                  <option>University Level</option>
+                </select>
+              </div>
 
-            <select
-              value={responseLevel}
-              onChange={(e) => setResponseLevel(e.target.value)}
-              className="border rounded-lg px-3 py-1 text-sm bg-white text-gray-700 dark:bg-[#1A1A1A] dark:text-gray-200 dark:border-[#2a2a2a] dark:focus:ring-indigo-500"
-            >
-              <option>Grades 1–5</option>
-              <option>Grades 6–8</option>
-              <option>Grades 9–11</option>
-              <option>Grades 12–13</option>
-              <option>University Level</option>
-            </select>
-          </div>
-
-          <InputBar
-            isRecording={isRecording}
-            setIsRecording={setIsRecording}
-            transcript={transcript}
-            message={message}
-            handleInputChange={handleInputChange}
-            onSend={handleSend}
-          />
+              <InputBar
+                isRecording={isRecording}
+                setIsRecording={setIsRecording}
+                transcript={transcript}
+                message={message}
+                handleInputChange={handleInputChange}
+                onSend={handleSend}
+              />
+            </>
+          )}
         </div>
       </div>
 
