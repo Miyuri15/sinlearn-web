@@ -24,9 +24,7 @@ export default function InputBar({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // SHIFT + ENTER → new line
-    if (e.key === "Enter" && e.shiftKey) {
-      return; // allow default behavior (new line)
-    }
+    if (e.key === "Enter" && e.shiftKey) return;
 
     // ENTER → send message
     if (e.key === "Enter") {
@@ -36,10 +34,20 @@ export default function InputBar({
     }
   };
 
+  const toggleRecording = () => {
+    setIsRecording(!isRecording);
+  };
+
   return (
-    <div className="flex items-center bg-gray-100 rounded-xl px-4 py-2 border">
-      {/* ATTACHMENT */}
-      <button className="text-gray-600">
+    <div
+      className="
+        flex items-center gap-3 px-4 py-2 rounded-xl border 
+        bg-gray-100 border-gray-300 
+        dark:bg-[#111111] dark:border-[#2a2a2a]
+      "
+    >
+      {/* ATTACHMENT BUTTON */}
+      <button className="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white">
         <Paperclip className="w-5 h-5" />
       </button>
 
@@ -52,16 +60,23 @@ export default function InputBar({
         rows={1}
         disabled={isRecording} // block editing when recording
         className={`flex-1 bg-transparent outline-none px-3 resize-none overflow-hidden leading-relaxed max-h-40 ${
-          isRecording ? "text-gray-700 italic" : "text-gray-800"
+          isRecording
+            ? "text-gray-700 dark:text-gray-100 italic"
+            : "text-gray-800 dark:text-gray-200"
         }`}
       ></textarea>
 
       {/* MIC BUTTON */}
       <button
-        className={`mx-2 transition-all duration-300 ${
-          isRecording ? "text-red-600 scale-110" : "text-gray-600"
-        }`}
-        onClick={() => setIsRecording(true)}
+        onClick={toggleRecording}
+        className={`
+          transition-all duration-300 p-1 rounded-lg
+          ${
+            isRecording
+              ? "text-red-600 dark:text-red-500 scale-110"
+              : "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
+          }
+        `}
       >
         <Mic className="w-6 h-6" />
       </button>
@@ -69,7 +84,12 @@ export default function InputBar({
       {/* SEND BUTTON */}
       <button
         onClick={onSend}
-        className="bg-blue-600 hover:bg-blue-700 transition text-white rounded-lg p-2"
+        className="
+          p-2 rounded-lg transition 
+          bg-blue-600 hover:bg-blue-700 
+          dark:bg-indigo-600 dark:hover:bg-indigo-700
+          text-white
+        "
       >
         <Send className="w-5 h-5" />
       </button>

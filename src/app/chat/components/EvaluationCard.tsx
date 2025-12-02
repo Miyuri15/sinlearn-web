@@ -15,10 +15,21 @@ interface EvaluationCardProps {
 
 export default function EvaluationCard({ data }: EvaluationCardProps) {
   return (
-    <div className="bg-green-50 border border-green-200 p-6 rounded-xl shadow-md">
+    <div
+      className="
+        bg-green-50 border border-green-200 p-6 rounded-xl shadow-md
+        dark:bg-[#001a10] dark:border-green-900 dark:shadow-black/20
+        transition-colors
+      "
+    >
+      {/* Header */}
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold">Evaluation Report</h3>
-        <span className="text-xl font-bold">{data.grade}</span>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          Evaluation Report
+        </h3>
+        <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          {data.grade}
+        </span>
       </div>
 
       {/* Scores */}
@@ -32,7 +43,16 @@ export default function EvaluationCard({ data }: EvaluationCardProps) {
       <Section title="Weaknesses" items={data.weaknesses} color="red" />
       <Section title="Missing Points" items={data.missing} color="orange" />
 
-      <div className="mt-4 p-4 bg-white border rounded-lg">{data.feedback}</div>
+      {/* Feedback Box */}
+      <div
+        className="
+          mt-4 p-4 rounded-lg border 
+          bg-white text-gray-900 
+          dark:bg-[#0b1b16] dark:border-[#1f3b32] dark:text-gray-200
+        "
+      >
+        {data.feedback}
+      </div>
     </div>
   );
 }
@@ -45,14 +65,20 @@ interface ScoreProps {
 function Score({ label, value }: ScoreProps) {
   return (
     <div>
+      {/* Label + Value */}
       <div className="flex justify-between text-sm font-medium">
-        <span>{label}</span>
-        <span>{value}%</span>
+        <span className="text-gray-700 dark:text-gray-300">{label}</span>
+        <span className="text-gray-900 dark:text-gray-200">{value}%</span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
+
+      {/* Progress Bar */}
+      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-1">
         <div
           style={{ width: `${value}%` }}
-          className="bg-blue-500 h-2 rounded-full"
+          className="
+            bg-blue-500 dark:bg-blue-400 
+            h-2 rounded-full transition-all
+          "
         />
       </div>
     </div>
@@ -66,18 +92,38 @@ interface SectionProps {
 }
 
 function Section({ title, items, color }: SectionProps) {
-  const colorMap: Record<SectionProps["color"], string> = {
-    green: "text-green-700",
-    red: "text-red-700",
-    orange: "text-orange-700",
+  const colorMap = {
+    green: {
+      light: "text-green-700",
+      dark: "dark:text-green-400",
+    },
+    red: {
+      light: "text-red-700",
+      dark: "dark:text-red-400",
+    },
+    orange: {
+      light: "text-orange-700",
+      dark: "dark:text-orange-400",
+    },
   };
 
   return (
     <div className="mb-4">
-      <h4 className={`font-bold ${colorMap[color]} mb-2`}>{title}</h4>
+      <h4
+        className={`font-bold ${colorMap[color].light} ${colorMap[color].dark} mb-2`}
+      >
+        {title}
+      </h4>
+
       <ul className="space-y-1 ml-4">
         {items.map((item) => (
-          <li key={item} className="list-disc">
+          <li
+            key={item}
+            className="
+              list-disc 
+              text-gray-800 dark:text-gray-300
+            "
+          >
             {item}
           </li>
         ))}
