@@ -169,10 +169,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
               <button
                 type="button"
                 onClick={() => setRole("student")}
-                className={`flex-1 py-4 flex flex-col items-center justify-center rounded-xl border ${
+                className={`flex-1 py-4 flex flex-col items-center justify-center space-y-1 rounded-xl transition border ${
                   role === "student"
-                    ? "bg-blue-50 border-blue-500 text-blue-600 dark:text-blue-400"
-                    : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 shadow-inner"
+                    : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                 }`}
               >
                 <div className="text-2xl">📖</div>
@@ -182,10 +182,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
               <button
                 type="button"
                 onClick={() => setRole("teacher")}
-                className={`flex-1 py-4 flex flex-col items-center justify-center rounded-xl border ${
+                className={`flex-1 py-4 flex flex-col items-center justify-center space-y-1 rounded-xl transition border ${
                   role === "teacher"
-                    ? "bg-blue-50 border-blue-500 text-blue-600 dark:text-blue-400"
-                    : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400 shadow-inner"
+                    : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                 }`}
               >
                 <div className="text-2xl">🎓</div>
