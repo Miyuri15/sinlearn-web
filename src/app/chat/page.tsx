@@ -74,11 +74,9 @@ export default function Chat() {
     if (mode === "learning") {
       if (!message.trim()) return;
 
-      const userMsg = { role: "user", content: message };
-
       setMessages((prev) => [
         ...prev,
-        userMsg,
+        { role: "user", content: message },
         { role: "assistant", content: mockLearningReply },
       ]);
 
@@ -86,8 +84,7 @@ export default function Chat() {
       return;
     }
 
-    // --- EVALUATION MODE ---
-    // build evaluation object
+    // Evaluation mode
     const evaluationPayload = {
       totalMarks,
       mainQuestions,
@@ -95,14 +92,11 @@ export default function Chat() {
       subQuestions,
     };
 
-    const userMsg = { role: "user", content: evaluationPayload };
-
     setMessages((prev) => [
       ...prev,
-      userMsg,
+      { role: "user", content: evaluationPayload },
       { role: "evaluation", content: mockEvaluation },
     ]);
-
     setMessage("");
   };
 

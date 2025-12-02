@@ -1,6 +1,6 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { Send, Paperclip } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 type EvaluationInputsProps = Readonly<{
@@ -17,6 +17,7 @@ type EvaluationInputsProps = Readonly<{
   setSubQuestions: (value: number) => void;
 
   onSend: () => void;
+  onUpload?: () => void; // Optional upload handler
 }>;
 
 export default function EvaluationInputs({
@@ -29,6 +30,7 @@ export default function EvaluationInputs({
   subQuestions,
   setSubQuestions,
   onSend,
+  onUpload,
 }: EvaluationInputsProps) {
   const { t } = useTranslation("chat");
 
@@ -43,20 +45,36 @@ export default function EvaluationInputs({
           {t("evaluation_settings_sub")}
         </p>
 
-        {/* SEND BUTTON */}
-        <button
-          onClick={onSend}
-          className="
-            flex items-center gap-2 px-5 py-2.5 rounded-lg
-            bg-blue-600 hover:bg-blue-700
-            dark:bg-indigo-600 dark:hover:bg-indigo-700
-            text-white font-medium shadow-sm transition
-            whitespace-nowrap
-          "
-        >
-          <Send className="w-5 h-5" />
-          {t("send")}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* UPLOAD BUTTON */}
+          <button
+            onClick={onUpload}
+            className="
+              p-2 rounded-lg border
+              bg-white text-gray-700 
+              dark:bg-[#222] dark:text-gray-200 dark:border-[#333]
+              hover:bg-gray-100 dark:hover:bg-[#333]
+              transition
+            "
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
+
+          {/* SEND BUTTON */}
+          <button
+            onClick={onSend}
+            className="
+              flex items-center gap-2 px-5 py-2.5 rounded-lg
+              bg-blue-600 hover:bg-blue-700
+              dark:bg-indigo-600 dark:hover:bg-indigo-700
+              text-white font-medium shadow-sm transition
+              whitespace-nowrap
+            "
+          >
+            <Send className="w-5 h-5" />
+            {t("send")}
+          </button>
+        </div>
       </div>
 
       {/* Inputs Grid */}
