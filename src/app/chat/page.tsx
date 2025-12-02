@@ -109,14 +109,14 @@ export default function Chat() {
   return (
     <main className="flex min-h-screen bg-gray-100 text-gray-900 dark:bg-[#0C0C0C] dark:text-gray-200 relative overflow-hidden">
       {/* LEFT SIDEBAR */}
-      <div className="w-16 bg-white border-r dark:bg-[#111111] dark:border-[#2a2a2a] flex items-start justify-center p-4">
+      <div className="w-16 bg-white border-r border-gray-200 dark:bg-[#111111] dark:border-[#2a2a2a] flex items-start justify-center p-4">
         <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300 cursor-pointer" />
       </div>
 
       {/* MAIN AREA */}
       <div className="flex flex-col flex-1 min-h-screen h-screen justify-between">
         {/* TOP BAR */}
-        <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b dark:border-[#2a2a2a]">
+        <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
           {/* MODE TOGGLE */}
           <div className="flex items-center gap-3">
             <button
@@ -210,7 +210,7 @@ Sub Questions: ${m.content.subQuestions}
         </div>
 
         {/* INPUT AREA */}
-        <div className="p-4 border-t bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
+        <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
           {mode === "evaluation" && (
             <EvaluationInputs
               totalMarks={totalMarks}

@@ -30,7 +30,7 @@ export default function MarkingRubic({
   }
 
   return (
-    <div className="min-h-screen w-80 bg-white border-l p-6 h-full flex flex-col">
+    <div className="min-h-screen w-80 bg-white border-l border-gray-200 p-6 h-full flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold text-gray-800">Select Rubric</h3>
