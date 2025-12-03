@@ -12,6 +12,13 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  setSelectedRubric,
+  getSelectedRubric,
+  getCustomRubrics,
+  addCustomRubric,
+  type StoredRubric,
+} from "@/lib/localStore"; // Adjust the import path as needed
 
 type RubricSidebarProps = Readonly<{
   isOpen: boolean;
@@ -54,7 +61,7 @@ export default function RubricSidebar({
 }: RubricSidebarProps) {
   const { t, i18n } = useTranslation("common");
   const currentLang = i18n.language || "en";
-  const [selectedRubric, setSelectedRubric] = useState<string>("");
+  const [selectedRubric, setSelectedRubricState] = useState<string>("");
   const [showCustomizationPopup, setShowCustomizationPopup] = useState(false);
   const [customRubricData, setCustomRubricData] = useState<CustomRubricData>({
     title: t("rubric.balanced_evaluation", "Balanced Evaluation"),
@@ -66,6 +73,19 @@ export default function RubricSidebar({
     ],
     total: 100,
   });
+
+  // Load previously selected rubric on component mount
+  useEffect(() => {
+    const storedRubric = getSelectedRubric();
+    if (storedRubric) {
+      setSelectedRubricState(storedRubric.id);
+    }
+
+    // Load saved custom rubrics from localStorage
+    const savedCustomRubrics = getCustomRubrics();
+    // You might want to update the savedRubrics state with these
+    console.log("Loaded custom rubrics:", savedCustomRubrics);
+  }, []);
 
   // Get localized text
   const getText = (en: string, si: string) => (currentLang === "si" ? si : en);
@@ -124,7 +144,8 @@ export default function RubricSidebar({
     },
   ];
 
-  const savedRubrics: Rubric[] = [
+  // Initialize saved rubrics with data from localStorage
+  const [savedRubrics, setSavedRubrics] = useState<Rubric[]>([
     {
       id: "custom-1",
       title: t("rubric.custom_rubric", "Custom Rubric"),
@@ -137,7 +158,7 @@ export default function RubricSidebar({
       ],
       total: 100,
     },
-  ];
+  ]);
 
   // Translation keys for sidebar
   const sidebarText = {
@@ -216,7 +237,7 @@ export default function RubricSidebar({
   const handleRubricSelect = (rubricId: string) => {
     // Toggle selection: if already selected, deselect it
     const newSelection = selectedRubric === rubricId ? "" : rubricId;
-    setSelectedRubric(newSelection);
+    setSelectedRubricState(newSelection);
     onSelectRubric?.(newSelection);
   };
 
@@ -264,7 +285,37 @@ export default function RubricSidebar({
   };
 
   const handleCreateCustomRubric = () => {
+    // Generate a unique ID for the custom rubric
+    const customRubricId = `custom-${Date.now()}`;
+
+    // Create the rubric object
+    const newCustomRubric: Omit<StoredRubric, "selectedAt"> = {
+      id: customRubricId,
+      title: customRubricData.title,
+      title_si: customRubricData.title_si,
+      type: "custom",
+      categories: customRubricData.categories,
+      total: customRubricData.total,
+    };
+
+    // Save to localStorage
+    const savedRubric = addCustomRubric(newCustomRubric);
+
+    // Update the saved rubrics list in state
+    const rubricForState: Rubric = {
+      id: savedRubric.id,
+      title: savedRubric.title,
+      title_si: savedRubric.title_si,
+      type: savedRubric.type,
+      categories: savedRubric.categories,
+      total: savedRubric.total,
+    };
+
+    setSavedRubrics((prev) => [...prev, rubricForState]);
+
+    // Call the onUpload callback if provided
     onUpload?.(customRubricData);
+
     setTimeout(() => onClose(), 300);
     setShowCustomizationPopup(false);
   };
@@ -280,6 +331,37 @@ export default function RubricSidebar({
       ],
       total: 100,
     });
+  };
+
+  const handleApplySelectedRubric = () => {
+    if (!selectedRubric) return;
+
+    // Find the selected rubric from all available rubrics
+    const allRubrics = [...standardRubrics, ...savedRubrics];
+    const selectedRubricData = allRubrics.find((r) => r.id === selectedRubric);
+
+    if (selectedRubricData) {
+      // Convert to StoredRubric format and save to localStorage
+      const rubricToStore: Omit<StoredRubric, "selectedAt"> = {
+        id: selectedRubricData.id,
+        title: selectedRubricData.title,
+        title_si: selectedRubricData.title_si,
+        type: selectedRubricData.type,
+        categories: selectedRubricData.categories,
+        total: selectedRubricData.total,
+      };
+
+      // Save to localStorage
+      setSelectedRubric({
+        ...rubricToStore,
+        selectedAt: new Date().toISOString(),
+      });
+
+      console.log("Rubric saved to localStorage:", rubricToStore);
+    }
+
+    // Close the sidebar
+    onClose();
   };
 
   const CustomizationPopup = () => (
@@ -675,11 +757,7 @@ export default function RubricSidebar({
         {/* Footer */}
         <div className="pt-6 border-t dark:border-gray-700">
           <button
-            onClick={() => {
-              if (selectedRubric) {
-                onClose();
-              }
-            }}
+            onClick={handleApplySelectedRubric}
             disabled={!selectedRubric}
             className={`w-full py-3 font-medium rounded-lg transition ${
               selectedRubric
