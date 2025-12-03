@@ -62,7 +62,12 @@ export default function Chat() {
         ...prev,
         {
           role: "user",
-          content: { totalMarks, mainQuestions, requiredQuestions, subQuestions },
+          content: {
+            totalMarks,
+            mainQuestions,
+            requiredQuestions,
+            subQuestions,
+          },
         },
         { role: "evaluation", content: mockEvaluation },
       ]);
@@ -76,27 +81,52 @@ export default function Chat() {
   }, [messages]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value);
+    const value = e.target.value;
+    setMessage(value);
+    if (value.trim() === "") {
+      e.target.style.height = "auto";
+      return;
+    }
     e.target.style.height = "auto";
     e.target.style.height = `${e.target.scrollHeight}px`;
+  };
+
+  const handleStopRecording = () => {
+    setIsRecording(false);
+    setMessage(transcript);
+  };
+
+  const handleCancelRecording = () => {
+    setIsRecording(false);
+    setTranscript("");
   };
 
   return (
     <main className="flex min-h-screen bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
       {/* LEFT SIDEBAR — PUSHES LAYOUT LIKE CHATGPT */}
       <div
-        className={`transition-all duration-300 border-r dark:border-[#2a2a2a]
+        className={`transition-all duration-300 border-r border-gray-200 dark:border-[#2a2a2a]
         bg-white dark:bg-[#111111]
         ${isSidebarOpen ? "w-64" : "w-16"}`}
       >
         {isSidebarOpen ? (
           <Sidebar
             chats={[
-              { id: "1", title: "New Learning Chat", type: "learning", time: "1 minute ago" },
-              { id: "2", title: "New Evaluation Chat", type: "evaluation", time: "12 minutes ago" },
+              {
+                id: "1",
+                title: "New Learning Chat",
+                type: "learning",
+                time: "1 minute ago",
+              },
+              {
+                id: "2",
+                title: "New Evaluation Chat",
+                type: "evaluation",
+                time: "12 minutes ago",
+              },
             ]}
             isOpen={isSidebarOpen}
-            onClose={() => setIsSidebarOpen(false)}
+            onToggle={() => setIsSidebarOpen(false)}
           />
         ) : (
           <div className="p-4">
@@ -171,8 +201,12 @@ export default function Chat() {
           {!messages.length && (
             <div className="flex-1 flex items-center justify-center text-center">
               <div>
-                <h2 className="text-xl font-semibold">{t("start_conversation")}</h2>
-                <p className="text-gray-500 dark:text-gray-400">{t("start_conversation_sub")}</p>
+                <h2 className="text-xl font-semibold">
+                  {t("start_conversation")}
+                </h2>
+                <p className="text-gray-500 dark:text-gray-400">
+                  {t("start_conversation_sub")}
+                </p>
               </div>
             </div>
           )}
@@ -186,7 +220,11 @@ export default function Chat() {
                     m.content
                   ) : (
                     <pre className="whitespace-pre-wrap text-sm">
-                      {JSON.stringify(m.content, null, 2)}
+                      {`Total Marks: ${m.content.totalMarks}
+Main Questions: ${m.content.mainQuestions}
+Required Questions: ${m.content.requiredQuestions}
+Sub Questions: ${m.content.subQuestions}
+`}
                     </pre>
                   )}
                 </div>
@@ -207,7 +245,7 @@ export default function Chat() {
 
         {/* INPUT AREA */}
         <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
-          {mode === "evaluation" ? (
+          {mode === "evaluation" && (
             <EvaluationInputs
               totalMarks={totalMarks}
               setTotalMarks={setTotalMarks}
@@ -219,7 +257,14 @@ export default function Chat() {
               setSubQuestions={setSubQuestions}
               onSend={handleSend}
             />
-          ) : (
+          )}
+          {isRecording && (
+            <RecordBar
+              onCancelRecording={handleCancelRecording}
+              onStopRecording={handleStopRecording}
+            />
+          )}
+          {mode === "learning" && (
             <>
               <div className="mb-3">
                 <label className="mr-2 text-sm">{t("response_level")}:</label>
