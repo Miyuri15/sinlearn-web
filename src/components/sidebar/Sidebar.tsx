@@ -16,10 +16,14 @@ interface ChatItem {
 interface SidebarProps {
   chats?: ChatItem[];
   isOpen: boolean;
-  onClose: () => void;
+  onToggle: () => void;
 }
 
-export default function Sidebar({ chats = [], isOpen, onClose }: SidebarProps) {
+export default function Sidebar({
+  chats = [],
+  isOpen,
+  onToggle,
+}: SidebarProps) {
   const [search, setSearch] = useState("");
   const router = useRouter();
   const { t } = useTranslation("common");
@@ -30,22 +34,32 @@ export default function Sidebar({ chats = [], isOpen, onClose }: SidebarProps) {
 
   return (
     <div
-      className={`h-full flex flex-col border-r 
+      className={`h-dvh flex flex-col border-r 
         bg-white dark:bg-gray-900 dark:border-gray-700 
         transition-all duration-300 overflow-hidden
         ${isOpen ? "w-64" : "w-16"}`}
     >
       {/* TOP BAR */}
-      <div className="p-4 flex items-center gap-3 dark:border-gray-700">
+      <div className="p-4 flex items-center justify-between dark:border-gray-700">
         <Menu
-          onClick={onClose}
-          className="w-6 h-6 text-gray-700 dark:text-gray-300 cursor-pointer"
+          onClick={onToggle}
+          className={`w-6 h-6 text-gray-700 dark:text-gray-300 cursor-pointer transition-transform
+                ${isOpen ? "rotate-180" : ""}`}
         />
 
         {isOpen && (
           <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {t("chat_history")}
           </span>
+        )}
+
+        {isOpen && (
+          <button
+            onClick={onToggle}
+            className="text-gray-700 dark:text-gray-300 text-xl leading-none"
+          >
+            ✖
+          </button>
         )}
       </div>
 

@@ -102,44 +102,9 @@ export default function Chat() {
   };
 
   return (
-    <main className="flex min-h-screen bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
-      {/* LEFT SIDEBAR — PUSHES LAYOUT LIKE CHATGPT */}
-      <div
-        className={`transition-all duration-300 border-r border-gray-200 dark:border-[#2a2a2a]
-        bg-white dark:bg-[#111111]
-        ${isSidebarOpen ? "w-64" : "w-16"}`}
-      >
-        {isSidebarOpen ? (
-          <Sidebar
-            chats={[
-              {
-                id: "1",
-                title: "New Learning Chat",
-                type: "learning",
-                time: "1 minute ago",
-              },
-              {
-                id: "2",
-                title: "New Evaluation Chat",
-                type: "evaluation",
-                time: "12 minutes ago",
-              },
-            ]}
-            isOpen={isSidebarOpen}
-            onToggle={() => setIsSidebarOpen(false)}
-          />
-        ) : (
-          <div className="p-4">
-            <Menu
-              onClick={() => setIsSidebarOpen(true)}
-              className="w-6 h-6 text-gray-700 dark:text-gray-300 cursor-pointer"
-            />
-          </div>
-        )}
-      </div>
-
+    <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
       {/* MAIN AREA */}
-      <div className="flex flex-col flex-1 h-screen">
+      <div className="flex flex-col flex-1 min-h-screen">
         {/* TOP BAR */}
         <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
           {/* MODE TOGGLE */}
