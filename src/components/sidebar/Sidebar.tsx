@@ -34,8 +34,8 @@ export default function Sidebar({
 
   return (
     <div
-      className={`h-dvh flex flex-col border-r 
-        bg-white dark:bg-gray-900 dark:border-gray-700 
+      className={`h-dvh flex flex-col border-r border-gray-200 dark:border-[#2a2a2a]
+        bg-white dark:bg-gray-900 
         transition-all duration-300 overflow-hidden
         ${isOpen ? "w-64" : "w-16"}`}
     >

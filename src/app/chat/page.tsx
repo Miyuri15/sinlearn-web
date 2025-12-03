@@ -2,7 +2,6 @@
 
 import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
 import MarkingRubic from "./components/MarkingRubic";
-import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import InputBar from "./components/InputBar";
@@ -101,19 +100,51 @@ export default function Chat() {
     setTranscript("");
   };
 
+  // Reset chat when switching modes
+  useEffect(() => {
+    setMessages([]); // clear chat history
+    setMessage(""); // clear input box
+    setTranscript(""); // should clear voice transcript
+
+    // Reset evaluation inputs
+    setTotalMarks(0);
+    setMainQuestions(0);
+    setRequiredQuestions(0);
+    setSubQuestions(0);
+  }, [mode]);
+
+  useEffect(() => {
+    if (isRecording) {
+      setTranscript("student asking about solar systems…");
+    }
+  }, [isRecording]);
+
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
       <Sidebar
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-        chats={[]} // supply real chat list later
+        chats={[
+          {
+            id: "1",
+            title: "New Learning Chat",
+            type: "learning",
+            time: "1 minute ago",
+          },
+          {
+            id: "2",
+            title: "New Evaluation Chat",
+            type: "evaluation",
+            time: "12 minutes ago",
+          },
+        ]}
       />
       {/* MAIN AREA */}
       <div className="flex flex-col flex-1">
         {/* TOP BAR */}
         <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
           {/* MODE TOGGLE */}
-          <div className="flex items-center">
+          <div className="hidden md:flex items-center">
             <div className="flex bg-blue-50 border border-gray-50 dark:border-[#2a2a2a] dark:bg-[#111] rounded-full p-1 shadow-sm">
               {/* LEARNING */}
               <button
@@ -125,7 +156,7 @@ export default function Chat() {
                 }`}
               >
                 <span className="text-lg">📖</span>
-                {t("learning_mode")}
+                <span>{t("learning_mode")}</span>
               </button>
 
               {/* EVALUATION */}
@@ -138,7 +169,7 @@ export default function Chat() {
                 }`}
               >
                 <span className="text-lg">📝</span>
-                {t("evaluation_mode")}
+                <span>{t("evaluation_mode")}</span>
               </button>
             </div>
           </div>
@@ -166,10 +197,10 @@ export default function Chat() {
         </div>
 
         {/* MESSAGE AREA */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-          {/* Empty State */}
-          {!messages.length && (
-            <div className="flex-1 flex items-center justify-center text-center">
+        {/* Empty State */}
+        {!messages.length && (
+          <div className="flex flex-1 flex-col overflow-y-auto p-6 bg-gray-100 dark:bg-[#0C0C0C]">
+            <div className="flex flex-1 items-center justify-center text-center">
               <div>
                 <h2 className="text-xl font-semibold">
                   {t("start_conversation")}
@@ -179,8 +210,10 @@ export default function Chat() {
                 </p>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
+        <div className="flex flex-col space-y-4 overflow-y-auto p-6 bg-gray-100 dark:bg-[#0C0C0C]">
           {/* Messages */}
           {messages.map((m, i) => (
             <div key={i}>
