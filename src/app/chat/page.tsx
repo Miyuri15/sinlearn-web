@@ -1,7 +1,7 @@
 "use client";
 
 import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
-import MarkingRubic from "./components/MarkingRubic";
+import RubricSidebar from "@/components/chat/RubricSidebar"; // Updated import
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
@@ -24,7 +24,7 @@ export default function Chat() {
   const endRef = useRef<HTMLDivElement | null>(null);
   const [responseLevel, setResponseLevel] = useState("Grades 9–11");
 
-  // Evaluation inputs state (required by EvaluationInputs)
+  // Evaluation inputs state
   const [totalMarks, setTotalMarks] = useState<number>(0);
   const [mainQuestions, setMainQuestions] = useState<number>(0);
   const [requiredQuestions, setRequiredQuestions] = useState<number>(0);
@@ -52,11 +52,10 @@ export default function Chat() {
     setTranscript("");
   };
 
-  // --- HARDCODED LEARNING MODE RESPONSE ---
+  // --- HARDCODED RESPONSES ---
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
 
-  // --- HARDCODED EVALUATION REPORT ---
   const mockEvaluation = {
     grade: "B+",
     coverage: 76,
@@ -106,8 +105,19 @@ export default function Chat() {
     }
   }, [messages]);
 
+  const handleRubricSelect = (rubricId: string) => {
+    console.log("Selected rubric:", rubricId);
+    // You can implement rubric selection logic here
+    // For example: setSelectedRubric(rubricId);
+  };
+
+  const handleRubricUpload = () => {
+    console.log("Upload rubric");
+    // Implement file upload logic here
+  };
+
   return (
-    <main className="flex min-h-screen bg-gray-100 text-gray-900 dark:bg-[#0C0C0C] dark:text-gray-200 relative overflow-hidden">
+    <main className="flex min-h-screen bg-gray-100 text-gray-900 dark:bg-[#0C0C0C] dark:text-gray-200">
       {/* LEFT SIDEBAR */}
       <div className="w-16 bg-white border-r dark:bg-[#111111] dark:border-[#2a2a2a] flex items-start justify-center p-4">
         <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300 cursor-pointer" />
@@ -149,16 +159,16 @@ export default function Chat() {
 
             <button
               onClick={() => setIsRubricOpen(true)}
-              className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200"
+              className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
             >
               Rubric
             </button>
 
-            <button className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200">
+            <button className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
               Syllabus
             </button>
 
-            <button className="w-9 h-9 flex items-center justify-center border rounded-lg bg-white text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200">
+            <button className="w-9 h-9 flex items-center justify-center border rounded-lg bg-white text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
               +
             </button>
           </div>
@@ -263,18 +273,14 @@ Sub Questions: ${m.content.subQuestions}
         </div>
       </div>
 
-      {/* RIGHT SLIDE SIDEBAR */}
-      <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 
-        ${isRubricOpen ? "translate-x-0" : "translate-x-full"}`}
-      >
-        <MarkingRubic
-          loading={loading}
-          onClose={() => setIsRubricOpen(false)}
-          onSelectRubric={(id) => console.log("Selected:", id)}
-          onUpload={() => console.log("Upload pressed")}
-        />
-      </div>
+      {/* RUBRIC SIDEBAR */}
+      <RubricSidebar
+        isOpen={isRubricOpen}
+        loading={loading}
+        onClose={() => setIsRubricOpen(false)}
+        onSelectRubric={handleRubricSelect}
+        onUpload={handleRubricUpload}
+      />
     </main>
   );
 }
