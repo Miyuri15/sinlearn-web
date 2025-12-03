@@ -16,7 +16,7 @@ export default function Chat() {
   const { t } = useTranslation("chat");
 
   // STATES
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -103,8 +103,13 @@ export default function Chat() {
 
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        chats={[]} // supply real chat list later
+      />
       {/* MAIN AREA */}
-      <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex flex-col flex-1">
         {/* TOP BAR */}
         <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
           {/* MODE TOGGLE */}
