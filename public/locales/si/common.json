@@ -73,6 +73,28 @@
     "privacy_policy": "පෞද්ගලිකත්ව ප්‍රතිපත්තිය",
     
     "save_changes": "වෙනස්කම් සුරකින්න"
-  }
+  }, 
+  "rubric": {
+  "action_teachers": "ක්‍රියාකාරී ගුරුවරුන්",
+  "select_rubric": "ඇගයීම් මාපකය තෝරන්න",
+  "saved_rubrics": "සුරකින ලද මාපක",
+  "upload_custom_rubric": "අභිරුචි මාපකය උඩුගත කරන්න",
+  "file_types": "PDF, DOCX, හෝ Excel",
+  "upload": "උඩුගත කරන්න",
+  "drag_and_drop": "ඇදගෙන යාම සහ දැමීම",
+  "max_file_size": "උපරිම ගොනු ප්‍රමාණය: 10MB",
+  "standard_rubrics": "ප්‍රමිතිගත මාපක",
+  "custom": "අභිරුචි",
+  "total": "මුළු",
+  "apply_selected_rubric": "තෝරාගත් මාපකය යොදන්න",
+  "rubric_selected": "මාපකය තෝරාගෙන ඇත",
+  "select_rubric_to_apply": "යොදාගැනීමට මාපකයක් තෝරන්න",
+  "view_guidelines": "මාපක මාර්ගෝපදේශ බලන්න",
+  "recent_uploads": "මෑතකදී උඩුගත කළ",
+  "use": "භාවිත කරන්න",
+  "uploaded": "උඩුගත කළ",
+  "days_ago": "දිනකට පෙර",
+  "need_help": "උදව් අවශ්‍යද?"
+}
 
 }

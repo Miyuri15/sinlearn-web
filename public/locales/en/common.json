@@ -73,8 +73,29 @@
     "privacy_policy": "Privacy Policy",
     
     "save_changes": "Save Changes"
-  }
-
+  }, 
+"rubric": {
+  "action_teachers": "Action Teachers",
+  "select_rubric": "Select Rubric",
+  "saved_rubrics": "Saved Rubrics",
+  "upload_custom_rubric": "Upload Custom Rubric",
+  "file_types": "PDF, DOCX, or Excel",
+  "upload": "Upload",
+  "drag_and_drop": "or drag and drop",
+  "max_file_size": "Max file size: 10MB",
+  "standard_rubrics": "Standard Rubrics",
+  "custom": "Custom",
+  "total": "Total",
+  "apply_selected_rubric": "Apply Selected Rubric",
+  "rubric_selected": "Rubric selected",
+  "select_rubric_to_apply": "Select a rubric to apply",
+  "view_guidelines": "View rubric guidelines",
+  "recent_uploads": "Recent Uploads",
+  "use": "Use",
+  "uploaded": "Uploaded",
+  "days_ago": "days ago",
+  "need_help": "Need help?"
+}
 
   
 
