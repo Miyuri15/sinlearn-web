@@ -74,15 +74,13 @@
     
     "save_changes": "වෙනස්කම් සුරකින්න"
   }, 
-  "rubric": {
+"rubric": {
   "action_teachers": "ක්‍රියාකාරී ගුරුවරුන්",
   "select_rubric": "ඇගයීම් මාපකය තෝරන්න",
   "saved_rubrics": "සුරකින ලද මාපක",
   "upload_custom_rubric": "අභිරුචි මාපකය උඩුගත කරන්න",
   "file_types": "PDF, DOCX, හෝ Excel",
   "upload": "උඩුගත කරන්න",
-  "drag_and_drop": "ඇදගෙන යාම සහ දැමීම",
-  "max_file_size": "උපරිම ගොනු ප්‍රමාණය: 10MB",
   "standard_rubrics": "ප්‍රමිතිගත මාපක",
   "custom": "අභිරුචි",
   "total": "මුළු",
@@ -90,11 +88,31 @@
   "rubric_selected": "මාපකය තෝරාගෙන ඇත",
   "select_rubric_to_apply": "යොදාගැනීමට මාපකයක් තෝරන්න",
   "view_guidelines": "මාපක මාර්ගෝපදේශ බලන්න",
+  "drag_and_drop": "ඇදගෙන යාම සහ දැමීම",
+  "max_file_size": "උපරිම ගොනු ප්‍රමාණය: 10MB",
   "recent_uploads": "මෑතකදී උඩුගත කළ",
   "use": "භාවිත කරන්න",
   "uploaded": "උඩුගත කළ",
   "days_ago": "දිනකට පෙර",
-  "need_help": "උදව් අවශ්‍යද?"
+  "need_help": "උදව් අවශ්‍යද?",
+  "customize_rubric": "මාපකය අභිරුචිකරණය කරන්න",
+  "upload_as_is": "පෙර සේම උඩුගත කරන්න",
+  "customize_marks": "ලකුණු අභිරුචිකරණය කරන්න",
+  "rubric_title": "මාපක මාතෘකාව",
+  "title_placeholder": "මාපක මාතෘකාව ඇතුළත් කරන්න",
+  "category_name": "කාණ්ඩ නාමය",
+  "percentage": "ප්‍රතිශතය",
+  "add_category": "කාණ්ඩයක් එකතු කරන්න",
+  "remove": "ඉවත් කරන්න",
+  "save_customization": "අභිරුචිකරණය සුරකින්න",
+  "total_percentage": "මුළු ප්‍රතිශතය",
+  "must_equal_100": "100% ට සමාන විය යුතුය",
+  "how_to_upload": "ඔබට කෙසේ උඩුගත කිරීමට අවශ්‍යද?",
+  "customize_description": "සුරැකීමට පෙර ප්‍රතිශත සහ කාණ්ඩ සකස් කරන්න",
+  "as_is_description": "වෙනසක් නොකර ගොනුව උඩුගත කරන්න",
+  "cancel": "අවලංගු කරන්න",
+  "proceed": "ක්‍රියාත්මක කරන්න",
+  "customize": "අභිරුචිකරණය කරන්න"
 }
 
 }
