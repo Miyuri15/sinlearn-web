@@ -1,7 +1,7 @@
 "use client";
 
 import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
-import MarkingRubic from "./components/MarkingRubic";
+import RubricSidebar from "@/components/chat/RubricSidebar"; // Updated import
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import InputBar from "./components/InputBar";
@@ -27,11 +27,11 @@ export default function Chat() {
   const endRef = useRef<HTMLDivElement | null>(null);
   const [responseLevel, setResponseLevel] = useState("Grades 9–11");
 
-  // Evaluation inputs
-  const [totalMarks, setTotalMarks] = useState(0);
-  const [mainQuestions, setMainQuestions] = useState(0);
-  const [requiredQuestions, setRequiredQuestions] = useState(0);
-  const [subQuestions, setSubQuestions] = useState(0);
+  // Evaluation inputs state
+  const [totalMarks, setTotalMarks] = useState<number>(0);
+  const [mainQuestions, setMainQuestions] = useState<number>(0);
+  const [requiredQuestions, setRequiredQuestions] = useState<number>(0);
+  const [subQuestions, setSubQuestions] = useState<number>(0);
 
   const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>([]);
   const [isSubMarksModalOpen, setIsSubMarksModalOpen] = useState(false);
@@ -116,6 +116,17 @@ export default function Chat() {
     setRequiredQuestions(0);
     setSubQuestions(0);
   }, [mode]);
+
+  const handleRubricSelect = (rubricId: string) => {
+    console.log("Selected rubric:", rubricId);
+    // You can implement rubric selection logic here
+    // For example: setSelectedRubric(rubricId);
+  };
+
+  const handleRubricUpload = () => {
+    console.log("Upload rubric");
+    // Implement file upload logic here
+  };
 
   useEffect(() => {
     if (isRecording) {
@@ -217,16 +228,16 @@ export default function Chat() {
 
             <button
               onClick={() => setIsRubricOpen(true)}
-              className="px-4 py-2 rounded-lg bg-white dark:bg-[#222] border dark:border-[#333]"
+              className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
             >
               Rubric
             </button>
 
-            <button className="px-4 py-2 rounded-lg bg-white dark:bg-[#222] border dark:border-[#333]">
+            <button className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
               Syllabus
             </button>
 
-            <button className="w-9 h-9 flex items-center justify-center bg-white dark:bg-[#222] border dark:border-[#333] rounded-lg">
+            <button className="w-9 h-9 flex items-center justify-center border rounded-lg bg-white text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
               +
             </button>
           </div>
@@ -333,20 +344,6 @@ Sub Questions: ${m.content.subQuestions}
         </div>
       </div>
 
-      {/* RIGHT SLIDE SIDEBAR */}
-      <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 ${
-          isRubricOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <MarkingRubic
-          loading={loading}
-          onClose={() => setIsRubricOpen(false)}
-          onSelectRubric={() => {}}
-          onUpload={() => {}}
-        />
-      </div>
-
       {isSubMarksModalOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
           <div className="bg-white dark:bg-[#111] rounded-xl shadow-lg p-6 w-full max-w-md">
@@ -392,6 +389,15 @@ Sub Questions: ${m.content.subQuestions}
           </div>
         </div>
       )}
+
+      {/* RUBRIC SIDEBAR */}
+      <RubricSidebar
+        isOpen={isRubricOpen}
+        loading={loading}
+        onClose={() => setIsRubricOpen(false)}
+        onSelectRubric={handleRubricSelect}
+        onUpload={handleRubricUpload}
+      />
     </main>
   );
 }
