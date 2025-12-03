@@ -14,8 +14,10 @@
   "already_have_account": "Already have an account?",
   "signup_link": "Sign Up",
   "signin_link": "Sign In",
-  
-  
+  "chat_history": "Chat History",
+  "new_learning_chat": "New Learning Chat",
+  "new_evaluation_chat": "New Evaluation Chat",
+
   "settings": {
     "title": "Settings",
     "subtitle": "Manage your preferences",
