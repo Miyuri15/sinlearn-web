@@ -260,7 +260,7 @@ export default function Chat() {
           </div>
         )}
 
-        <div className="flex flex-col space-y-4 overflow-y-auto p-6 bg-gray-100 dark:bg-[#0C0C0C]">
+        <div className="flex flex-col flex-1 space-y-4 overflow-y-auto p-6 bg-gray-100 dark:bg-[#0C0C0C]">
           {/* Messages */}
           {messages.map((m, i) => (
             <div key={i}>

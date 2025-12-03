@@ -34,8 +34,12 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const email = (document.querySelector('input[type="email"]') as HTMLInputElement)?.value;
-    const name = (document.querySelector('input[type="text"]') as HTMLInputElement)?.value;
+    const email = (
+      document.querySelector('input[type="email"]') as HTMLInputElement
+    )?.value;
+    const name = (
+      document.querySelector('input[type="text"]') as HTMLInputElement
+    )?.value;
 
     if (tab === "signin") {
       const existing = getUser();
@@ -44,7 +48,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         email: email || existing?.email || "",
         role: existing?.role || "student",
       });
-      router.push("/dashboard");
+      router.push("/chat");
     } else {
       setUser({
         name: name || "User",
@@ -117,9 +121,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
           <Link
             href="/auth/sign-in"
             className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
-              ${tab === "signin"
-                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                : "text-gray-600 dark:text-gray-300"
+              ${
+                tab === "signin"
+                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                  : "text-gray-600 dark:text-gray-300"
               }
             `}
           >
@@ -129,9 +134,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
           <Link
             href="/auth/sign-up"
             className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
-              ${tab === "signup"
-                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                : "text-gray-600 dark:text-gray-300"
+              ${
+                tab === "signup"
+                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                  : "text-gray-600 dark:text-gray-300"
               }
             `}
           >
@@ -186,9 +192,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
                   flex-1 py-3 
                   flex flex-col items-center justify-center 
                   rounded-lg border transition
-                  ${role === "student"
-                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
-                    : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                  ${
+                    role === "student"
+                      ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
+                      : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                   }
                 `}
               >
@@ -203,9 +210,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
                   flex-1 py-3 
                   flex flex-col items-center justify-center 
                   rounded-lg border transition
-                  ${role === "teacher"
-                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
-                    : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                  ${
+                    role === "teacher"
+                      ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
+                      : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                   }
                 `}
               >
@@ -223,14 +231,20 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
             {tab === "signin" ? (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {t("dont_have_account")}{" "}
-                <Link href="/auth/sign-up" className="text-blue-600 dark:text-blue-400">
+                <Link
+                  href="/auth/sign-up"
+                  className="text-blue-600 dark:text-blue-400"
+                >
                   {t("signup_link")}
                 </Link>
               </p>
             ) : (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {t("already_have_account")}{" "}
-                <Link href="/auth/sign-in" className="text-blue-600 dark:text-blue-400">
+                <Link
+                  href="/auth/sign-in"
+                  className="text-blue-600 dark:text-blue-400"
+                >
                   {t("signin_link")}
                 </Link>
               </p>
