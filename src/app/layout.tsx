@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { ReactNode } from "react";
 import I18nProvider from "./providers/I18nProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata = {
   title: "SinLearn",
@@ -32,7 +33,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen transition-colors duration-300">
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </I18nProvider>
       </body>
     </html>
   );

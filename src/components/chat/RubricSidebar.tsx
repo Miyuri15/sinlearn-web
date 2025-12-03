@@ -18,7 +18,8 @@ import {
   getCustomRubrics,
   addCustomRubric,
   type StoredRubric,
-} from "@/lib/localStore"; // Adjust the import path as needed
+} from "@/lib/localStore";
+import { useToast } from "@/components/ui/Toast"; // Import the toast hook
 
 type RubricSidebarProps = Readonly<{
   isOpen: boolean;
@@ -60,6 +61,7 @@ export default function RubricSidebar({
   onUpload,
 }: RubricSidebarProps) {
   const { t, i18n } = useTranslation("common");
+  const { showToast } = useToast(); // Get the toast function
   const currentLang = i18n.language || "en";
   const [selectedRubric, setSelectedRubricState] = useState<string>("");
   const [showCustomizationPopup, setShowCustomizationPopup] = useState(false);
@@ -316,6 +318,15 @@ export default function RubricSidebar({
     // Call the onUpload callback if provided
     onUpload?.(customRubricData);
 
+    // Show success toast
+    showToast(
+      currentLang === "si" ? "සාර්ථකයි" : "Success",
+      currentLang === "si"
+        ? "අභිරුචි මාපකය සාර්ථකව සෑදිණි"
+        : "Custom rubric created successfully",
+      "success"
+    );
+
     setTimeout(() => onClose(), 300);
     setShowCustomizationPopup(false);
   };
@@ -334,7 +345,17 @@ export default function RubricSidebar({
   };
 
   const handleApplySelectedRubric = () => {
-    if (!selectedRubric) return;
+    if (!selectedRubric) {
+      // Show error toast if no rubric selected
+      showToast(
+        currentLang === "si" ? "වැරදීම" : "Error",
+        currentLang === "si"
+          ? "කරුණාකර මාපකයක් තෝරන්න"
+          : "Please select a rubric first",
+        "error"
+      );
+      return;
+    }
 
     // Find the selected rubric from all available rubrics
     const allRubrics = [...standardRubrics, ...savedRubrics];
@@ -357,11 +378,27 @@ export default function RubricSidebar({
         selectedAt: new Date().toISOString(),
       });
 
+      // Show success toast
+      showToast(
+        currentLang === "si" ? "සාර්ථකයි" : "Success",
+        currentLang === "si"
+          ? `"${selectedRubricData.title_si}" මාපකය යොදාගන්නා ලදී`
+          : `"${selectedRubricData.title}" rubric applied successfully`,
+        "success"
+      );
+
       console.log("Rubric saved to localStorage:", rubricToStore);
+    } else {
+      // Show error toast if rubric not found
+      showToast(
+        currentLang === "si" ? "වැරදීම" : "Error",
+        currentLang === "si" ? "මාපකය සොයාගත නොහැක" : "Rubric not found",
+        "error"
+      );
     }
 
     // Close the sidebar
-    onClose();
+    setTimeout(() => onClose(), 500);
   };
 
   const CustomizationPopup = () => (
