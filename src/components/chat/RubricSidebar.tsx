@@ -141,7 +141,6 @@ export default function RubricSidebar({
 
   // Translation keys for sidebar
   const sidebarText = {
-    actionTeachers: t("rubric.action_teachers", "Action Teachers"),
     selectRubric: t("rubric.select_rubric", "Select Rubric"),
     savedRubrics: t("rubric.saved_rubrics", "Saved Rubrics"),
     createCustomRubric: t(
@@ -215,9 +214,10 @@ export default function RubricSidebar({
   }, [isOpen]);
 
   const handleRubricSelect = (rubricId: string) => {
-    setSelectedRubric(rubricId);
-    onSelectRubric?.(rubricId);
-    setTimeout(() => onClose(), 300);
+    // Toggle selection: if already selected, deselect it
+    const newSelection = selectedRubric === rubricId ? "" : rubricId;
+    setSelectedRubric(newSelection);
+    onSelectRubric?.(newSelection);
   };
 
   const handlePercentageChange = (index: number, value: number) => {
@@ -465,12 +465,9 @@ export default function RubricSidebar({
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop - REMOVED onClick handler to prevent closing on backdrop click */}
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-          onClick={onClose}
-        />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
       )}
 
       {/* Customization Popup */}
@@ -485,9 +482,6 @@ export default function RubricSidebar({
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              {sidebarText.actionTeachers}
-            </h2>
             <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">
               {sidebarText.selectRubric}
             </h3>
