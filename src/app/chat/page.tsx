@@ -32,6 +32,9 @@ export default function Chat() {
   const [requiredQuestions, setRequiredQuestions] = useState(0);
   const [subQuestions, setSubQuestions] = useState(0);
 
+  const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>([]);
+  const [isSubMarksModalOpen, setIsSubMarksModalOpen] = useState(false);
+
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
 
@@ -118,6 +121,38 @@ export default function Chat() {
       setTranscript("student asking about solar systems…");
     }
   }, [isRecording]);
+
+  useEffect(() => {
+    if (subQuestions > 0) {
+      setSubQuestionMarks((prev) => {
+        if (prev.length === subQuestions) return prev;
+        const arr = new Array(subQuestions).fill(0);
+        return arr;
+      });
+      setIsSubMarksModalOpen(true);
+    } else {
+      setIsSubMarksModalOpen(false);
+      setSubQuestionMarks([]);
+    }
+  }, [subQuestions]);
+
+  // handlers for modal inputs
+  const handleSubMarkChange = (index: number, value: string) => {
+    const num = Number(value);
+    const next = [...subQuestionMarks];
+    next[index] = isNaN(num) ? 0 : num;
+    setSubQuestionMarks(next);
+  };
+
+  const handleSubMarksDone = () => {
+    setIsSubMarksModalOpen(false);
+  };
+
+  const handleSubMarksCancel = () => {
+    setIsSubMarksModalOpen(false);
+    setSubQuestions(0);
+    setSubQuestionMarks([]);
+  };
 
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
@@ -310,6 +345,53 @@ Sub Questions: ${m.content.subQuestions}
           onUpload={() => {}}
         />
       </div>
+
+      {isSubMarksModalOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-[#111] rounded-xl shadow-lg p-6 w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4">
+              Enter marks for sub-questions
+            </h2>
+
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+              {Array.from({ length: subQuestions }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between gap-3"
+                >
+                  <span className="text-sm">
+                    Sub-question {String.fromCharCode(97 + idx)}){" "}
+                    {/* a, b, c... */}
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    className="w-24 px-2 py-1 border rounded-lg bg-white dark:bg-[#1A1A1A]"
+                    value={subQuestionMarks[idx] ?? 0}
+                    onChange={(e) => handleSubMarkChange(idx, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={handleSubMarksCancel}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-[#333]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubMarksDone}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

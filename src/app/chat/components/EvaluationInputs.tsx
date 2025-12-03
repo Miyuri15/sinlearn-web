@@ -88,6 +88,8 @@ export default function EvaluationInputs({
             type="number"
             value={totalMarks}
             placeholder="0"
+            min={0}
+            max={100}
             onChange={(e) => setTotalMarks(parseNumber(e.target.value))}
             className="
               w-full px-3 py-2 rounded-lg outline-none
@@ -107,6 +109,8 @@ export default function EvaluationInputs({
             type="number"
             value={mainQuestions}
             placeholder="0"
+            min={0}
+            max={10}
             onChange={(e) => setMainQuestions(parseNumber(e.target.value))}
             className="
               w-full px-3 py-2 rounded-lg outline-none
@@ -126,6 +130,8 @@ export default function EvaluationInputs({
             type="number"
             value={requiredQuestions}
             placeholder="0"
+            min={0}
+            max={10}
             onChange={(e) => setRequiredQuestions(parseNumber(e.target.value))}
             className="
               w-full px-3 py-2 rounded-lg outline-none
@@ -145,6 +151,8 @@ export default function EvaluationInputs({
             type="number"
             value={subQuestions}
             placeholder="0"
+            min={0}
+            max={10}
             onChange={(e) => setSubQuestions(parseNumber(e.target.value))}
             className="
               w-full px-3 py-2 rounded-lg outline-none
