@@ -10,6 +10,7 @@ import EvaluationCard from "./components/EvaluationCard";
 import ChatThemeToggle from "./components/ChatThemeToggle";
 import EvaluationInputs from "./components/EvaluationInputs";
 import Sidebar from "@/components/sidebar/Sidebar";
+import NumberInput from "@/components/ui/NumberInput";
 
 export default function Chat() {
   const { t } = useTranslation("chat");
@@ -137,7 +138,7 @@ export default function Chat() {
   }, [subQuestions]);
 
   // handlers for modal inputs
-  const handleSubMarkChange = (index: number, value: string) => {
+  const handleSubMarkChange = (index: number, value: number) => {
     const num = Number(value);
     const next = [...subQuestionMarks];
     next[index] = isNaN(num) ? 0 : num;
@@ -363,13 +364,12 @@ Sub Questions: ${m.content.subQuestions}
                     Sub-question {String.fromCharCode(97 + idx)}){" "}
                     {/* a, b, c... */}
                   </span>
-                  <input
-                    type="number"
+                  <NumberInput
+                    value={subQuestionMarks[idx] ?? 0}
+                    onChange={(v) => handleSubMarkChange(idx, v)}
                     min={0}
                     max={100}
-                    className="w-24 px-2 py-1 border rounded-lg bg-white dark:bg-[#1A1A1A]"
-                    value={subQuestionMarks[idx] ?? 0}
-                    onChange={(e) => handleSubMarkChange(idx, e.target.value)}
+                    className="w-24"
                   />
                 </div>
               ))}

@@ -1,5 +1,6 @@
 "use client";
 
+import NumberInput from "@/components/ui/NumberInput";
 import { Send, Paperclip } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -84,19 +85,12 @@ export default function EvaluationInputs({
           <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
             {t("total_marks")}
           </label>
-          <input
-            type="number"
+          <NumberInput
             value={totalMarks}
-            placeholder="0"
+            onChange={(v) => setTotalMarks(v)}
             min={0}
             max={100}
-            onChange={(e) => setTotalMarks(parseNumber(e.target.value))}
-            className="
-              w-full px-3 py-2 rounded-lg outline-none
-              bg-gray-50 text-gray-800 border border-gray-300
-              dark:bg-[#1A1A1A] dark:text-gray-200 dark:border-[#333]
-              focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500
-            "
+            className="w-full"
           />
         </div>
 
@@ -105,19 +99,12 @@ export default function EvaluationInputs({
           <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
             {t("main_questions")}
           </label>
-          <input
-            type="number"
+          <NumberInput
             value={mainQuestions}
-            placeholder="0"
+            onChange={(v) => setMainQuestions(v)}
             min={0}
             max={10}
-            onChange={(e) => setMainQuestions(parseNumber(e.target.value))}
-            className="
-              w-full px-3 py-2 rounded-lg outline-none
-              bg-gray-50 text-gray-800 border border-gray-300
-              dark:bg-[#1A1A1A] dark:text-gray-200 dark:border-[#333]
-              focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500
-            "
+            className="w-full"
           />
         </div>
 
@@ -126,19 +113,12 @@ export default function EvaluationInputs({
           <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
             {t("required_questions")}
           </label>
-          <input
-            type="number"
+          <NumberInput
             value={requiredQuestions}
-            placeholder="0"
+            onChange={(v) => setRequiredQuestions(v)}
             min={0}
             max={10}
-            onChange={(e) => setRequiredQuestions(parseNumber(e.target.value))}
-            className="
-              w-full px-3 py-2 rounded-lg outline-none
-              bg-gray-50 text-gray-800 border border-gray-300
-              dark:bg-[#1A1A1A] dark:text-gray-200 dark:border-[#333]
-              focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500
-            "
+            className="w-full"
           />
         </div>
 
@@ -147,19 +127,12 @@ export default function EvaluationInputs({
           <label className="text-sm text-gray-700 dark:text-gray-300 font-medium">
             {t("sub_questions")}
           </label>
-          <input
-            type="number"
+          <NumberInput
             value={subQuestions}
-            placeholder="0"
+            onChange={(v) => setSubQuestions(v)}
             min={0}
             max={10}
-            onChange={(e) => setSubQuestions(parseNumber(e.target.value))}
-            className="
-              w-full px-3 py-2 rounded-lg outline-none
-              bg-gray-50 text-gray-800 border border-gray-300
-              dark:bg-[#1A1A1A] dark:text-gray-200 dark:border-[#333]
-              focus:ring-2 focus:ring-blue-500 dark:focus:ring-indigo-500
-            "
+            className="w-full"
           />
         </div>
       </div>
