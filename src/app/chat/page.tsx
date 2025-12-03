@@ -111,7 +111,7 @@ export default function Chat() {
       {/* MAIN AREA */}
       <div className="flex flex-col flex-1 h-screen">
         {/* TOP BAR */}
-        <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b dark:border-[#2a2a2a]">
+        <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
           {/* MODE TOGGLE */}
           <div className="flex items-center gap-3">
             <button
@@ -200,7 +200,7 @@ export default function Chat() {
         </div>
 
         {/* INPUT AREA */}
-        <div className="p-4 border-t bg-white dark:bg-[#111111]">
+        <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
           {mode === "evaluation" ? (
             <EvaluationInputs
               totalMarks={totalMarks}

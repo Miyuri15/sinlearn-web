@@ -53,6 +53,8 @@
     "name_placeholder": "Enter your name",
     "email": "Email",
     "email_placeholder": "Enter your email",
+    "settings.user_type_locked": "User Type Locked",
+
     
     "message_notifications": "Message Notifications",
     "message_notifications_desc": "Notifications for new messages",
