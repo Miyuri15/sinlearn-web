@@ -1,8 +1,7 @@
 "use client";
 
 import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
-import RubricSidebar from "@/components/chat/RubricSidebar";
-import SyllabusSidebar from "@/components/chat/SyllabusSidebar"; // Import the new component
+import RubricSidebar from "@/components/chat/RubricSidebar"; // Updated import
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
@@ -17,7 +16,6 @@ export default function Chat() {
   // --- STATES ---
   const [loading, setLoading] = useState(false);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
-  const [isSyllabusOpen, setIsSyllabusOpen] = useState(false); // New state for syllabus
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
@@ -118,27 +116,6 @@ export default function Chat() {
     // Implement file upload logic here
   };
 
-  const handleSyllabusSelect = (syllabusId: string) => {
-    console.log("Selected syllabus:", syllabusId);
-    // You can implement syllabus selection logic here
-  };
-
-  const handleSyllabusUpload = () => {
-    console.log("Upload syllabus");
-    // Implement file upload logic here
-  };
-
-  // Close other sidebar when one opens
-  const openRubricSidebar = () => {
-    setIsSyllabusOpen(false);
-    setIsRubricOpen(true);
-  };
-
-  const openSyllabusSidebar = () => {
-    setIsRubricOpen(false);
-    setIsSyllabusOpen(true);
-  };
-
   return (
     <main className="flex min-h-screen bg-gray-100 text-gray-900 dark:bg-[#0C0C0C] dark:text-gray-200">
       {/* LEFT SIDEBAR */}
@@ -181,16 +158,13 @@ export default function Chat() {
             <ChatLanguageToggle />
 
             <button
-              onClick={openRubricSidebar}
+              onClick={() => setIsRubricOpen(true)}
               className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
             >
               Rubric
             </button>
 
-            <button
-              onClick={openSyllabusSidebar}
-              className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-            >
+            <button className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
               Syllabus
             </button>
 
@@ -306,15 +280,6 @@ Sub Questions: ${m.content.subQuestions}
         onClose={() => setIsRubricOpen(false)}
         onSelectRubric={handleRubricSelect}
         onUpload={handleRubricUpload}
-      />
-
-      {/* SYLLABUS SIDEBAR */}
-      <SyllabusSidebar
-        isOpen={isSyllabusOpen}
-        loading={loading}
-        onClose={() => setIsSyllabusOpen(false)}
-        onSelectSyllabus={handleSyllabusSelect}
-        onUpload={handleSyllabusUpload}
       />
     </main>
   );
