@@ -74,6 +74,39 @@
     
     "save_changes": "Save Changes"
   }, 
+  "rubric": {
+    "action_teachers": "Action Teachers",
+    "select_rubric": "Select Rubric",
+    "saved_rubrics": "Saved Rubrics",
+    "create_custom_rubric": "Create Custom Rubric",
+    "customize_rubric": "Customize Rubric",
+    "standard_rubrics": "Standard Rubrics",
+    "custom": "Custom",
+    "total": "Total",
+    "apply_selected_rubric": "Apply Selected Rubric",
+    "rubric_selected": "Rubric selected",
+    "select_rubric_to_apply": "Select a rubric to apply",
+    "view_guidelines": "View rubric guidelines",
+    "customize_marks": "Customize Marks",
+    "rubric_title": "Rubric Title",
+    "title_placeholder": "Enter rubric title",
+    "category_name": "Category Name",
+    "percentage": "Percentage",
+    "remove": "Remove",
+    "save_customization": "Save Customization",
+    "total_percentage": "Total Percentage",
+    "must_equal_100": "Must equal 100%",
+    "how_to_create": "Create Custom Rubric",
+    "cancel": "Cancel",
+    "proceed": "Proceed",
+    "customize": "Customize",
+    "create_new": "Create New Rubric",
+    "balanced_evaluation": "Balanced Evaluation",
+    "understanding_focused": "Understanding Focused",
+    "content_focused": "Content Focused",
+    "advanced_evaluation": "Advanced Evaluation",
+    "custom_rubric": "Custom Rubric"
+}, 
 "syllabus": {
   "teachers_syllabus": "Teachers Syllabus",
   "syllabus": "Syllabus",
@@ -103,6 +136,7 @@
   "subject": "Subject",
   "topics": "Topics"
 }
+
   
 
 }
