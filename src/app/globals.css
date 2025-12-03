@@ -78,3 +78,18 @@ input, textarea, select, button {
 .animate-slide-up {
   animation: slideUp 0.3s ease-out;
 }
+@keyframes slideInTop {
+  from {
+    transform: translate(-50%, -100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.animate-slideInTop {
+  animation: slideInTop 0.3s ease-out forwards;
+}
