@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import LanguageToggle from "@/components/language/LanguageToggle";
 import Button from "@/components/ui/Button";

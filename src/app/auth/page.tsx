@@ -2,7 +2,6 @@
 
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
