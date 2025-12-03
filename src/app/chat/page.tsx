@@ -2,7 +2,6 @@
 
 import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
 import RubricSidebar from "@/components/chat/RubricSidebar"; // Updated import
-import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import InputBar from "./components/InputBar";
@@ -11,12 +10,13 @@ import EvaluationCard from "./components/EvaluationCard";
 import ChatThemeToggle from "./components/ChatThemeToggle";
 import EvaluationInputs from "./components/EvaluationInputs";
 import Sidebar from "@/components/sidebar/Sidebar";
+import NumberInput from "@/components/ui/NumberInput";
 
 export default function Chat() {
   const { t } = useTranslation("chat");
 
   // STATES
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -33,29 +33,9 @@ export default function Chat() {
   const [requiredQuestions, setRequiredQuestions] = useState<number>(0);
   const [subQuestions, setSubQuestions] = useState<number>(0);
 
-  // --- INPUT HANDLERS ---
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    setMessage(value);
-    if (value.trim() === "") {
-      e.target.style.height = "auto";
-      return;
-    }
-    e.target.style.height = "auto";
-    e.target.style.height = `${e.target.scrollHeight}px`;
-  };
+  const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>([]);
+  const [isSubMarksModalOpen, setIsSubMarksModalOpen] = useState(false);
 
-  const handleStopRecording = () => {
-    setIsRecording(false);
-    setMessage(transcript);
-  };
-
-  const handleCancelRecording = () => {
-    setIsRecording(false);
-    setTranscript("");
-  };
-
-  // --- HARDCODED RESPONSES ---
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
 
@@ -103,6 +83,40 @@ export default function Chat() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setMessage(value);
+    if (value.trim() === "") {
+      e.target.style.height = "auto";
+      return;
+    }
+    e.target.style.height = "auto";
+    e.target.style.height = `${e.target.scrollHeight}px`;
+  };
+
+  const handleStopRecording = () => {
+    setIsRecording(false);
+    setMessage(transcript);
+  };
+
+  const handleCancelRecording = () => {
+    setIsRecording(false);
+    setTranscript("");
+  };
+
+  // Reset chat when switching modes
+  useEffect(() => {
+    setMessages([]); // clear chat history
+    setMessage(""); // clear input box
+    setTranscript(""); // should clear voice transcript
+
+    // Reset evaluation inputs
+    setTotalMarks(0);
+    setMainQuestions(0);
+    setRequiredQuestions(0);
+    setSubQuestions(0);
+  }, [mode]);
+
   const handleRubricSelect = (rubricId: string) => {
     console.log("Selected rubric:", rubricId);
     // You can implement rubric selection logic here
@@ -114,70 +128,97 @@ export default function Chat() {
     // Implement file upload logic here
   };
 
-  return (
-    <main className="flex min-h-screen bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
-      {/* LEFT SIDEBAR — PUSHES LAYOUT LIKE CHATGPT */}
-      <div
-        className={`transition-all duration-300 border-r dark:border-[#2a2a2a]
-        bg-white dark:bg-[#111111]
-        ${isSidebarOpen ? "w-64" : "w-16"}`}
-      >
-        {isSidebarOpen ? (
-          <Sidebar
-            chats={[
-              {
-                id: "1",
-                title: "New Learning Chat",
-                type: "learning",
-                time: "1 minute ago",
-              },
-              {
-                id: "2",
-                title: "New Evaluation Chat",
-                type: "evaluation",
-                time: "12 minutes ago",
-              },
-            ]}
-            isOpen={isSidebarOpen}
-            onClose={() => setIsSidebarOpen(false)}
-          />
-        ) : (
-          <div className="p-4">
-            <Menu
-              onClick={() => setIsSidebarOpen(true)}
-              className="w-6 h-6 text-gray-700 dark:text-gray-300 cursor-pointer"
-            />
-          </div>
-        )}
-      </div>
+  useEffect(() => {
+    if (isRecording) {
+      setTranscript("student asking about solar systems…");
+    }
+  }, [isRecording]);
 
+  useEffect(() => {
+    if (subQuestions > 0) {
+      setSubQuestionMarks((prev) => {
+        if (prev.length === subQuestions) return prev;
+        const arr = new Array(subQuestions).fill(0);
+        return arr;
+      });
+      setIsSubMarksModalOpen(true);
+    } else {
+      setIsSubMarksModalOpen(false);
+      setSubQuestionMarks([]);
+    }
+  }, [subQuestions]);
+
+  // handlers for modal inputs
+  const handleSubMarkChange = (index: number, value: number) => {
+    const num = Number(value);
+    const next = [...subQuestionMarks];
+    next[index] = isNaN(num) ? 0 : num;
+    setSubQuestionMarks(next);
+  };
+
+  const handleSubMarksDone = () => {
+    setIsSubMarksModalOpen(false);
+  };
+
+  const handleSubMarksCancel = () => {
+    setIsSubMarksModalOpen(false);
+    setSubQuestions(0);
+    setSubQuestionMarks([]);
+  };
+
+  return (
+    <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        chats={[
+          {
+            id: "1",
+            title: "New Learning Chat",
+            type: "learning",
+            time: "1 minute ago",
+          },
+          {
+            id: "2",
+            title: "New Evaluation Chat",
+            type: "evaluation",
+            time: "12 minutes ago",
+          },
+        ]}
+      />
       {/* MAIN AREA */}
-      <div className="flex flex-col flex-1 h-screen">
+      <div className="flex flex-col flex-1">
         {/* TOP BAR */}
         <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
           {/* MODE TOGGLE */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMode("learning")}
-              className={`px-4 py-2 rounded-lg font-medium border ${
-                mode === "learning"
-                  ? "bg-blue-50 text-blue-700 border-blue-300 dark:bg-[#1E3A8A]/40 dark:text-blue-200 dark:border-blue-900"
-                  : "bg-gray-100 text-gray-700 dark:bg-[#222] dark:text-gray-300 dark:border-[#333]"
-              }`}
-            >
-              {t("learning_mode")}
-            </button>
+          <div className="hidden md:flex items-center">
+            <div className="flex bg-blue-50 border border-gray-50 dark:border-[#2a2a2a] dark:bg-[#111] rounded-full p-1 shadow-sm">
+              {/* LEARNING */}
+              <button
+                onClick={() => setMode("learning")}
+                className={`flex items-center gap-2 px-5 py-2 rounded-full transition font-medium ${
+                  mode === "learning"
+                    ? "bg-white dark:bg-[#222] shadow text-blue-700 dark:text-blue-200"
+                    : "text-gray-600 dark:text-gray-300"
+                }`}
+              >
+                <span className="text-lg">📖</span>
+                <span>{t("learning_mode")}</span>
+              </button>
 
-            <button
-              onClick={() => setMode("evaluation")}
-              className={`px-4 py-2 rounded-lg font-medium border ${
-                mode === "evaluation"
-                  ? "bg-blue-50 text-blue-700 border-blue-300 dark:bg-[#1E3A8A]/40 dark:text-blue-200 dark:border-blue-900"
-                  : "bg-gray-100 text-gray-700 dark:bg-[#222] dark:text-gray-300 dark:border-[#333]"
-              }`}
-            >
-              {t("evaluation_mode")}
-            </button>
+              {/* EVALUATION */}
+              <button
+                onClick={() => setMode("evaluation")}
+                className={`flex items-center gap-2 px-5 py-2 rounded-full transition font-medium ${
+                  mode === "evaluation"
+                    ? "bg-white dark:bg-[#222] shadow text-blue-700 dark:text-blue-200"
+                    : "text-gray-600 dark:text-gray-300"
+                }`}
+              >
+                <span className="text-lg">📝</span>
+                <span>{t("evaluation_mode")}</span>
+              </button>
+            </div>
           </div>
 
           {/* RIGHT TOOLS */}
@@ -203,10 +244,10 @@ export default function Chat() {
         </div>
 
         {/* MESSAGE AREA */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-          {/* Empty State */}
-          {!messages.length && (
-            <div className="flex-1 flex items-center justify-center text-center">
+        {/* Empty State */}
+        {!messages.length && (
+          <div className="flex flex-1 flex-col overflow-y-auto p-6 bg-gray-100 dark:bg-[#0C0C0C]">
+            <div className="flex flex-1 items-center justify-center text-center">
               <div>
                 <h2 className="text-xl font-semibold">
                   {t("start_conversation")}
@@ -216,8 +257,10 @@ export default function Chat() {
                 </p>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
+        <div className="flex flex-col flex-1 space-y-4 overflow-y-auto p-6 bg-gray-100 dark:bg-[#0C0C0C]">
           {/* Messages */}
           {messages.map((m, i) => (
             <div key={i}>
@@ -227,7 +270,11 @@ export default function Chat() {
                     m.content
                   ) : (
                     <pre className="whitespace-pre-wrap text-sm">
-                      {JSON.stringify(m.content, null, 2)}
+                      {`Total Marks: ${m.content.totalMarks}
+Main Questions: ${m.content.mainQuestions}
+Required Questions: ${m.content.requiredQuestions}
+Sub Questions: ${m.content.subQuestions}
+`}
                     </pre>
                   )}
                 </div>
@@ -248,7 +295,7 @@ export default function Chat() {
 
         {/* INPUT AREA */}
         <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
-          {mode === "evaluation" ? (
+          {mode === "evaluation" && (
             <EvaluationInputs
               totalMarks={totalMarks}
               setTotalMarks={setTotalMarks}
@@ -260,7 +307,14 @@ export default function Chat() {
               setSubQuestions={setSubQuestions}
               onSend={handleSend}
             />
-          ) : (
+          )}
+          {isRecording && (
+            <RecordBar
+              onCancelRecording={handleCancelRecording}
+              onStopRecording={handleStopRecording}
+            />
+          )}
+          {mode === "learning" && (
             <>
               <div className="mb-3">
                 <label className="mr-2 text-sm">{t("response_level")}:</label>
@@ -289,6 +343,52 @@ export default function Chat() {
           )}
         </div>
       </div>
+
+      {isSubMarksModalOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-[#111] rounded-xl shadow-lg p-6 w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4">
+              Enter marks for sub-questions
+            </h2>
+
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+              {Array.from({ length: subQuestions }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between gap-3"
+                >
+                  <span className="text-sm">
+                    Sub-question {String.fromCharCode(97 + idx)}){" "}
+                    {/* a, b, c... */}
+                  </span>
+                  <NumberInput
+                    value={subQuestionMarks[idx] ?? 0}
+                    onChange={(v) => handleSubMarkChange(idx, v)}
+                    min={0}
+                    max={100}
+                    className="w-24"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={handleSubMarksCancel}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-[#333]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubMarksDone}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* RUBRIC SIDEBAR */}
       <RubricSidebar

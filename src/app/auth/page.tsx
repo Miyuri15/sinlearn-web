@@ -2,13 +2,13 @@
 
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
 import LanguageToggle from "@/components/language/LanguageToggle";
 import Link from "next/link";
 import { setUser, getUser, getLanguage } from "@/lib/localStore";
+import { GraduationCap } from "lucide-react";
 
 interface AuthPageProps {
   readonly defaultTab?: "signin" | "signup";
@@ -34,8 +34,12 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const email = (document.querySelector('input[type="email"]') as HTMLInputElement)?.value;
-    const name = (document.querySelector('input[type="text"]') as HTMLInputElement)?.value;
+    const email = (
+      document.querySelector('input[type="email"]') as HTMLInputElement
+    )?.value;
+    const name = (
+      document.querySelector('input[type="text"]') as HTMLInputElement
+    )?.value;
 
     if (tab === "signin") {
       const existing = getUser();
@@ -44,7 +48,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         email: email || existing?.email || "",
         role: existing?.role || "student",
       });
-      router.push("/dashboard");
+      router.push("/chat");
     } else {
       setUser({
         name: name || "User",
@@ -86,14 +90,9 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
       >
         {/* Logo */}
         <div className="flex justify-center mb-6">
-          <Image
-            src="/images/AuthPage.png"
-            alt="SinLearn Logo"
-            width={80}
-            height={80}
-            className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24"
-            priority
-          />
+          <div className="flex items-center justify-center rounded-full bg-blue-600 w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28">
+            <GraduationCap className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 text-white" />
+          </div>
         </div>
 
         <h1 className="text-center text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">
@@ -117,9 +116,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
           <Link
             href="/auth/sign-in"
             className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
-              ${tab === "signin"
-                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                : "text-gray-600 dark:text-gray-300"
+              ${
+                tab === "signin"
+                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                  : "text-gray-600 dark:text-gray-300"
               }
             `}
           >
@@ -129,9 +129,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
           <Link
             href="/auth/sign-up"
             className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
-              ${tab === "signup"
-                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                : "text-gray-600 dark:text-gray-300"
+              ${
+                tab === "signup"
+                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                  : "text-gray-600 dark:text-gray-300"
               }
             `}
           >
@@ -186,9 +187,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
                   flex-1 py-3 
                   flex flex-col items-center justify-center 
                   rounded-lg border transition
-                  ${role === "student"
-                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
-                    : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                  ${
+                    role === "student"
+                      ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
+                      : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                   }
                 `}
               >
@@ -203,9 +205,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
                   flex-1 py-3 
                   flex flex-col items-center justify-center 
                   rounded-lg border transition
-                  ${role === "teacher"
-                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
-                    : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                  ${
+                    role === "teacher"
+                      ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
+                      : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                   }
                 `}
               >
@@ -223,14 +226,20 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
             {tab === "signin" ? (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {t("dont_have_account")}{" "}
-                <Link href="/auth/sign-up" className="text-blue-600 dark:text-blue-400">
+                <Link
+                  href="/auth/sign-up"
+                  className="text-blue-600 dark:text-blue-400"
+                >
                   {t("signup_link")}
                 </Link>
               </p>
             ) : (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {t("already_have_account")}{" "}
-                <Link href="/auth/sign-in" className="text-blue-600 dark:text-blue-400">
+                <Link
+                  href="/auth/sign-in"
+                  className="text-blue-600 dark:text-blue-400"
+                >
                   {t("signin_link")}
                 </Link>
               </p>

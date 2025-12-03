@@ -17,8 +17,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Standard responsive viewport */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-        
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=5"
+        />
+
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -35,7 +38,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen transition-colors duration-300">
+      <body className="h-dvh transition-colors duration-300">
         <I18nProvider>
           <ToastProvider>{children}</ToastProvider>
         </I18nProvider>
