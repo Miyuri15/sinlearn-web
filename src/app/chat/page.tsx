@@ -118,28 +118,34 @@ export default function Chat() {
         {/* TOP BAR */}
         <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
           {/* MODE TOGGLE */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMode("learning")}
-              className={`px-4 py-2 rounded-lg font-medium border ${
-                mode === "learning"
-                  ? "bg-blue-50 text-blue-700 border-blue-300 dark:bg-[#1E3A8A]/40 dark:text-blue-200 dark:border-blue-900"
-                  : "bg-gray-100 text-gray-700 dark:bg-[#222] dark:text-gray-300 dark:border-[#333]"
-              }`}
-            >
-              {t("learning_mode")}
-            </button>
+          <div className="flex items-center">
+            <div className="flex bg-blue-50 border border-gray-50 dark:border-[#2a2a2a] dark:bg-[#111] rounded-full p-1 shadow-sm">
+              {/* LEARNING */}
+              <button
+                onClick={() => setMode("learning")}
+                className={`flex items-center gap-2 px-5 py-2 rounded-full transition font-medium ${
+                  mode === "learning"
+                    ? "bg-white dark:bg-[#222] shadow text-blue-700 dark:text-blue-200"
+                    : "text-gray-600 dark:text-gray-300"
+                }`}
+              >
+                <span className="text-lg">📖</span>
+                {t("learning_mode")}
+              </button>
 
-            <button
-              onClick={() => setMode("evaluation")}
-              className={`px-4 py-2 rounded-lg font-medium border ${
-                mode === "evaluation"
-                  ? "bg-blue-50 text-blue-700 border-blue-300 dark:bg-[#1E3A8A]/40 dark:text-blue-200 dark:border-blue-900"
-                  : "bg-gray-100 text-gray-700 dark:bg-[#222] dark:text-gray-300 dark:border-[#333]"
-              }`}
-            >
-              {t("evaluation_mode")}
-            </button>
+              {/* EVALUATION */}
+              <button
+                onClick={() => setMode("evaluation")}
+                className={`flex items-center gap-2 px-5 py-2 rounded-full transition font-medium ${
+                  mode === "evaluation"
+                    ? "bg-white dark:bg-[#222] shadow text-blue-700 dark:text-blue-200"
+                    : "text-gray-600 dark:text-gray-300"
+                }`}
+              >
+                <span className="text-lg">📝</span>
+                {t("evaluation_mode")}
+              </button>
+            </div>
           </div>
 
           {/* RIGHT OPTIONS */}
