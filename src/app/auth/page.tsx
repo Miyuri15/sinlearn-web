@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import LanguageToggle from "@/components/language/LanguageToggle";
 import Link from "next/link";
 import { setUser, getUser, getLanguage } from "@/lib/localStore";
+import { GraduationCap } from "lucide-react";
 
 interface AuthPageProps {
   readonly defaultTab?: "signin" | "signup";
@@ -90,14 +91,9 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
       >
         {/* Logo */}
         <div className="flex justify-center mb-6">
-          <Image
-            src="/images/AuthPage.png"
-            alt="SinLearn Logo"
-            width={80}
-            height={80}
-            className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24"
-            priority
-          />
+          <div className="flex items-center justify-center rounded-full bg-blue-600 w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28">
+            <GraduationCap className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 text-white" />
+          </div>
         </div>
 
         <h1 className="text-center text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">

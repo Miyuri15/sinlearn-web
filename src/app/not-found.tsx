@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import LanguageToggle from "@/components/language/LanguageToggle";
 import Button from "@/components/ui/Button";
+import { GraduationCap } from "lucide-react";
 
 export default function NotFound() {
   return (
@@ -14,13 +15,9 @@ export default function NotFound() {
 
       <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl p-10 shadow-xl border border-gray-200 dark:border-gray-700 text-center">
         <div className="flex justify-center mb-6">
-          <Image
-            src="/images/AuthPage.png"
-            alt="SinLearn Logo"
-            width={80}
-            height={80}
-            priority
-          />
+          <div className="flex items-center justify-center rounded-full bg-blue-600 w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28">
+            <GraduationCap className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 text-white" />
+          </div>
         </div>
 
         <h1 className="text-3xl font-semibold mb-2 text-gray-900 dark:text-white">
