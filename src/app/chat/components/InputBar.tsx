@@ -10,6 +10,7 @@ type InputBarProps = Readonly<{
   message: string;
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onSend: () => void;
+  onUpload?: (file: File) => void;
 }>;
 
 export default function InputBar({
@@ -19,6 +20,7 @@ export default function InputBar({
   message,
   handleInputChange,
   onSend,
+  onUpload,
 }: InputBarProps) {
   const { t } = useTranslation("chat");
 
@@ -41,7 +43,24 @@ export default function InputBar({
   return (
     <div className="flex items-center gap-3 px-4 py-2 rounded-xl border bg-gray-100 border-gray-300 dark:bg-[#111111] dark:border-[#2a2a2a]      ">
       {/* ATTACHMENT BUTTON */}
-      <button className="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white">
+      <input
+        type="file"
+        accept=".pdf,.png,.jpg,.jpeg,.mp3,.wav,.mp4"
+        id="chat-file-upload"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            // Trigger parent handler
+            onUpload?.(file);
+          }
+        }}
+      />
+
+      <button
+        className="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
+        onClick={() => document.getElementById("chat-file-upload")?.click()}
+      >
         <Paperclip className="w-5 h-5" />
       </button>
 

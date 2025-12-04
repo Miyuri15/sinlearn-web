@@ -18,7 +18,7 @@ type EvaluationInputsProps = Readonly<{
   setSubQuestions: (value: number) => void;
 
   onSend: () => void;
-  onUpload?: () => void; // Optional upload handler
+  onUpload?: (file: File) => void; // Optional upload handler
 }>;
 
 export default function EvaluationInputs({
@@ -48,18 +48,33 @@ export default function EvaluationInputs({
 
         <div className="flex items-center gap-2">
           {/* UPLOAD BUTTON */}
-          <button
-            onClick={onUpload}
-            className="
-              p-2 rounded-lg border
-              bg-white text-gray-700 
-              dark:bg-[#222] dark:text-gray-200 dark:border-[#333]
-              hover:bg-gray-100 dark:hover:bg-[#333]
-              transition
-            "
-          >
-            <Paperclip className="w-5 h-5" />
-          </button>
+          <div>
+            <input
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg"
+              className="hidden"
+              id="eval-upload-input"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onUpload?.(file);
+              }}
+            />
+
+            <button
+              onClick={() =>
+                document.getElementById("eval-upload-input")?.click()
+              }
+              className="
+                p-2 rounded-lg border
+                bg-white text-gray-700 
+                dark:bg-[#222] dark:text-gray-200 dark:border-[#333]
+                hover:bg-gray-100 dark:hover:bg-[#333]
+                transition
+              "
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+          </div>
 
           {/* SEND BUTTON */}
           <button

@@ -36,6 +36,8 @@ export default function Chat() {
   const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>([]);
   const [isSubMarksModalOpen, setIsSubMarksModalOpen] = useState(false);
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
 
@@ -164,6 +166,20 @@ export default function Chat() {
     setIsSubMarksModalOpen(false);
     setSubQuestions(0);
     setSubQuestionMarks([]);
+  };
+
+  const handleFileUpload = (file: File) => {
+    setSelectedFile(file);
+
+    // You can show file as a user message:
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: `📎 Uploaded file: ${file.name}`,
+        file,
+      },
+    ]);
   };
 
   return (
@@ -306,6 +322,7 @@ Sub Questions: ${m.content.subQuestions}
               subQuestions={subQuestions}
               setSubQuestions={setSubQuestions}
               onSend={handleSend}
+              onUpload={handleFileUpload}
             />
           )}
           {isRecording && (
@@ -338,6 +355,7 @@ Sub Questions: ${m.content.subQuestions}
                 message={message}
                 handleInputChange={handleInputChange}
                 onSend={handleSend}
+                onUpload={handleFileUpload}
               />
             </>
           )}
