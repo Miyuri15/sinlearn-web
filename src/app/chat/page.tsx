@@ -73,6 +73,7 @@ export default function Chat() {
             mainQuestions,
             requiredQuestions,
             subQuestions,
+            subQuestionMarks,
           },
         },
         { role: "evaluation", content: mockEvaluation },
@@ -295,6 +296,18 @@ export default function Chat() {
 Main Questions: ${m.content.mainQuestions}
 Required Questions: ${m.content.requiredQuestions}
 Sub Questions: ${m.content.subQuestions}`}
+                          {m.content.subQuestionMarks &&
+                            m.content.subQuestionMarks.length > 0 && (
+                              <>
+                                {`\nSub Question Marks: \n`}
+                                {m.content.subQuestionMarks.map(
+                                  (mark: number, idx: number) =>
+                                    `  ${String.fromCharCode(
+                                      97 + idx
+                                    )}) ${mark}`
+                                )}
+                              </>
+                            )}
                         </pre>
                       ) : (
                         m.content
