@@ -136,11 +136,9 @@ export default function RubricSidebar({
       title_si: t("rubric.advanced_evaluation", "Advanced Evaluation"),
       type: "standard",
       categories: [
-        { name: "Semantic", name_si: "අර්ථ පදනම්", percentage: 35 },
-        { name: "Coverage", name_si: "විෂය ආවරණය", percentage: 25 },
+        { name: "Semantic", name_si: "අර්ථ පදනම්", percentage: 45 },
+        { name: "Coverage", name_si: "විෂය ආවරණය", percentage: 35 },
         { name: "Relevance", name_si: "අදාළත්වය", percentage: 20 },
-        { name: "Structure", name_si: "ව්‍යුහය", percentage: 10 },
-        { name: "Examples", name_si: "උදාහරණ", percentage: 10 },
       ],
       total: 100,
     },
@@ -467,17 +465,12 @@ export default function RubricSidebar({
               <div className="space-y-3">
                 {customRubricData.categories.map((category, index) => (
                   <div key={index} className="flex items-center gap-3">
-                    <input
-                      type="text"
-                      value={
-                        currentLang === "si" ? category.name_si : category.name
-                      }
-                      onChange={(e) =>
-                        handleCategoryNameChange(index, e.target.value)
-                      }
-                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-200 text-sm"
-                      placeholder={sidebarText.categoryName}
-                    />
+                    {/* Category Name - Read-only */}
+                    <div className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#2A2A2A] text-gray-900 dark:text-gray-200 text-sm flex items-center">
+                      {currentLang === "si" ? category.name_si : category.name}
+                    </div>
+
+                    {/* Percentage Input */}
                     <div className="relative w-24">
                       <input
                         type="number"
@@ -496,17 +489,16 @@ export default function RubricSidebar({
                         %
                       </span>
                     </div>
-                    <button
-                      onClick={() => removeCategory(index)}
-                      disabled={customRubricData.categories.length <= 1}
-                      className={`p-2 rounded-lg transition ${
-                        customRubricData.categories.length <= 1
-                          ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
-                          : "text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      }`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+
+                    {/* Remove button - only show if there's more than one category */}
+                    {customRubricData.categories.length > 1 && (
+                      <button
+                        onClick={() => removeCategory(index)}
+                        className="p-2 rounded-lg transition text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
