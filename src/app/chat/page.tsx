@@ -11,6 +11,7 @@ import ChatThemeToggle from "./components/ChatThemeToggle";
 import EvaluationInputs from "./components/EvaluationInputs";
 import Sidebar from "@/components/sidebar/Sidebar";
 import NumberInput from "@/components/ui/NumberInput";
+import FilePreviewCard from "@/components/chat/FilePreviewCard";
 
 export default function Chat() {
   const { t } = useTranslation("chat");
@@ -281,17 +282,24 @@ export default function Chat() {
           {messages.map((m, i) => (
             <div key={i}>
               {m.role === "user" && (
-                <div className="p-3 rounded-lg max-w-xl ml-auto bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100">
-                  {typeof m.content === "string" ? (
-                    m.content
+                <div className="ml-auto max-w-xs sm:max-w-sm">
+                  {/* FILE MESSAGE */}
+                  {m.file ? (
+                    <FilePreviewCard file={m.file} />
                   ) : (
-                    <pre className="whitespace-pre-wrap text-sm">
-                      {`Total Marks: ${m.content.totalMarks}
+                    <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 break-words">
+                      {/* EVALUATION OBJECT */}
+                      {typeof m.content === "object" ? (
+                        <pre className="whitespace-pre-wrap text-sm">
+                          {`Total Marks: ${m.content.totalMarks}
 Main Questions: ${m.content.mainQuestions}
 Required Questions: ${m.content.requiredQuestions}
-Sub Questions: ${m.content.subQuestions}
-`}
-                    </pre>
+Sub Questions: ${m.content.subQuestions}`}
+                        </pre>
+                      ) : (
+                        m.content
+                      )}
+                    </div>
                   )}
                 </div>
               )}
