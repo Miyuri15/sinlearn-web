@@ -11,6 +11,7 @@ import ChatThemeToggle from "./components/ChatThemeToggle";
 import EvaluationInputs from "./components/EvaluationInputs";
 import Sidebar from "@/components/sidebar/Sidebar";
 import NumberInput from "@/components/ui/NumberInput";
+import FilePreviewCard from "@/components/chat/FilePreviewCard";
 
 export default function Chat() {
   const { t } = useTranslation("chat");
@@ -35,6 +36,8 @@ export default function Chat() {
 
   const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>([]);
   const [isSubMarksModalOpen, setIsSubMarksModalOpen] = useState(false);
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
@@ -70,6 +73,7 @@ export default function Chat() {
             mainQuestions,
             requiredQuestions,
             subQuestions,
+            subQuestionMarks,
           },
         },
         { role: "evaluation", content: mockEvaluation },
@@ -164,6 +168,20 @@ export default function Chat() {
     setIsSubMarksModalOpen(false);
     setSubQuestions(0);
     setSubQuestionMarks([]);
+  };
+
+  const handleFileUpload = (file: File) => {
+    setSelectedFile(file);
+
+    // You can show file as a user message:
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: `📎 Uploaded file: ${file.name}`,
+        file,
+      },
+    ]);
   };
 
   return (
@@ -265,17 +283,36 @@ export default function Chat() {
           {messages.map((m, i) => (
             <div key={i}>
               {m.role === "user" && (
-                <div className="p-3 rounded-lg max-w-xl ml-auto bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100">
-                  {typeof m.content === "string" ? (
-                    m.content
+                <div className="ml-auto max-w-xs sm:max-w-sm">
+                  {/* FILE MESSAGE */}
+                  {m.file ? (
+                    <FilePreviewCard file={m.file} />
                   ) : (
-                    <pre className="whitespace-pre-wrap text-sm">
-                      {`Total Marks: ${m.content.totalMarks}
+                    <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 break-words">
+                      {/* EVALUATION OBJECT */}
+                      {typeof m.content === "object" ? (
+                        <pre className="whitespace-pre-wrap text-sm">
+                          {`Total Marks: ${m.content.totalMarks}
 Main Questions: ${m.content.mainQuestions}
 Required Questions: ${m.content.requiredQuestions}
-Sub Questions: ${m.content.subQuestions}
-`}
-                    </pre>
+Sub Questions: ${m.content.subQuestions}`}
+                          {m.content.subQuestionMarks &&
+                            m.content.subQuestionMarks.length > 0 && (
+                              <>
+                                {`\nSub Question Marks: \n`}
+                                {m.content.subQuestionMarks.map(
+                                  (mark: number, idx: number) =>
+                                    `  ${String.fromCharCode(
+                                      97 + idx
+                                    )}) ${mark}`
+                                )}
+                              </>
+                            )}
+                        </pre>
+                      ) : (
+                        m.content
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -306,6 +343,7 @@ Sub Questions: ${m.content.subQuestions}
               subQuestions={subQuestions}
               setSubQuestions={setSubQuestions}
               onSend={handleSend}
+              onUpload={handleFileUpload}
             />
           )}
           {isRecording && (
@@ -338,6 +376,7 @@ Sub Questions: ${m.content.subQuestions}
                 message={message}
                 handleInputChange={handleInputChange}
                 onSend={handleSend}
+                onUpload={handleFileUpload}
               />
             </>
           )}
