@@ -1,7 +1,5 @@
 "use client";
 
-import MarkingRubic from "./components/MarkingRubic";
-import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import InputBar from "./components/InputBar";
@@ -19,6 +17,7 @@ import RecordBar from "@/components/chat/RecordBar";
 type TextMessage = {
   role: "user" | "assistant";
   content: string;
+  file?: File;
 };
 
 type EvaluationInputContent = {
@@ -26,6 +25,7 @@ type EvaluationInputContent = {
   mainQuestions: number;
   requiredQuestions: number;
   subQuestions: number;
+  subQuestionMarks?: number[];
 };
 
 type EvaluationInputMessage = {
@@ -49,7 +49,10 @@ type EvaluationResultMessage = {
   content: EvaluationResultContent;
 };
 
-type ChatMessage = TextMessage | EvaluationInputMessage | EvaluationResultMessage;
+type ChatMessage =
+  | TextMessage
+  | EvaluationInputMessage
+  | EvaluationResultMessage;
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "mr-[400px]";
@@ -123,6 +126,13 @@ export default function Chat() {
       ]);
     }
 
+    setTimeout(() => {
+      const textarea = document.querySelector(
+        "textarea.chat-input"
+      ) as HTMLTextAreaElement;
+      if (textarea) textarea.style.height = "auto";
+    }, 0);
+
     setMessage("");
   };
 
@@ -146,7 +156,7 @@ export default function Chat() {
     setMessage(transcript);
   };
 
-    // Toggles for right panels
+  // Toggles for right panels
   const toggleRubric = () => {
     setIsRubricOpen((prev) => !prev);
     setIsSyllabusOpen(false);
@@ -297,8 +307,8 @@ export default function Chat() {
                 </p>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="flex flex-col flex-1 space-y-4 overflow-y-auto p-6 bg-gray-100 dark:bg-[#0C0C0C]">
           {/* Messages */}
@@ -307,10 +317,10 @@ export default function Chat() {
               {m.role === "user" && (
                 <div className="ml-auto max-w-xs sm:max-w-sm">
                   {/* FILE MESSAGE */}
-                  {m.file ? (
+                  {"file" in m && m.file ? (
                     <FilePreviewCard file={m.file} />
                   ) : (
-                    <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 break-words">
+                    <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 wrap-break-word">
                       {/* EVALUATION OBJECT */}
                       {typeof m.content === "object" ? (
                         <pre className="whitespace-pre-wrap text-sm">
@@ -324,7 +334,7 @@ Sub Questions: ${m.content.subQuestions}`}
                                 {`\nSub Question Marks: \n`}
                                 {m.content.subQuestionMarks.map(
                                   (mark: number, idx: number) =>
-                                    `  ${String.fromCharCode(
+                                    `  ${String.fromCodePoint(
                                       97 + idx
                                     )}) ${mark}`
                                 )}
@@ -459,22 +469,8 @@ Sub Questions: ${m.content.subQuestions}`}
         onSelectRubric={handleRubricSelect}
         onUpload={handleRubricUpload}
       />
+
       {/* RIGHT SLIDE SIDEBARS */}
-
-      {/* RUBRIC PANEL */}
-      <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isRubricOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <MarkingRubic
-          loading={loading}
-          onClose={toggleRubric}
-          onSelectRubric={() => {}}
-          onUpload={() => {}}
-        />
-      </div>
-
       {/* SYLLABUS PANEL */}
       <div
         className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
