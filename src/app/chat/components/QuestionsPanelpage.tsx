@@ -1,7 +1,6 @@
 import Image from 'next/image';
 import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Toast from '../../../components/ui/toast';
 import PDFViewer from '@/components/ui/PDFViewer';
 import HelpIcon from '@mui/icons-material/Help';
 import CloseIcon from '@mui/icons-material/Close';
@@ -215,12 +214,12 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
           </div>
         </div>
        {/* Toast Notification */}
-        <Toast 
+        {/* <Toast
           message={toast.message} 
           isVisible={toast.isVisible} 
           type={toast.type} 
           onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
-        />
+        /> */}
         {/* Footer / Cancel Button - Fixed at the bottom */}
         <div className="p-4 border-t border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111]">
           <button

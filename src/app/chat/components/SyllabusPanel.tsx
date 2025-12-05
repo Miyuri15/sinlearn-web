@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Toast from '@/components/ui/toast';
+// import Toast from '@/components/ui/toast';
 import PDFViewer from '@/components/ui/PDFViewer';
 import CloseIcon from '@mui/icons-material/Close';
 
@@ -243,12 +243,12 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
         </div>
 
         {/* ... (Toast and PDFViewer) */}
-         <Toast 
+         {/* <Toast 
           message={toast.message} 
           isVisible={toast.isVisible} 
           type={toast.type} 
           onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
-        />
+        /> */}
       </div>
 
       {/* PDF Viewer Modal */}
