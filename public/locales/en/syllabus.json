@@ -1,0 +1,16 @@
+{
+  "title": "Syllabus",
+  "description": "Upload and select your syllabus. AI will provide answers based on your curriculum.",
+  "upload_section_title": "Upload Syllabus",
+  "upload_section_subtitle": "PDF, DOC, or DOCX files only",
+  "click_to_upload": "Click to upload",
+  "uploaded_section_title": "Uploaded Syllabi",
+  "uploaded_section_subtitle": "Click to view or select a syllabus for your chat",
+  "uploaded": "Uploaded",
+  "no_syllabi": "No syllabi uploaded yet.",
+  "cancel": "Cancel",
+  "upload_success": "Syllabus \"{{title}}\" uploaded successfully.",
+  "delete_success": "Syllabus \"{{title}}\" deleted.",
+  "invalid_file_type": "Invalid file type. Only PDF, DOC, or DOCX are allowed.",
+  "preview_not_available": "Preview not available for {{fileType}} files. Please download to view."
+}

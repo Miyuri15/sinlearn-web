@@ -1,0 +1,17 @@
+{
+  "title": "Questions",
+  "description": "Upload question document (PDF/DOC/DOCX). AI will help solve problems based on the uploaded document.",
+  "upload_section_title": "Upload Question Document",
+  "upload_section_subtitle": "PDF, DOC, or DOCX files only",
+  "click_to_upload": "Click to upload document",
+  "uploaded_section_title": "Uploaded Question",
+  "uploaded_section_subtitle": "Click to view question document",
+  "no_questions": "No question document uploaded yet.",
+  "cancel": "Cancel",
+  "uploaded": "Uploaded",
+  "subject": "Subject",
+  "delete_success": "Question \"{title}\" deleted.",
+  "upload_success": "Question document \"{title}\" uploaded successfully.",
+  "invalid_file_type": "Invalid file type. Only PDF, DOC, or DOCX are allowed.",
+  "preview_not_available": "Preview not available for {fileType} files. Please download to view."
+}

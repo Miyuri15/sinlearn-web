@@ -15,6 +15,7 @@ export default function LanguageToggle() {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReady(true);
 
     // Load stored language on component mount

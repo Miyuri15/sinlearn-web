@@ -1,30 +1,84 @@
 "use client";
 
+<<<<<<< HEAD
 import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
 import RubricSidebar from "@/components/chat/RubricSidebar"; // Updated import
+=======
+import MarkingRubic from "./components/MarkingRubic";
+import { Menu } from "lucide-react";
+>>>>>>> hirushi
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import InputBar from "./components/InputBar";
-import RecordBar from "./components/RecordBar";
 import EvaluationCard from "./components/EvaluationCard";
-import ChatThemeToggle from "./components/ChatThemeToggle";
 import EvaluationInputs from "./components/EvaluationInputs";
 import Sidebar from "@/components/sidebar/Sidebar";
+<<<<<<< HEAD
 import NumberInput from "@/components/ui/NumberInput";
 import FilePreviewCard from "@/components/chat/FilePreviewCard";
+=======
+import SyllabusPanelpage from "./components/SyllabusPanel";
+import QuestionsPanelpage from "./components/QuestionsPanelpage";
+import Header from "../../components/header/Header";
+
+type TextMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+type EvaluationInputContent = {
+  totalMarks: number;
+  mainQuestions: number;
+  requiredQuestions: number;
+  subQuestions: number;
+};
+
+type EvaluationInputMessage = {
+  role: "user";
+  content: EvaluationInputContent;
+};
+
+type EvaluationResultContent = {
+  grade: string;
+  coverage: number;
+  accuracy: number;
+  clarity: number;
+  strengths: string[];
+  weaknesses: string[];
+  missing: string[];
+  feedback: string;
+};
+
+type EvaluationResultMessage = {
+  role: "evaluation";
+  content: EvaluationResultContent;
+};
+
+type ChatMessage = TextMessage | EvaluationInputMessage | EvaluationResultMessage;
+
+const RIGHT_PANEL_WIDTH_CLASS = "w-[400px]";
+const RIGHT_PANEL_MARGIN_CLASS = "mr-[400px]";
+>>>>>>> hirushi
 
 export default function Chat() {
   const { t } = useTranslation("chat");
 
   // STATES
+<<<<<<< HEAD
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
+=======
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [loading] = useState(false);
+>>>>>>> hirushi
   const [isRubricOpen, setIsRubricOpen] = useState(false);
+  const [isSyllabusOpen, setIsSyllabusOpen] = useState(false);
+  const [isQuestionsOpen, setIsQuestionsOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState("");
+  const [transcript] = useState("");
   const [message, setMessage] = useState("");
   const [mode, setMode] = useState<"learning" | "evaluation">("learning");
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const endRef = useRef<HTMLDivElement | null>(null);
   const [responseLevel, setResponseLevel] = useState("Grades 9–11");
 
@@ -42,7 +96,7 @@ export default function Chat() {
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
 
-  const mockEvaluation = {
+  const mockEvaluation: EvaluationResultContent = {
     grade: "B+",
     coverage: 76,
     accuracy: 85,
@@ -98,10 +152,58 @@ export default function Chat() {
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
+<<<<<<< HEAD
   const handleStopRecording = () => {
     setIsRecording(false);
     setMessage(transcript);
   };
+=======
+  // Toggles for right panels
+  const toggleRubric = () => {
+    setIsRubricOpen((prev) => !prev);
+    setIsSyllabusOpen(false);
+    setIsQuestionsOpen(false);
+  };
+  const toggleSyllabus = () => {
+    setIsSyllabusOpen((prev) => !prev);
+    setIsRubricOpen(false);
+    setIsQuestionsOpen(false);
+  };
+  const toggleQuestions = () => {
+    setIsQuestionsOpen((prev) => !prev);
+    setIsRubricOpen(false);
+    setIsSyllabusOpen(false);
+  };
+
+  const isAnyRightPanelOpen = isRubricOpen || isSyllabusOpen || isQuestionsOpen;
+
+  return (
+    <main className="flex min-h-screen bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
+      {/* LEFT SIDEBAR */}
+      <div
+        className={`transition-all duration-300 border-r dark:border-[#2a2a2a]
+        bg-white dark:bg-[#111111]
+        ${isSidebarOpen ? "w-64" : "w-16"}`}
+      >
+        {isSidebarOpen ? (
+          <Sidebar
+            chats={[
+              { id: "1", title: "New Learning Chat", type: "learning", time: "1 minute ago" },
+              { id: "2", title: "New Evaluation Chat", type: "evaluation", time: "12 minutes ago" },
+            ]}
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+        ) : (
+          <div className="p-4">
+            <Menu
+              onClick={() => setIsSidebarOpen(true)}
+              className="w-6 h-6 text-gray-700 dark:text-gray-300 cursor-pointer"
+            />
+          </div>
+        )}
+      </div>
+>>>>>>> hirushi
 
   const handleCancelRecording = () => {
     setIsRecording(false);
@@ -205,6 +307,7 @@ export default function Chat() {
         ]}
       />
       {/* MAIN AREA */}
+<<<<<<< HEAD
       <div className="flex flex-col flex-1">
         {/* TOP BAR */}
         <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
@@ -266,6 +369,29 @@ export default function Chat() {
         {!messages.length && (
           <div className="flex flex-1 flex-col overflow-y-auto p-6 bg-gray-100 dark:bg-[#0C0C0C]">
             <div className="flex flex-1 items-center justify-center text-center">
+=======
+      <div
+        className={`flex flex-col flex-1 h-screen transition-[margin,width] duration-300 ${
+          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+        }`}
+      >
+        {/* HEADER COMPONENT */}
+        <Header
+          mode={mode}
+          setMode={setMode}
+          isRubricOpen={isRubricOpen}
+          isSyllabusOpen={isSyllabusOpen}
+          isQuestionsOpen={isQuestionsOpen}
+          toggleRubric={toggleRubric}
+          toggleSyllabus={toggleSyllabus}
+          toggleQuestions={toggleQuestions}
+        />
+
+        {/* MESSAGE AREA */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
+          {!messages.length && (
+            <div className="flex-1 flex items-center justify-center text-center">
+>>>>>>> hirushi
               <div>
                 <h2 className="text-xl font-semibold">
                   {t("start_conversation")}
@@ -383,6 +509,7 @@ Sub Questions: ${m.content.subQuestions}`}
         </div>
       </div>
 
+<<<<<<< HEAD
       {isSubMarksModalOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
           <div className="bg-white dark:bg-[#111] rounded-xl shadow-lg p-6 w-full max-w-md">
@@ -437,6 +564,41 @@ Sub Questions: ${m.content.subQuestions}`}
         onSelectRubric={handleRubricSelect}
         onUpload={handleRubricUpload}
       />
+=======
+      {/* RIGHT SLIDE SIDEBARS */}
+
+      {/* RUBRIC PANEL */}
+      <div
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isRubricOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <MarkingRubic
+          loading={loading}
+          onClose={toggleRubric}
+          onSelectRubric={() => {}}
+          onUpload={() => {}}
+        />
+      </div>
+
+      {/* SYLLABUS PANEL */}
+      <div
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <SyllabusPanelpage onClose={toggleSyllabus} />
+      </div>
+
+      {/* QUESTIONS PANEL */}
+      <div
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <QuestionsPanelpage onClose={toggleQuestions} />
+      </div>
+>>>>>>> hirushi
     </main>
   );
 }
