@@ -1,0 +1,17 @@
+{
+  "title": "ප්‍රශ්න",
+  "description": "ප්‍රශ්න ලේඛනය උඩුගත කරන්න (PDF/DOC/DOCX). උඩුගත කළ ලේඛනය මත පදනම්ව AI ගැටළු විසඳීමට උපකාර කරයි.",
+  "upload_section_title": "ප්‍රශ්න ලේඛනය උඩුගත කරන්න",
+  "upload_section_subtitle": "PDF, DOC, හෝ DOCX ගොනු පමණි",
+  "click_to_upload": "ලේඛනය උඩුගත කිරීමට ක්ලික් කරන්න",
+  "uploaded_section_title": "උඩුගත කළ ප්‍රශ්නය",
+  "uploaded_section_subtitle": "ප්‍රශ්න ලේඛනය බැලීමට ක්ලික් කරන්න",
+  "no_questions": "තවම ප්‍රශ්න ලේඛනයක් උඩුගත කර නැත.",
+  "cancel": "අවලංගු කරන්න",
+  "uploaded": "උඩුගත කළ දිනය",
+  "subject": "විෂයය",
+  "delete_success": "ප්‍රශ්නය \"{title}\" මකා දමන ලදී.",
+  "upload_success": "ප්‍රශ්න ලේඛනය \"{title}\" සාර්ථකව උඩුගත කරන ලදී.",
+  "invalid_file_type": "වලංගු නොවන ගොනු වර්ගය. PDF, DOC, හෝ DOCX පමණක් අවසර දෙනු ලැබේ.",
+  "preview_not_available": "{fileType} ගොනු සඳහා පෙරදසුන ලබා ගත නොහැක. බැලීමට කරුණාකර බාගත කරන්න."
+}

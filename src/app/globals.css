@@ -78,3 +78,13 @@ input, textarea, select, button {
 .animate-slide-up {
   animation: slideUp 0.3s ease-out;
 }
+
+
+.hidden-scrollbar {
+  -ms-overflow-style: none; 
+  scrollbar-width: none;
+}
+
+.hidden-scrollbar::-webkit-scrollbar {
+  display: none;
+}

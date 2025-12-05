@@ -1,29 +1,69 @@
 "use client";
 
-import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
 import MarkingRubic from "./components/MarkingRubic";
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import InputBar from "./components/InputBar";
-import RecordBar from "./components/RecordBar";
 import EvaluationCard from "./components/EvaluationCard";
-import ChatThemeToggle from "./components/ChatThemeToggle";
 import EvaluationInputs from "./components/EvaluationInputs";
 import Sidebar from "@/components/sidebar/Sidebar";
+import SyllabusPanelpage from "./components/SyllabusPanel";
+import QuestionsPanelpage from "./components/QuestionsPanelpage";
+import Header from "../../components/header/Header";
+
+type TextMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+type EvaluationInputContent = {
+  totalMarks: number;
+  mainQuestions: number;
+  requiredQuestions: number;
+  subQuestions: number;
+};
+
+type EvaluationInputMessage = {
+  role: "user";
+  content: EvaluationInputContent;
+};
+
+type EvaluationResultContent = {
+  grade: string;
+  coverage: number;
+  accuracy: number;
+  clarity: number;
+  strengths: string[];
+  weaknesses: string[];
+  missing: string[];
+  feedback: string;
+};
+
+type EvaluationResultMessage = {
+  role: "evaluation";
+  content: EvaluationResultContent;
+};
+
+type ChatMessage = TextMessage | EvaluationInputMessage | EvaluationResultMessage;
+
+const RIGHT_PANEL_WIDTH_CLASS = "w-[400px]";
+const RIGHT_PANEL_MARGIN_CLASS = "mr-[400px]";
 
 export default function Chat() {
   const { t } = useTranslation("chat");
 
   // STATES
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
+  const [isSyllabusOpen, setIsSyllabusOpen] = useState(false);
+  const [isQuestionsOpen, setIsQuestionsOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState("");
+  const [transcript] = useState("");
   const [message, setMessage] = useState("");
   const [mode, setMode] = useState<"learning" | "evaluation">("learning");
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const endRef = useRef<HTMLDivElement | null>(null);
   const [responseLevel, setResponseLevel] = useState("Grades 9–11");
 
@@ -36,7 +76,7 @@ export default function Chat() {
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
 
-  const mockEvaluation = {
+  const mockEvaluation: EvaluationResultContent = {
     grade: "B+",
     coverage: 76,
     accuracy: 85,
@@ -81,9 +121,28 @@ export default function Chat() {
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
+  // Toggles for right panels
+  const toggleRubric = () => {
+    setIsRubricOpen((prev) => !prev);
+    setIsSyllabusOpen(false);
+    setIsQuestionsOpen(false);
+  };
+  const toggleSyllabus = () => {
+    setIsSyllabusOpen((prev) => !prev);
+    setIsRubricOpen(false);
+    setIsQuestionsOpen(false);
+  };
+  const toggleQuestions = () => {
+    setIsQuestionsOpen((prev) => !prev);
+    setIsRubricOpen(false);
+    setIsSyllabusOpen(false);
+  };
+
+  const isAnyRightPanelOpen = isRubricOpen || isSyllabusOpen || isQuestionsOpen;
+
   return (
     <main className="flex min-h-screen bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
-      {/* LEFT SIDEBAR — PUSHES LAYOUT LIKE CHATGPT */}
+      {/* LEFT SIDEBAR */}
       <div
         className={`transition-all duration-300 border-r dark:border-[#2a2a2a]
         bg-white dark:bg-[#111111]
@@ -109,59 +168,25 @@ export default function Chat() {
       </div>
 
       {/* MAIN AREA */}
-      <div className="flex flex-col flex-1 h-screen">
-        {/* TOP BAR */}
-        <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
-          {/* MODE TOGGLE */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMode("learning")}
-              className={`px-4 py-2 rounded-lg font-medium border ${
-                mode === "learning"
-                  ? "bg-blue-50 text-blue-700 border-blue-300 dark:bg-[#1E3A8A]/40 dark:text-blue-200 dark:border-blue-900"
-                  : "bg-gray-100 text-gray-700 dark:bg-[#222] dark:text-gray-300 dark:border-[#333]"
-              }`}
-            >
-              {t("learning_mode")}
-            </button>
-
-            <button
-              onClick={() => setMode("evaluation")}
-              className={`px-4 py-2 rounded-lg font-medium border ${
-                mode === "evaluation"
-                  ? "bg-blue-50 text-blue-700 border-blue-300 dark:bg-[#1E3A8A]/40 dark:text-blue-200 dark:border-blue-900"
-                  : "bg-gray-100 text-gray-700 dark:bg-[#222] dark:text-gray-300 dark:border-[#333]"
-              }`}
-            >
-              {t("evaluation_mode")}
-            </button>
-          </div>
-
-          {/* RIGHT TOOLS */}
-          <div className="flex items-center gap-4">
-            <ChatThemeToggle />
-            <ChatLanguageToggle />
-
-            <button
-              onClick={() => setIsRubricOpen(true)}
-              className="px-4 py-2 rounded-lg bg-white dark:bg-[#222] border dark:border-[#333]"
-            >
-              Rubric
-            </button>
-
-            <button className="px-4 py-2 rounded-lg bg-white dark:bg-[#222] border dark:border-[#333]">
-              Syllabus
-            </button>
-
-            <button className="w-9 h-9 flex items-center justify-center bg-white dark:bg-[#222] border dark:border-[#333] rounded-lg">
-              +
-            </button>
-          </div>
-        </div>
+      <div
+        className={`flex flex-col flex-1 h-screen transition-[margin,width] duration-300 ${
+          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+        }`}
+      >
+        {/* HEADER COMPONENT */}
+        <Header
+          mode={mode}
+          setMode={setMode}
+          isRubricOpen={isRubricOpen}
+          isSyllabusOpen={isSyllabusOpen}
+          isQuestionsOpen={isQuestionsOpen}
+          toggleRubric={toggleRubric}
+          toggleSyllabus={toggleSyllabus}
+          toggleQuestions={toggleQuestions}
+        />
 
         {/* MESSAGE AREA */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-          {/* Empty State */}
           {!messages.length && (
             <div className="flex-1 flex items-center justify-center text-center">
               <div>
@@ -243,18 +268,38 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* RIGHT SLIDE SIDEBAR */}
+      {/* RIGHT SLIDE SIDEBARS */}
+
+      {/* RUBRIC PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 ${
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
           isRubricOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <MarkingRubic
           loading={loading}
-          onClose={() => setIsRubricOpen(false)}
+          onClose={toggleRubric}
           onSelectRubric={() => {}}
           onUpload={() => {}}
         />
+      </div>
+
+      {/* SYLLABUS PANEL */}
+      <div
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <SyllabusPanelpage onClose={toggleSyllabus} />
+      </div>
+
+      {/* QUESTIONS PANEL */}
+      <div
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <QuestionsPanelpage onClose={toggleQuestions} />
       </div>
     </main>
   );
