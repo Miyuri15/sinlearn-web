@@ -1,22 +1,15 @@
+//src/app/chat/page.tsx
+
 "use client";
 
-<<<<<<< HEAD
-import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
-import RubricSidebar from "@/components/chat/RubricSidebar"; // Updated import
-=======
 import MarkingRubic from "./components/MarkingRubic";
 import { Menu } from "lucide-react";
->>>>>>> hirushi
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import InputBar from "./components/InputBar";
 import EvaluationCard from "./components/EvaluationCard";
 import EvaluationInputs from "./components/EvaluationInputs";
 import Sidebar from "@/components/sidebar/Sidebar";
-<<<<<<< HEAD
-import NumberInput from "@/components/ui/NumberInput";
-import FilePreviewCard from "@/components/chat/FilePreviewCard";
-=======
 import SyllabusPanelpage from "./components/SyllabusPanel";
 import QuestionsPanelpage from "./components/QuestionsPanelpage";
 import Header from "../../components/header/Header";
@@ -58,19 +51,13 @@ type ChatMessage = TextMessage | EvaluationInputMessage | EvaluationResultMessag
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "mr-[400px]";
->>>>>>> hirushi
 
 export default function Chat() {
   const { t } = useTranslation("chat");
 
   // STATES
-<<<<<<< HEAD
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [loading, setLoading] = useState(false);
-=======
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading] = useState(false);
->>>>>>> hirushi
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isSyllabusOpen, setIsSyllabusOpen] = useState(false);
   const [isQuestionsOpen, setIsQuestionsOpen] = useState(false);
@@ -82,16 +69,11 @@ export default function Chat() {
   const endRef = useRef<HTMLDivElement | null>(null);
   const [responseLevel, setResponseLevel] = useState("Grades 9–11");
 
-  // Evaluation inputs state
-  const [totalMarks, setTotalMarks] = useState<number>(0);
-  const [mainQuestions, setMainQuestions] = useState<number>(0);
-  const [requiredQuestions, setRequiredQuestions] = useState<number>(0);
-  const [subQuestions, setSubQuestions] = useState<number>(0);
-
-  const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>([]);
-  const [isSubMarksModalOpen, setIsSubMarksModalOpen] = useState(false);
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // Evaluation inputs
+  const [totalMarks, setTotalMarks] = useState(0);
+  const [mainQuestions, setMainQuestions] = useState(0);
+  const [requiredQuestions, setRequiredQuestions] = useState(0);
+  const [subQuestions, setSubQuestions] = useState(0);
 
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
@@ -122,13 +104,7 @@ export default function Chat() {
         ...prev,
         {
           role: "user",
-          content: {
-            totalMarks,
-            mainQuestions,
-            requiredQuestions,
-            subQuestions,
-            subQuestionMarks,
-          },
+          content: { totalMarks, mainQuestions, requiredQuestions, subQuestions },
         },
         { role: "evaluation", content: mockEvaluation },
       ]);
@@ -142,22 +118,11 @@ export default function Chat() {
   }, [messages]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    setMessage(value);
-    if (value.trim() === "") {
-      e.target.style.height = "auto";
-      return;
-    }
+    setMessage(e.target.value);
     e.target.style.height = "auto";
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
-<<<<<<< HEAD
-  const handleStopRecording = () => {
-    setIsRecording(false);
-    setMessage(transcript);
-  };
-=======
   // Toggles for right panels
   const toggleRubric = () => {
     setIsRubricOpen((prev) => !prev);
@@ -192,7 +157,7 @@ export default function Chat() {
               { id: "2", title: "New Evaluation Chat", type: "evaluation", time: "12 minutes ago" },
             ]}
             isOpen={isSidebarOpen}
-            onClose={() => setIsSidebarOpen(false)}
+            onToggle={() => setIsSidebarOpen(false)}
           />
         ) : (
           <div className="p-4">
@@ -203,173 +168,8 @@ export default function Chat() {
           </div>
         )}
       </div>
->>>>>>> hirushi
 
-  const handleCancelRecording = () => {
-    setIsRecording(false);
-    setTranscript("");
-  };
-
-  // Reset chat when switching modes
-  useEffect(() => {
-    setMessages([]); // clear chat history
-    setMessage(""); // clear input box
-    setTranscript(""); // should clear voice transcript
-
-    // Reset evaluation inputs
-    setTotalMarks(0);
-    setMainQuestions(0);
-    setRequiredQuestions(0);
-    setSubQuestions(0);
-  }, [mode]);
-
-  const handleRubricSelect = (rubricId: string) => {
-    console.log("Selected rubric:", rubricId);
-    // You can implement rubric selection logic here
-    // For example: setSelectedRubric(rubricId);
-  };
-
-  const handleRubricUpload = () => {
-    console.log("Upload rubric");
-    // Implement file upload logic here
-  };
-
-  useEffect(() => {
-    if (isRecording) {
-      setTranscript("student asking about solar systems…");
-    }
-  }, [isRecording]);
-
-  useEffect(() => {
-    if (subQuestions > 0) {
-      setSubQuestionMarks((prev) => {
-        if (prev.length === subQuestions) return prev;
-        const arr = new Array(subQuestions).fill(0);
-        return arr;
-      });
-      setIsSubMarksModalOpen(true);
-    } else {
-      setIsSubMarksModalOpen(false);
-      setSubQuestionMarks([]);
-    }
-  }, [subQuestions]);
-
-  // handlers for modal inputs
-  const handleSubMarkChange = (index: number, value: number) => {
-    const num = Number(value);
-    const next = [...subQuestionMarks];
-    next[index] = isNaN(num) ? 0 : num;
-    setSubQuestionMarks(next);
-  };
-
-  const handleSubMarksDone = () => {
-    setIsSubMarksModalOpen(false);
-  };
-
-  const handleSubMarksCancel = () => {
-    setIsSubMarksModalOpen(false);
-    setSubQuestions(0);
-    setSubQuestionMarks([]);
-  };
-
-  const handleFileUpload = (file: File) => {
-    setSelectedFile(file);
-
-    // You can show file as a user message:
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "user",
-        content: `📎 Uploaded file: ${file.name}`,
-        file,
-      },
-    ]);
-  };
-
-  return (
-    <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
-      <Sidebar
-        isOpen={isSidebarOpen}
-        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-        chats={[
-          {
-            id: "1",
-            title: "New Learning Chat",
-            type: "learning",
-            time: "1 minute ago",
-          },
-          {
-            id: "2",
-            title: "New Evaluation Chat",
-            type: "evaluation",
-            time: "12 minutes ago",
-          },
-        ]}
-      />
       {/* MAIN AREA */}
-<<<<<<< HEAD
-      <div className="flex flex-col flex-1">
-        {/* TOP BAR */}
-        <div className="flex items-center justify-between bg-white dark:bg-[#111111] p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
-          {/* MODE TOGGLE */}
-          <div className="hidden md:flex items-center">
-            <div className="flex bg-blue-50 border border-gray-50 dark:border-[#2a2a2a] dark:bg-[#111] rounded-full p-1 shadow-sm">
-              {/* LEARNING */}
-              <button
-                onClick={() => setMode("learning")}
-                className={`flex items-center gap-2 px-5 py-2 rounded-full transition font-medium ${
-                  mode === "learning"
-                    ? "bg-white dark:bg-[#222] shadow text-blue-700 dark:text-blue-200"
-                    : "text-gray-600 dark:text-gray-300"
-                }`}
-              >
-                <span className="text-lg">📖</span>
-                <span>{t("learning_mode")}</span>
-              </button>
-
-              {/* EVALUATION */}
-              <button
-                onClick={() => setMode("evaluation")}
-                className={`flex items-center gap-2 px-5 py-2 rounded-full transition font-medium ${
-                  mode === "evaluation"
-                    ? "bg-white dark:bg-[#222] shadow text-blue-700 dark:text-blue-200"
-                    : "text-gray-600 dark:text-gray-300"
-                }`}
-              >
-                <span className="text-lg">📝</span>
-                <span>{t("evaluation_mode")}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* RIGHT TOOLS */}
-          <div className="flex items-center gap-4">
-            <ChatThemeToggle />
-            <ChatLanguageToggle />
-
-            <button
-              onClick={() => setIsRubricOpen(true)}
-              className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-            >
-              Rubric
-            </button>
-
-            <button className="px-4 py-2 rounded-lg bg-white border font-medium text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-              Syllabus
-            </button>
-
-            <button className="w-9 h-9 flex items-center justify-center border rounded-lg bg-white text-gray-700 dark:bg-[#222] dark:border-[#333] dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-              +
-            </button>
-          </div>
-        </div>
-
-        {/* MESSAGE AREA */}
-        {/* Empty State */}
-        {!messages.length && (
-          <div className="flex flex-1 flex-col overflow-y-auto p-6 bg-gray-100 dark:bg-[#0C0C0C]">
-            <div className="flex flex-1 items-center justify-center text-center">
-=======
       <div
         className={`flex flex-col flex-1 h-screen transition-[margin,width] duration-300 ${
           isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
@@ -391,54 +191,24 @@ export default function Chat() {
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
           {!messages.length && (
             <div className="flex-1 flex items-center justify-center text-center">
->>>>>>> hirushi
               <div>
-                <h2 className="text-xl font-semibold">
-                  {t("start_conversation")}
-                </h2>
-                <p className="text-gray-500 dark:text-gray-400">
-                  {t("start_conversation_sub")}
-                </p>
+                <h2 className="text-xl font-semibold">{t("start_conversation")}</h2>
+                <p className="text-gray-500 dark:text-gray-400">{t("start_conversation_sub")}</p>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="flex flex-col flex-1 space-y-4 overflow-y-auto p-6 bg-gray-100 dark:bg-[#0C0C0C]">
           {/* Messages */}
           {messages.map((m, i) => (
             <div key={i}>
               {m.role === "user" && (
-                <div className="ml-auto max-w-xs sm:max-w-sm">
-                  {/* FILE MESSAGE */}
-                  {m.file ? (
-                    <FilePreviewCard file={m.file} />
+                <div className="p-3 rounded-lg max-w-xl ml-auto bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100">
+                  {typeof m.content === "string" ? (
+                    m.content
                   ) : (
-                    <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 break-words">
-                      {/* EVALUATION OBJECT */}
-                      {typeof m.content === "object" ? (
-                        <pre className="whitespace-pre-wrap text-sm">
-                          {`Total Marks: ${m.content.totalMarks}
-Main Questions: ${m.content.mainQuestions}
-Required Questions: ${m.content.requiredQuestions}
-Sub Questions: ${m.content.subQuestions}`}
-                          {m.content.subQuestionMarks &&
-                            m.content.subQuestionMarks.length > 0 && (
-                              <>
-                                {`\nSub Question Marks: \n`}
-                                {m.content.subQuestionMarks.map(
-                                  (mark: number, idx: number) =>
-                                    `  ${String.fromCharCode(
-                                      97 + idx
-                                    )}) ${mark}`
-                                )}
-                              </>
-                            )}
-                        </pre>
-                      ) : (
-                        m.content
-                      )}
-                    </div>
+                    <pre className="whitespace-pre-wrap text-sm">
+                      {JSON.stringify(m.content, null, 2)}
+                    </pre>
                   )}
                 </div>
               )}
@@ -458,7 +228,7 @@ Sub Questions: ${m.content.subQuestions}`}
 
         {/* INPUT AREA */}
         <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
-          {mode === "evaluation" && (
+          {mode === "evaluation" ? (
             <EvaluationInputs
               totalMarks={totalMarks}
               setTotalMarks={setTotalMarks}
@@ -469,16 +239,8 @@ Sub Questions: ${m.content.subQuestions}`}
               subQuestions={subQuestions}
               setSubQuestions={setSubQuestions}
               onSend={handleSend}
-              onUpload={handleFileUpload}
             />
-          )}
-          {isRecording && (
-            <RecordBar
-              onCancelRecording={handleCancelRecording}
-              onStopRecording={handleStopRecording}
-            />
-          )}
-          {mode === "learning" && (
+          ) : (
             <>
               <div className="mb-3">
                 <label className="mr-2 text-sm">{t("response_level")}:</label>
@@ -502,69 +264,12 @@ Sub Questions: ${m.content.subQuestions}`}
                 message={message}
                 handleInputChange={handleInputChange}
                 onSend={handleSend}
-                onUpload={handleFileUpload}
               />
             </>
           )}
         </div>
       </div>
 
-<<<<<<< HEAD
-      {isSubMarksModalOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-[#111] rounded-xl shadow-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">
-              Enter marks for sub-questions
-            </h2>
-
-            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-              {Array.from({ length: subQuestions }).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between gap-3"
-                >
-                  <span className="text-sm">
-                    Sub-question {String.fromCharCode(97 + idx)}){" "}
-                    {/* a, b, c... */}
-                  </span>
-                  <NumberInput
-                    value={subQuestionMarks[idx] ?? 0}
-                    onChange={(v) => handleSubMarkChange(idx, v)}
-                    min={0}
-                    max={100}
-                    className="w-24"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={handleSubMarksCancel}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-[#333]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubMarksDone}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* RUBRIC SIDEBAR */}
-      <RubricSidebar
-        isOpen={isRubricOpen}
-        loading={loading}
-        onClose={() => setIsRubricOpen(false)}
-        onSelectRubric={handleRubricSelect}
-        onUpload={handleRubricUpload}
-      />
-=======
       {/* RIGHT SLIDE SIDEBARS */}
 
       {/* RUBRIC PANEL */}
@@ -598,7 +303,6 @@ Sub Questions: ${m.content.subQuestions}`}
       >
         <QuestionsPanelpage onClose={toggleQuestions} />
       </div>
->>>>>>> hirushi
     </main>
   );
 }

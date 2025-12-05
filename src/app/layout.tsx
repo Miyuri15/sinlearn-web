@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { ReactNode } from "react";
 import I18nProvider from "./providers/I18nProvider";
-import { ToastProvider } from "@/components/ui/Toast";
+import { ToastProvider } from "@/components/ui/toast";
 
 export const metadata = {
   title: "SinLearn",
