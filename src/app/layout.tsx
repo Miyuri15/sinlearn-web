@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { ReactNode } from "react";
 import I18nProvider from "./providers/I18nProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata = {
   title: "SinLearn",
@@ -16,8 +17,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Standard responsive viewport */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-        
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=5"
+        />
+
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -34,8 +38,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen transition-colors duration-300">
-        <I18nProvider>{children}</I18nProvider>
+      <body className="h-dvh transition-colors duration-300">
+        <I18nProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </I18nProvider>
       </body>
     </html>
   );
