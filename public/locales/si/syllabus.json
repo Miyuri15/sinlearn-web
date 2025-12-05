@@ -1,0 +1,16 @@
+{
+  "title": "විෂය නිර්දේශය",
+  "description": "ඔබේ විෂය නිර්දේශය උඩුගත කර තෝරන්න. AI ඔබේ අධ්‍යාපන ක්‍රමය මත පදනම්ව පිළිතුරු සපයයි.",
+  "upload_section_title": "විෂය නිර්දේශය උඩුගත කරන්න",
+  "upload_section_subtitle": "PDF, DOC, හෝ DOCX ගොනු පමණි",
+  "click_to_upload": "උඩුගත කිරීමට ක්ලික් කරන්න",
+  "uploaded_section_title": "උඩුගත කළ විෂය නිර්දේශ",
+  "uploaded_section_subtitle": "බැලීමට හෝ ඔබේ කතාබස් සඳහා විෂය නිර්දේශයක් තෝරන්න",
+  "uploaded": "උඩුගත කළ දිනය",
+  "no_syllabi": "තවම විෂය නිර්දේශ උඩුගත කර නැත.",
+  "cancel": "අවලංගු කරන්න",
+  "upload_success": "විෂය නිර්දේශය \"{{title}}\" සාර්ථකව උඩුගත කරන ලදී.",
+  "delete_success": "විෂය නිර්දේශය \"{{title}}\" මකා දමන ලදී.",
+  "invalid_file_type": "වලංගු නොවන ගොනු වර්ගය. PDF, DOC, හෝ DOCX පමණක් අනුමත වේ.",
+  "preview_not_available": "{{fileType}} ගොනු සඳහා පෙරදසුන නොමැත. බැලීමට බාගත කරන්න."
+}

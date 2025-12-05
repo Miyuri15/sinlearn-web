@@ -1,6 +1,6 @@
 "use client";
 
-export default function Input({ className = "", ...props }: any) {
+export default function Input({ className = "", ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
