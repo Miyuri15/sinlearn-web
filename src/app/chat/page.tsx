@@ -256,6 +256,34 @@ export default function Chat() {
     ]);
   };
 
+  const renderEvaluationUserMessageContent = (m: any) => {
+    if ("file" in m && m.file) {
+      return <FilePreviewCard file={m.file} />;
+    }
+
+    if (typeof m.content === "object") {
+      return (
+        <pre className="whitespace-pre-wrap text-sm">
+          {`Total Marks: ${m.content.totalMarks}
+Main Questions: ${m.content.mainQuestions}
+Required Questions: ${m.content.requiredQuestions}
+Sub Questions: ${m.content.subQuestions}`}
+          {m.content.subQuestionMarks?.length > 0 && (
+            <>
+              {`\nSub Question Marks: \n`}
+              {m.content.subQuestionMarks.map(
+                (mark: number, idx: number) =>
+                  `  ${String.fromCodePoint(97 + idx)}) ${mark}`
+              )}
+            </>
+          )}
+        </pre>
+      );
+    }
+
+    return m.content;
+  };
+
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
       <Sidebar
@@ -360,30 +388,7 @@ export default function Chat() {
                 {m.role === "user" && (
                   <div className="ml-auto max-w-xs sm:max-w-sm">
                     <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A]/60 text-sm text-blue-900 dark:text-blue-100">
-                      {"file" in m && m.file ? (
-                        <FilePreviewCard file={m.file} />
-                      ) : typeof m.content === "object" ? (
-                        <pre className="whitespace-pre-wrap text-sm">
-                          {`Total Marks: ${m.content.totalMarks}
-Main Questions: ${m.content.mainQuestions}
-Required Questions: ${m.content.requiredQuestions}
-Sub Questions: ${m.content.subQuestions}`}
-                          {m.content.subQuestionMarks &&
-                            m.content.subQuestionMarks.length > 0 && (
-                              <>
-                                {`\nSub Question Marks: \n`}
-                                {m.content.subQuestionMarks.map(
-                                  (mark: number, idx: number) =>
-                                    `  ${String.fromCodePoint(
-                                      97 + idx
-                                    )}) ${mark}`
-                                )}
-                              </>
-                            )}
-                        </pre>
-                      ) : (
-                        m.content
-                      )}
+                      {renderEvaluationUserMessageContent(m)}
                     </div>
                   </div>
                 )}
