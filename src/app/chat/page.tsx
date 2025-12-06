@@ -293,74 +293,87 @@ export default function Chat() {
           toggleSyllabus={toggleSyllabus}
           toggleQuestions={toggleQuestions}
         />
-
         {/* MESSAGE AREA */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-          {!messages.length && (
-            <div className="flex-1 flex items-center justify-center text-center">
-              <div>
-                <h2 className="text-xl font-semibold">
-                  {t("start_conversation")}
-                </h2>
-                <p className="text-gray-500 dark:text-gray-400">
-                  {t("start_conversation_sub")}
-                </p>
+        {mode === "learning" && (
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
+            {/* Empty state */}
+            {messages.length === 0 && (
+              <div className="w-full h-full flex items-center justify-center text-center">
+                <div>
+                  <h2 className="text-xl font-semibold">
+                    {t("start_conversation")}
+                  </h2>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    {t("start_conversation_sub")}
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
 
-        <div className="flex flex-col flex-1 space-y-4 overflow-y-auto p-6 bg-gray-100 dark:bg-[#0C0C0C]">
-          {/* Messages */}
-          {messages.map((m, i) => (
-            <div key={i}>
-              {m.role === "user" && (
-                <div className="ml-auto max-w-xs sm:max-w-sm">
-                  {/* FILE MESSAGE */}
-                  {"file" in m && m.file ? (
-                    <FilePreviewCard file={m.file} />
-                  ) : (
-                    <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 wrap-break-word">
-                      {/* EVALUATION OBJECT */}
-                      {typeof m.content === "object" ? (
-                        <pre className="whitespace-pre-wrap text-sm">
-                          {`Total Marks: ${m.content.totalMarks}
-Main Questions: ${m.content.mainQuestions}
-Required Questions: ${m.content.requiredQuestions}
-Sub Questions: ${m.content.subQuestions}`}
-                          {m.content.subQuestionMarks &&
-                            m.content.subQuestionMarks.length > 0 && (
-                              <>
-                                {`\nSub Question Marks: \n`}
-                                {m.content.subQuestionMarks.map(
-                                  (mark: number, idx: number) =>
-                                    `  ${String.fromCodePoint(
-                                      97 + idx
-                                    )}) ${mark}`
-                                )}
-                              </>
-                            )}
-                        </pre>
-                      ) : (
-                        m.content
-                      )}
+            {/* Learning messages */}
+            {messages.map((m, i) => (
+              <div key={i}>
+                {m.role === "user" && (
+                  <div className="ml-auto max-w-xs sm:max-w-sm">
+                    {"file" in m && m.file ? (
+                      <FilePreviewCard file={m.file} />
+                    ) : (
+                      <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 wrap-break-word">
+                        {typeof m.content === "string" ? m.content : null}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {m.role === "assistant" && (
+                  <div className="p-4 rounded-lg max-w-xl bg-white dark:bg-[#0F172A] border dark:border-[#1F2937]">
+                    {m.content}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            <div ref={endRef} />
+          </div>
+        )}
+
+        {/* EVALUATION MODE */}
+        {mode === "evaluation" && (
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
+            {/* Empty */}
+            {messages.length === 0 && (
+              <div className="w-full h-full flex items-center justify-center text-center">
+                <div>
+                  <h2 className="text-xl font-semibold">
+                    {t("start_conversation")}
+                  </h2>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    {t("start_conversation_sub")}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Evaluation messages */}
+            {messages.map((m, i) => (
+              <div key={i}>
+                {m.role === "user" && (
+                  <div className="ml-auto max-w-xs sm:max-w-sm">
+                    <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A]/60 text-sm text-blue-900 dark:text-blue-100">
+                      <pre className="whitespace-pre-wrap">
+                        {JSON.stringify(m.content, null, 2)}
+                      </pre>
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
 
-              {m.role === "assistant" && (
-                <div className="p-4 rounded-lg max-w-xl bg-white dark:bg-[#0F172A] border dark:border-[#1F2937]">
-                  {m.content}
-                </div>
-              )}
+                {m.role === "evaluation" && <EvaluationCard data={m.content} />}
+              </div>
+            ))}
 
-              {m.role === "evaluation" && <EvaluationCard data={m.content} />}
-            </div>
-          ))}
-
-          <div ref={endRef} />
-        </div>
+            <div ref={endRef} />
+          </div>
+        )}
 
         {/* INPUT AREA */}
         <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
