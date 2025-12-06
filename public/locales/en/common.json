@@ -17,6 +17,8 @@
   "chat_history": "Chat History",
   "new_learning_chat": "New Learning Chat",
   "new_evaluation_chat": "New Evaluation Chat",
+  "settings_text": "Settings",
+  "logout": "Log Out",
 
   "settings": {
     "title": "Settings",

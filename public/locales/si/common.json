@@ -17,7 +17,8 @@
   "chat_history": "සංවාද ඉතිහාසය",
   "new_learning_chat": "නව අධ්‍යයන සංවාදය",
   "new_evaluation_chat": "නව ඇගයීම් සංවාදය",
-
+  "settings_text": "සැකසුම්",
+  "logout": "පිටවීම",
   
   "settings": {
     "title": "සැකසුම්",

@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Search, BookOpen, CheckSquare, Menu } from "lucide-react";
+import {
+  Search,
+  BookOpen,
+  CheckSquare,
+  Menu,
+  LogOut,
+  Settings,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -23,7 +30,7 @@ export default function Sidebar({
   chats = [],
   isOpen,
   onToggle,
-}: SidebarProps) {
+}: Readonly<SidebarProps>) {
   const [search, setSearch] = useState("");
   const router = useRouter();
   const { t } = useTranslation("common");
@@ -65,9 +72,9 @@ export default function Sidebar({
 
       {/* SEARCH (only when expanded) */}
       {isOpen && (
-        <div className="px-4 pt-3 pb-2">
+        <div className="px-2 pt-3 pb-2">
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500 dark:text-gray-400" />
             <input
               type="text"
               placeholder={t("chat_history") + "..."}
@@ -142,6 +149,34 @@ export default function Sidebar({
             No chats found...
           </p>
         )}
+      </div>
+
+      <div className="p-3 border-t border-gray-200 dark:border-[#2a2a2a]">
+        <div className="flex flex-col space-y-3">
+          <button
+            onClick={() => router.push("/settings")}
+            className={`flex items-center gap-3 w-full border rounded-lg px-3 py-2 
+              hover:bg-gray-100 dark:hover:bg-gray-800
+              bg-white dark:bg-gray-900
+              text-gray-900 dark:text-gray-100
+              border-gray-300 dark:border-[#2a2a2a] transition`}
+          >
+            <Settings className="h-4 w-4" />
+            {isOpen && t("settings_text")}
+          </button>
+
+          <button
+            onClick={() => router.push("/logout")}
+            className={`flex items-center gap-3 w-full border rounded-lg px-3 py-2 
+              hover:bg-red-100 dark:hover:bg-red-900
+              bg-white dark:bg-gray-900
+              text-red-600 dark:text-red-400
+              border-gray-300 dark:border-[#2a2a2a] transition`}
+          >
+            <LogOut className="h-4 w-4" />
+            {isOpen && t("logout")}
+          </button>
+        </div>
       </div>
     </div>
   );
