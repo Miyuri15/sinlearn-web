@@ -360,7 +360,9 @@ export default function Chat() {
                 {m.role === "user" && (
                   <div className="ml-auto max-w-xs sm:max-w-sm">
                     <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A]/60 text-sm text-blue-900 dark:text-blue-100">
-                      {typeof m.content === "object" ? (
+                      {"file" in m && m.file ? (
+                        <FilePreviewCard file={m.file} />
+                      ) : typeof m.content === "object" ? (
                         <pre className="whitespace-pre-wrap text-sm">
                           {`Total Marks: ${m.content.totalMarks}
 Main Questions: ${m.content.mainQuestions}
