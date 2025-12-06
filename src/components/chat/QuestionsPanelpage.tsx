@@ -1,7 +1,7 @@
 import Image from "next/image";
 import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import Toast from "@/components/ui/toast";
+import Toast from "@/components/ui/updatedtoast";
 import PDFViewer from "@/components/ui/PDFViewer";
 import HelpIcon from "@mui/icons-material/Help";
 import CloseIcon from "@mui/icons-material/Close";
