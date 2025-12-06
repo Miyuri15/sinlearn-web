@@ -86,7 +86,7 @@ export default function Sidebar({
       {/* ACTION BUTTONS */}
       <div className="px-2 space-y-2 mt-2">
         <button
-          onClick={() => router.push("/new-learning-chat")}
+          onClick={() => router.push("/chat/new-learning-chat")}
           className="flex items-center gap-3 w-full border rounded-lg px-3 py-2 
                      hover:bg-gray-100 dark:hover:bg-gray-800
                      bg-white dark:bg-gray-900
@@ -99,7 +99,7 @@ export default function Sidebar({
         </button>
 
         <button
-          onClick={() => router.push("/new-evaluation-chat")}
+          onClick={() => router.push("/chat/new-evaluation-chat")}
           className="flex items-center gap-3 w-full border rounded-lg px-3 py-2 
                      hover:bg-gray-100 dark:hover:bg-gray-800
                      bg-white dark:bg-gray-900

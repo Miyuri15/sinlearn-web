@@ -57,7 +57,7 @@ type ChatMessage =
 const RIGHT_PANEL_WIDTH_CLASS = "w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "mr-[400px]";
 
-export default function Chat() {
+export default function ChatPage({ chatId }: { chatId?: string }) {
   const { t } = useTranslation("chat");
 
   // STATES
@@ -283,6 +283,13 @@ Sub Questions: ${m.content.subQuestions}`}
 
     return m.content;
   };
+
+  useEffect(() => {
+    if (chatId) {
+      console.log("Loaded chat:", chatId);
+      // You can load saved messages from DB or localStorage
+    }
+  }, [chatId]);
 
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
