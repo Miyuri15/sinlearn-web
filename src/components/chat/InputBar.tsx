@@ -72,7 +72,7 @@ export default function InputBar({
         onKeyDown={handleKeyDown}
         rows={1}
         disabled={isRecording} // block editing when recording
-        className={`flex-1 bg-transparent outline-none px-3 resize-none overflow-hidden leading-relaxed max-h-40 ${
+        className={`chat-input flex-1 bg-transparent outline-none px-3 resize-none overflow-hidden leading-relaxed max-h-40 ${
           isRecording
             ? "text-gray-700 dark:text-gray-100 italic"
             : "text-gray-800 dark:text-gray-200"

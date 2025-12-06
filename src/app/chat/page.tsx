@@ -2,15 +2,15 @@
 
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
-import InputBar from "./components/InputBar";
-import EvaluationCard from "./components/EvaluationCard";
-import EvaluationInputs from "./components/EvaluationInputs";
+import InputBar from "@/components/chat/InputBar";
+import EvaluationCard from "@/components/chat/EvaluationCard";
+import EvaluationInputs from "@/components/chat/EvaluationInputs";
 import Sidebar from "@/components/sidebar/Sidebar";
 import RubricSidebar from "@/components/chat/RubricSidebar";
 import NumberInput from "@/components/ui/NumberInput";
 import FilePreviewCard from "@/components/chat/FilePreviewCard";
-import SyllabusPanelpage from "./components/SyllabusPanel";
-import QuestionsPanelpage from "./components/QuestionsPanelpage";
+import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
+import QuestionsPanelpage from "@/components/chat/QuestionsPanelpage";
 import Header from "../../components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
 
