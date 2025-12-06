@@ -360,9 +360,28 @@ export default function Chat() {
                 {m.role === "user" && (
                   <div className="ml-auto max-w-xs sm:max-w-sm">
                     <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A]/60 text-sm text-blue-900 dark:text-blue-100">
-                      <pre className="whitespace-pre-wrap">
-                        {JSON.stringify(m.content, null, 2)}
-                      </pre>
+                      {typeof m.content === "object" ? (
+                        <pre className="whitespace-pre-wrap text-sm">
+                          {`Total Marks: ${m.content.totalMarks}
+Main Questions: ${m.content.mainQuestions}
+Required Questions: ${m.content.requiredQuestions}
+Sub Questions: ${m.content.subQuestions}`}
+                          {m.content.subQuestionMarks &&
+                            m.content.subQuestionMarks.length > 0 && (
+                              <>
+                                {`\nSub Question Marks: \n`}
+                                {m.content.subQuestionMarks.map(
+                                  (mark: number, idx: number) =>
+                                    `  ${String.fromCodePoint(
+                                      97 + idx
+                                    )}) ${mark}`
+                                )}
+                              </>
+                            )}
+                        </pre>
+                      ) : (
+                        m.content
+                      )}
                     </div>
                   </div>
                 )}
