@@ -20,16 +20,17 @@ import useChatInit from "@/hooks/useChatInit";
 const RIGHT_PANEL_WIDTH_CLASS = "w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "mr-[400px]";
 
+interface ChatPageProps {
+  chatId?: string;
+  initialMessages?: ChatMessage[];
+}
+
 export default function ChatPage({
   chatId,
   initialMessages = [],
-}: {
-  chatId?: string;
-  initialMessages?: ChatMessage[];
-}) {
+}: Readonly<ChatPageProps>) {
   const { t } = useTranslation("chat");
 
-  // read query params when this component is used as the `/chat` route
   const searchParams = useSearchParams();
   const typeParam = searchParams?.get("type") ?? undefined;
 
@@ -85,7 +86,7 @@ export default function ChatPage({
       params.set("type", m);
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    } catch (e) {
+    } catch {
       // fallback: simple replace
       router.replace(`${pathname}?type=${m}`, { scroll: false });
     }
@@ -219,7 +220,7 @@ export default function ChatPage({
   const handleSubMarkChange = (index: number, value: number) => {
     const num = Number(value);
     const next = [...subQuestionMarks];
-    next[index] = isNaN(num) ? 0 : num;
+    next[index] = Number.isNaN(num) ? 0 : num;
     setSubQuestionMarks(next);
   };
 
