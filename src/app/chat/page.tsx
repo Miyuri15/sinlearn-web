@@ -2,7 +2,7 @@
 
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import InputBar from "@/components/chat/InputBar";
 import EvaluationInputs from "@/components/chat/EvaluationInputs";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -15,6 +15,7 @@ import { ChatMessage, EvaluationResultContent } from "@/lib/models/chat";
 import MessagesList from "@/components/chat/MessagesList";
 import SubMarksModal from "@/components/chat/SubMarksModal";
 import EmptyState from "@/components/chat/EmptyState";
+import useChatInit from "@/hooks/useChatInit";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "mr-[400px]";
@@ -41,8 +42,13 @@ export default function ChatPage({
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
-  const [mode, setMode] = useState<"learning" | "evaluation">("learning");
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const { mode, setMode, messages, setMessages } = useChatInit({
+    chatId,
+    typeParam,
+    initialMessages,
+  });
+  const router = useRouter();
+  const pathname = usePathname();
   const endRef = useRef<HTMLDivElement | null>(null);
   const [responseLevel, setResponseLevel] = useState("Grades 9–11");
 
@@ -70,6 +76,19 @@ export default function ChatPage({
     missing: ["Final conclusion missing"],
     feedback:
       "Your answer is mostly correct. Adding a final conclusion will improve clarity.",
+  };
+
+  const handleSetMode = (m: "learning" | "evaluation") => {
+    setMode(m);
+    try {
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("type", m);
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    } catch (e) {
+      // fallback: simple replace
+      router.replace(`${pathname}?type=${m}`, { scroll: false });
+    }
   };
 
   const handleSend = () => {
@@ -235,40 +254,6 @@ export default function ChatPage({
     }
   }, [chatId]);
 
-  useEffect(() => {
-    if (typeParam === "learning") {
-      setMode("learning");
-      setMessages([
-        {
-          id: "init-learning",
-          role: "assistant",
-          content:
-            "Starting a new learning chat — ask a question or upload a file to begin.",
-        },
-      ]);
-      return;
-    }
-
-    if (typeParam === "evaluation") {
-      setMode("evaluation");
-      setMessages([
-        {
-          id: "init-evaluation",
-          role: "assistant",
-          content:
-            "Starting a new evaluation chat — set the evaluation inputs or upload the student's answers to begin.",
-        },
-      ]);
-      return;
-    }
-
-    if (initialMessages && initialMessages.length > 0) {
-      setMessages(initialMessages);
-    } else {
-      setMessages([]);
-    }
-  }, [chatId, typeParam]);
-
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
       <Sidebar
@@ -298,7 +283,7 @@ export default function ChatPage({
         {/* HEADER COMPONENT */}
         <Header
           mode={mode}
-          setMode={setMode}
+          setMode={handleSetMode}
           isRubricOpen={isRubricOpen}
           isSyllabusOpen={isSyllabusOpen}
           isQuestionsOpen={isQuestionsOpen}
