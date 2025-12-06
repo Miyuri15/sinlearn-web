@@ -7,26 +7,39 @@ export default function FilePreviewModal({
   file,
   onClose,
 }: {
-  file: File;
+  file: File | import("@/lib/models/chat").FileMeta;
   onClose: () => void;
 }) {
-  const ext = file.name.split(".").pop()?.toLowerCase();
+  // normalize name & size
+  let name: string;
+  if (file instanceof File) name = file.name;
+  else if (file.name) name = file.name;
+  else if ("url" in file && file.url)
+    name = file.url.split("/").pop() || "file";
+  else name = "file";
+  const ext = name.split(".").pop()?.toLowerCase();
   const isImage = ["png", "jpg", "jpeg", "webp"].includes(ext!);
   const isAudio = ["mp3", "wav", "aac", "ogg"].includes(ext!);
   const isVideo = ["mp4", "mov", "webm"].includes(ext!);
   const isPDF = ext === "pdf";
 
-  const url = useMemo(() => URL.createObjectURL(file), [file]);
+  const url = useMemo(() => {
+    if (file instanceof File) return URL.createObjectURL(file);
+    if ("url" in file && file.url) return file.url;
+    return undefined;
+  }, [file]);
 
   useEffect(() => {
-    return () => URL.revokeObjectURL(url);
-  }, [url]);
+    return () => {
+      if (file instanceof File && url) URL.revokeObjectURL(url);
+    };
+  }, [url, file]);
 
   // Close on ESC key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
+    globalThis.addEventListener("keydown", handleEsc);
+    return () => globalThis.removeEventListener("keydown", handleEsc);
   }, [onClose]);
 
   return (
@@ -49,10 +62,15 @@ export default function FilePreviewModal({
         </button>
 
         {/* CONTENT */}
-        <div className="bg-white dark:bg-[#111] rounded-lg p-4 max-h-[80vh] overflow-auto shadow-xl w-full text-center">
-          <h3 className="text-lg font-semibold mb-1 truncate">{file.name}</h3>
+        <div className="bg-white dark:bg-[#111] rounded-lg p-4 max-h-[100vh] overflow-auto shadow-xl w-full text-center">
+          <h3 className="text-lg font-semibold mb-1 truncate">{name}</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {(file.size / 1024).toFixed(1)} KB
+            {file instanceof File
+              ? (file.size / 1024).toFixed(1)
+              : "size" in file && file.size
+              ? (file.size / 1024).toFixed(1)
+              : ""}{" "}
+            KB
           </p>
 
           {isImage && (
@@ -81,14 +99,20 @@ export default function FilePreviewModal({
           )}
         </div>
 
-        <a
-          href={url}
-          download={file.name}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm 
+        {url ? (
+          <a
+            href={url}
+            download={name}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm 
                      hover:bg-blue-700 transition shadow-sm"
-        >
-          Download
-        </a>
+          >
+            Download
+          </a>
+        ) : (
+          <button className="mt-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-sm cursor-not-allowed">
+            Download
+          </button>
+        )}
       </div>
     </div>
   );

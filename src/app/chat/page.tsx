@@ -13,51 +13,22 @@ import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
 import QuestionsPanelpage from "@/components/chat/QuestionsPanelpage";
 import Header from "@/components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
-
-type TextMessage = {
-  role: "user" | "assistant";
-  content: string;
-  file?: File;
-};
-
-type EvaluationInputContent = {
-  totalMarks: number;
-  mainQuestions: number;
-  requiredQuestions: number;
-  subQuestions: number;
-  subQuestionMarks?: number[];
-};
-
-type EvaluationInputMessage = {
-  role: "user";
-  content: EvaluationInputContent;
-};
-
-type EvaluationResultContent = {
-  grade: string;
-  coverage: number;
-  accuracy: number;
-  clarity: number;
-  strengths: string[];
-  weaknesses: string[];
-  missing: string[];
-  feedback: string;
-};
-
-type EvaluationResultMessage = {
-  role: "evaluation";
-  content: EvaluationResultContent;
-};
-
-type ChatMessage =
-  | TextMessage
-  | EvaluationInputMessage
-  | EvaluationResultMessage;
+import {
+  ChatMessage,
+  EvaluationInputContent,
+  EvaluationResultContent,
+} from "@/lib/models/chat";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "mr-[400px]";
 
-export default function ChatPage({ chatId }: { chatId?: string }) {
+export default function ChatPage({
+  chatId,
+  initialMessages = [],
+}: {
+  chatId?: string;
+  initialMessages?: ChatMessage[];
+}) {
   const { t } = useTranslation("chat");
 
   // STATES
@@ -70,7 +41,7 @@ export default function ChatPage({ chatId }: { chatId?: string }) {
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
   const [mode, setMode] = useState<"learning" | "evaluation">("learning");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const endRef = useRef<HTMLDivElement | null>(null);
   const [responseLevel, setResponseLevel] = useState("Grades 9–11");
 
@@ -98,6 +69,28 @@ export default function ChatPage({ chatId }: { chatId?: string }) {
     missing: ["Final conclusion missing"],
     feedback:
       "Your answer is mostly correct. Adding a final conclusion will improve clarity.",
+  };
+
+  const renderUserMessageContent = (m: ChatMessage) => {
+    if ("file" in m && m.file) {
+      if (m.file instanceof File) return <FilePreviewCard file={m.file} />;
+      const fm = m.file as any;
+      return (
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          {fm.name || fm.url || "Attachment"}
+        </div>
+      );
+    }
+
+    if (typeof m.content === "string") {
+      return (
+        <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 wrap-break-word">
+          {m.content}
+        </div>
+      );
+    }
+
+    return null;
   };
 
   const handleSend = () => {
@@ -256,22 +249,35 @@ export default function ChatPage({ chatId }: { chatId?: string }) {
     ]);
   };
 
-  const renderEvaluationUserMessageContent = (m: any) => {
+  const renderEvaluationUserMessageContent = (m: ChatMessage) => {
+    // file preview: only pass actual File objects to FilePreviewCard
     if ("file" in m && m.file) {
-      return <FilePreviewCard file={m.file} />;
+      if (m.file instanceof File) return <FilePreviewCard file={m.file} />;
+      const fm = m.file as any;
+      return (
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          {fm.name || fm.url || "Attachment"}
+        </div>
+      );
     }
 
-    if (typeof m.content === "object") {
+    // If content is an evaluation input (structured), render its fields
+    if (
+      typeof m.content === "object" &&
+      m.content &&
+      "totalMarks" in (m.content as any)
+    ) {
+      const c = m.content as EvaluationInputContent;
       return (
         <pre className="whitespace-pre-wrap text-sm">
-          {`Total Marks: ${m.content.totalMarks}
-Main Questions: ${m.content.mainQuestions}
-Required Questions: ${m.content.requiredQuestions}
-Sub Questions: ${m.content.subQuestions}`}
-          {m.content.subQuestionMarks?.length > 0 && (
+          {`Total Marks: ${c.totalMarks}
+Main Questions: ${c.mainQuestions}
+Required Questions: ${c.requiredQuestions}
+Sub Questions: ${c.subQuestions}`}
+          {c.subQuestionMarks && c.subQuestionMarks.length > 0 && (
             <>
               {`\nSub Question Marks: \n`}
-              {m.content.subQuestionMarks.map(
+              {c.subQuestionMarks.map(
                 (mark: number, idx: number) =>
                   `  ${String.fromCodePoint(97 + idx)}) ${mark}`
               )}
@@ -281,13 +287,21 @@ Sub Questions: ${m.content.subQuestions}`}
       );
     }
 
-    return m.content;
+    return m.content as any;
   };
 
   useEffect(() => {
     if (chatId) {
       console.log("Loaded chat:", chatId);
       // You can load saved messages from DB or localStorage
+    }
+  }, [chatId]);
+
+  useEffect(() => {
+    if (initialMessages.length > 0) {
+      setMessages(initialMessages);
+    } else {
+      setMessages([]);
     }
   }, [chatId]);
 
@@ -347,16 +361,10 @@ Sub Questions: ${m.content.subQuestions}`}
 
             {/* Learning messages */}
             {messages.map((m, i) => (
-              <div key={i}>
+              <div key={m.id ?? `msg-${i}`}>
                 {m.role === "user" && (
                   <div className="ml-auto max-w-xs sm:max-w-sm">
-                    {"file" in m && m.file ? (
-                      <FilePreviewCard file={m.file} />
-                    ) : (
-                      <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 wrap-break-word">
-                        {typeof m.content === "string" ? m.content : null}
-                      </div>
-                    )}
+                    {renderUserMessageContent(m)}
                   </div>
                 )}
 
@@ -391,7 +399,7 @@ Sub Questions: ${m.content.subQuestions}`}
 
             {/* Evaluation messages */}
             {messages.map((m, i) => (
-              <div key={i}>
+              <div key={m.id ?? `msg-${i}`}>
                 {m.role === "user" && (
                   <div className="ml-auto max-w-xs sm:max-w-sm">
                     <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A]/60 text-sm text-blue-900 dark:text-blue-100">
@@ -471,11 +479,11 @@ Sub Questions: ${m.content.subQuestions}`}
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
               {Array.from({ length: subQuestions }).map((_, idx) => (
                 <div
-                  key={idx}
+                  key={`sub-${idx}`}
                   className="flex items-center justify-between gap-3"
                 >
                   <span className="text-sm">
-                    Sub-question {String.fromCharCode(97 + idx)}){" "}
+                    Sub-question {String.fromCodePoint(97 + idx)}){" "}
                     {/* a, b, c... */}
                   </span>
                   <NumberInput
