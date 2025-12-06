@@ -2,6 +2,7 @@
 
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import InputBar from "@/components/chat/InputBar";
 import EvaluationCard from "@/components/chat/EvaluationCard";
 import EvaluationInputs from "@/components/chat/EvaluationInputs";
@@ -30,6 +31,10 @@ export default function ChatPage({
   initialMessages?: ChatMessage[];
 }) {
   const { t } = useTranslation("chat");
+
+  // read query params when this component is used as the `/chat` route
+  const searchParams = useSearchParams();
+  const typeParam = searchParams?.get("type") ?? undefined;
 
   // STATES
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -298,12 +303,38 @@ Sub Questions: ${c.subQuestions}`}
   }, [chatId]);
 
   useEffect(() => {
-    if (initialMessages.length > 0) {
+    if (typeParam === "learning") {
+      setMode("learning");
+      setMessages([
+        {
+          id: "init-learning",
+          role: "assistant",
+          content:
+            "Starting a new learning chat — ask a question or upload a file to begin.",
+        },
+      ]);
+      return;
+    }
+
+    if (typeParam === "evaluation") {
+      setMode("evaluation");
+      setMessages([
+        {
+          id: "init-evaluation",
+          role: "assistant",
+          content:
+            "Starting a new evaluation chat — set the evaluation inputs or upload the student's answers to begin.",
+        },
+      ]);
+      return;
+    }
+
+    if (initialMessages && initialMessages.length > 0) {
       setMessages(initialMessages);
     } else {
       setMessages([]);
     }
-  }, [chatId]);
+  }, [chatId, typeParam]);
 
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
