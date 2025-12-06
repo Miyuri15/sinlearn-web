@@ -4,21 +4,17 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import InputBar from "@/components/chat/InputBar";
-import EvaluationCard from "@/components/chat/EvaluationCard";
 import EvaluationInputs from "@/components/chat/EvaluationInputs";
 import Sidebar from "@/components/sidebar/Sidebar";
 import RubricSidebar from "@/components/chat/RubricSidebar";
-import NumberInput from "@/components/ui/NumberInput";
-import FilePreviewCard from "@/components/chat/FilePreviewCard";
 import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
 import QuestionsPanelpage from "@/components/chat/QuestionsPanelpage";
 import Header from "@/components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
-import {
-  ChatMessage,
-  EvaluationInputContent,
-  EvaluationResultContent,
-} from "@/lib/models/chat";
+import { ChatMessage, EvaluationResultContent } from "@/lib/models/chat";
+import MessagesList from "@/components/chat/MessagesList";
+import SubMarksModal from "@/components/chat/SubMarksModal";
+import EmptyState from "@/components/chat/EmptyState";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "mr-[400px]";
@@ -74,28 +70,6 @@ export default function ChatPage({
     missing: ["Final conclusion missing"],
     feedback:
       "Your answer is mostly correct. Adding a final conclusion will improve clarity.",
-  };
-
-  const renderUserMessageContent = (m: ChatMessage) => {
-    if ("file" in m && m.file) {
-      if (m.file instanceof File) return <FilePreviewCard file={m.file} />;
-      const fm = m.file as any;
-      return (
-        <div className="text-sm text-gray-700 dark:text-gray-300">
-          {fm.name || fm.url || "Attachment"}
-        </div>
-      );
-    }
-
-    if (typeof m.content === "string") {
-      return (
-        <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 wrap-break-word">
-          {m.content}
-        </div>
-      );
-    }
-
-    return null;
   };
 
   const handleSend = () => {
@@ -254,47 +228,6 @@ export default function ChatPage({
     ]);
   };
 
-  const renderEvaluationUserMessageContent = (m: ChatMessage) => {
-    // file preview: only pass actual File objects to FilePreviewCard
-    if ("file" in m && m.file) {
-      if (m.file instanceof File) return <FilePreviewCard file={m.file} />;
-      const fm = m.file as any;
-      return (
-        <div className="text-sm text-gray-700 dark:text-gray-300">
-          {fm.name || fm.url || "Attachment"}
-        </div>
-      );
-    }
-
-    // If content is an evaluation input (structured), render its fields
-    if (
-      typeof m.content === "object" &&
-      m.content &&
-      "totalMarks" in (m.content as any)
-    ) {
-      const c = m.content as EvaluationInputContent;
-      return (
-        <pre className="whitespace-pre-wrap text-sm">
-          {`Total Marks: ${c.totalMarks}
-Main Questions: ${c.mainQuestions}
-Required Questions: ${c.requiredQuestions}
-Sub Questions: ${c.subQuestions}`}
-          {c.subQuestionMarks && c.subQuestionMarks.length > 0 && (
-            <>
-              {`\nSub Question Marks: \n`}
-              {c.subQuestionMarks.map(
-                (mark: number, idx: number) =>
-                  `  ${String.fromCodePoint(97 + idx)}) ${mark}`
-              )}
-            </>
-          )}
-        </pre>
-      );
-    }
-
-    return m.content as any;
-  };
-
   useEffect(() => {
     if (chatId) {
       console.log("Loaded chat:", chatId);
@@ -376,74 +309,36 @@ Sub Questions: ${c.subQuestions}`}
         {/* MESSAGE AREA */}
         {mode === "learning" && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-            {/* Empty state */}
-            {messages.length === 0 && (
-              <div className="w-full h-full flex items-center justify-center text-center">
-                <div>
-                  <h2 className="text-xl font-semibold">
-                    {t("start_conversation")}
-                  </h2>
-                  <p className="text-gray-500 dark:text-gray-400">
-                    {t("start_conversation_sub")}
-                  </p>
-                </div>
-              </div>
+            {messages.length === 0 ? (
+              <EmptyState
+                title={t("start_conversation")}
+                subtitle={t("start_conversation_sub")}
+              />
+            ) : (
+              <MessagesList
+                messages={messages}
+                mode="learning"
+                endRef={endRef}
+              />
             )}
-
-            {/* Learning messages */}
-            {messages.map((m, i) => (
-              <div key={m.id ?? `msg-${i}`}>
-                {m.role === "user" && (
-                  <div className="ml-auto max-w-xs sm:max-w-sm">
-                    {renderUserMessageContent(m)}
-                  </div>
-                )}
-
-                {m.role === "assistant" && (
-                  <div className="p-4 rounded-lg max-w-xl bg-white dark:bg-[#0F172A] border dark:border-[#1F2937]">
-                    {m.content}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            <div ref={endRef} />
           </div>
         )}
 
         {/* EVALUATION MODE */}
         {mode === "evaluation" && (
           <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-            {/* Empty */}
-            {messages.length === 0 && (
-              <div className="w-full h-full flex items-center justify-center text-center">
-                <div>
-                  <h2 className="text-xl font-semibold">
-                    {t("start_conversation")}
-                  </h2>
-                  <p className="text-gray-500 dark:text-gray-400">
-                    {t("start_conversation_sub")}
-                  </p>
-                </div>
-              </div>
+            {messages.length === 0 ? (
+              <EmptyState
+                title={t("start_conversation")}
+                subtitle={t("start_conversation_sub")}
+              />
+            ) : (
+              <MessagesList
+                messages={messages}
+                mode="evaluation"
+                endRef={endRef}
+              />
             )}
-
-            {/* Evaluation messages */}
-            {messages.map((m, i) => (
-              <div key={m.id ?? `msg-${i}`}>
-                {m.role === "user" && (
-                  <div className="ml-auto max-w-xs sm:max-w-sm">
-                    <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A]/60 text-sm text-blue-900 dark:text-blue-100">
-                      {renderEvaluationUserMessageContent(m)}
-                    </div>
-                  </div>
-                )}
-
-                {m.role === "evaluation" && <EvaluationCard data={m.content} />}
-              </div>
-            ))}
-
-            <div ref={endRef} />
           </div>
         )}
 
@@ -478,7 +373,6 @@ Sub Questions: ${c.subQuestions}`}
                   onChange={(e) => setResponseLevel(e.target.value)}
                   className="border rounded-lg px-3 py-1 bg-white dark:bg-[#1A1A1A]"
                 >
-                  <option>Grades 1–5</option>
                   <option>Grades 6–8</option>
                   <option>Grades 9–11</option>
                   <option>Grades 12–13</option>
@@ -500,51 +394,14 @@ Sub Questions: ${c.subQuestions}`}
         </div>
       </div>
 
-      {isSubMarksModalOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-[#111] rounded-xl shadow-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">
-              Enter marks for sub-questions
-            </h2>
-
-            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-              {Array.from({ length: subQuestions }).map((_, idx) => (
-                <div
-                  key={`sub-${idx}`}
-                  className="flex items-center justify-between gap-3"
-                >
-                  <span className="text-sm">
-                    Sub-question {String.fromCodePoint(97 + idx)}){" "}
-                    {/* a, b, c... */}
-                  </span>
-                  <NumberInput
-                    value={subQuestionMarks[idx] ?? 0}
-                    onChange={(v) => handleSubMarkChange(idx, v)}
-                    min={0}
-                    max={100}
-                    className="w-24"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={handleSubMarksCancel}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-[#333]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubMarksDone}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SubMarksModal
+        open={isSubMarksModalOpen}
+        subQuestions={subQuestions}
+        marks={subQuestionMarks}
+        onChange={handleSubMarkChange}
+        onDone={handleSubMarksDone}
+        onCancel={handleSubMarksCancel}
+      />
 
       {/* RUBRIC SIDEBAR */}
       <RubricSidebar
