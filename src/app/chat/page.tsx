@@ -11,7 +11,7 @@ import NumberInput from "@/components/ui/NumberInput";
 import FilePreviewCard from "@/components/chat/FilePreviewCard";
 import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
 import QuestionsPanelpage from "@/components/chat/QuestionsPanelpage";
-import Header from "../../components/header/Header";
+import Header from "@/components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
 
 type TextMessage = {

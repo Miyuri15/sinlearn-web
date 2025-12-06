@@ -2,8 +2,8 @@
 
 import { useTranslation } from "react-i18next";
 import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
-import ChatThemeToggle from "../../app/chat/components/ChatThemeToggle";
-import AddIcon from '@mui/icons-material/Add';
+import ChatThemeToggle from "@/components/chat/ChatThemeToggle";
+import AddIcon from "@mui/icons-material/Add";
 import Image from "next/image";
 
 interface HeaderProps {
@@ -34,22 +34,22 @@ export default function Header({
       {/* MODE TOGGLE BUTTONS */}
       <div className="flex gap-0 bg-gray-200 dark:bg-[#2a2a2a] p-1 rounded-full w-fit">
         <button
-  onClick={() => setMode("learning")}
-  className={`px-6 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-2 ${
-    mode === "learning"
-      ? "bg-blue-600 text-white shadow-md"
-      : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-  }`}
->
-  <Image 
-    src={"/icons/syllabus.png"} 
-    alt="Learning Mode" 
-    width={20} 
-    height={20}
-    className={mode === "learning" ? "brightness-0 invert" : ""}
-  />
-  {t("learning_mode")}
-</button>
+          onClick={() => setMode("learning")}
+          className={`px-6 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-2 ${
+            mode === "learning"
+              ? "bg-blue-600 text-white shadow-md"
+              : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+          }`}
+        >
+          <Image
+            src={"/icons/syllabus.png"}
+            alt="Learning Mode"
+            width={20}
+            height={20}
+            className={mode === "learning" ? "brightness-0 invert" : ""}
+          />
+          {t("learning_mode")}
+        </button>
 
         <button
           onClick={() => setMode("evaluation")}
@@ -59,13 +59,13 @@ export default function Header({
               : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
           }`}
         >
-          <Image 
-    src={"/icons/Icon.png"} 
-    alt="Evaluation Mode" 
-    width={20} 
-    height={20}
-    className={mode === "evaluation" ? "brightness-0 invert" : ""}
-  />
+          <Image
+            src={"/icons/Icon.png"}
+            alt="Evaluation Mode"
+            width={20}
+            height={20}
+            className={mode === "evaluation" ? "brightness-0 invert" : ""}
+          />
           {t("evaluation_mode")}
         </button>
       </div>
