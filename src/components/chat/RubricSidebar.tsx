@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  X,
-  Check,
-  BookOpen,
-  Edit,
-  Plus,
-  Trash2,
-  Save,
-  Settings,
-} from "lucide-react";
+import { X, Check, BookOpen, Plus, Trash2, Save, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
