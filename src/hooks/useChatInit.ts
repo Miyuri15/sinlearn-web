@@ -23,27 +23,11 @@ export default function useChatInit({
     // prioritize explicit type param (from /chat?type=...)
     if (typeParam === "learning") {
       setMode("learning");
-      setMessages([
-        {
-          id: "init-learning",
-          role: "assistant",
-          content:
-            "Starting a new learning chat — ask a question or upload a file to begin.",
-        },
-      ]);
       return;
     }
 
     if (typeParam === "evaluation") {
       setMode("evaluation");
-      setMessages([
-        {
-          id: "init-evaluation",
-          role: "assistant",
-          content:
-            "Starting a new evaluation chat — set the evaluation inputs or upload the student's answers to begin.",
-        },
-      ]);
       return;
     }
 

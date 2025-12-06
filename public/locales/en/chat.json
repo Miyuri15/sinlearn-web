@@ -1,6 +1,7 @@
 {
     "start_conversation": "Start your conversation in Sinhala",
-    "start_conversation_sub": "Type a question or use voice input",
+    "start_learning_conversation_sub": "Type a question or use voice input to begin learning",
+    "start_evaluation_conversation_sub": "Set evaluation parameters or upload answers to begin evaluation",
     "typing_placeholder": "Type your answer or upload a file...",
     "learning_mode": "Learning Mode",
     "evaluation_mode": "Evaluation Mode",

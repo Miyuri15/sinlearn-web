@@ -297,7 +297,7 @@ export default function ChatPage({
             {messages.length === 0 ? (
               <EmptyState
                 title={t("start_conversation")}
-                subtitle={t("start_conversation_sub")}
+                subtitle={t("start_learning_conversation_sub")}
               />
             ) : (
               <MessagesList
@@ -315,7 +315,7 @@ export default function ChatPage({
             {messages.length === 0 ? (
               <EmptyState
                 title={t("start_conversation")}
-                subtitle={t("start_conversation_sub")}
+                subtitle={t("start_evaluation_conversation_sub")}
               />
             ) : (
               <MessagesList
