@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import type { ChatMessage } from "@/lib/models/chat";
 
 type Mode = "learning" | "evaluation";
@@ -17,6 +17,11 @@ export default function useChatInit({
   const [mode, setMode] = useState<Mode>("learning");
   const [messages, setMessages] = useState<ChatMessage[]>(
     initialMessages && initialMessages.length > 0 ? initialMessages : []
+  );
+
+  const initialMessagesKey = useMemo(
+    () => JSON.stringify(initialMessages || []),
+    [initialMessages]
   );
 
   useEffect(() => {
@@ -36,7 +41,7 @@ export default function useChatInit({
     } else {
       setMessages([]);
     }
-  }, [chatId, typeParam, JSON.stringify(initialMessages)]);
+  }, [chatId, typeParam, initialMessagesKey]);
 
   return { mode, setMode, messages, setMessages } as const;
 }
