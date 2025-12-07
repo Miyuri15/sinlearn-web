@@ -1,10 +1,10 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import ChatLanguageToggle from "@/components/language/ChatLanguageToggle";
-import ChatThemeToggle from "@/components/chat/ChatThemeToggle";
 import AddIcon from "@mui/icons-material/Add";
 import Image from "next/image";
+import LanguageToggle from "@/components/header/LanguageToggle";
+import ThemeToggle from "@/components/header/ThemeToggle";
 
 interface HeaderProps {
   mode: "learning" | "evaluation";
@@ -72,8 +72,8 @@ export default function Header({
 
       {/* RIGHT TOOLS */}
       <div className="flex items-center gap-4">
-        <ChatThemeToggle />
-        <ChatLanguageToggle />
+        <ThemeToggle />
+        <LanguageToggle />
 
         <button
           onClick={toggleRubric}
