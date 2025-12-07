@@ -43,11 +43,20 @@ export default function ChatPage({
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
-  const { mode, setMode, messages, setMessages } = useChatInit({
+
+  const {
+    mode,
+    setMode,
+    learningMessages,
+    setLearningMessages,
+    evaluationMessages,
+    setEvaluationMessages,
+  } = useChatInit({
     chatId,
     typeParam,
     initialMessages,
   });
+
   const router = useRouter();
   const pathname = usePathname();
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -81,13 +90,13 @@ export default function ChatPage({
 
   const handleSetMode = (m: "learning" | "evaluation") => {
     setMode(m);
+
     try {
       const params = new URLSearchParams(searchParams?.toString() ?? "");
       params.set("type", m);
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     } catch {
-      // fallback: simple replace
       router.replace(`${pathname}?type=${m}`, { scroll: false });
     }
   };
@@ -96,13 +105,13 @@ export default function ChatPage({
     if (mode === "learning") {
       if (!message.trim()) return;
 
-      setMessages((prev) => [
+      setLearningMessages((prev) => [
         ...prev,
         { role: "user", content: message },
         { role: "assistant", content: mockLearningReply },
       ]);
     } else {
-      setMessages((prev) => [
+      setEvaluationMessages((prev) => [
         ...prev,
         {
           role: "user",
@@ -130,7 +139,7 @@ export default function ChatPage({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [learningMessages, evaluationMessages]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -172,19 +181,6 @@ export default function ChatPage({
     setTranscript("");
   };
 
-  // Reset chat when switching modes
-  useEffect(() => {
-    setMessages([]); // clear chat history
-    setMessage(""); // clear input box
-    setTranscript(""); // should clear voice transcript
-
-    // Reset evaluation inputs
-    setTotalMarks(0);
-    setMainQuestions(0);
-    setRequiredQuestions(0);
-    setSubQuestions(0);
-  }, [mode]);
-
   const handleRubricSelect = (rubricId: string) => {
     console.log("Selected rubric:", rubricId);
     // You can implement rubric selection logic here
@@ -196,18 +192,19 @@ export default function ChatPage({
     // Implement file upload logic here
   };
 
+  // Auto-fill transcript simulation
   useEffect(() => {
     if (isRecording) {
       setTranscript("student asking about solar systems…");
     }
   }, [isRecording]);
 
+  // Handle sub question modal logic
   useEffect(() => {
     if (subQuestions > 0) {
       setSubQuestionMarks((prev) => {
         if (prev.length === subQuestions) return prev;
-        const arr = new Array(subQuestions).fill(0);
-        return arr;
+        return new Array(subQuestions).fill(0);
       });
       setIsSubMarksModalOpen(true);
     } else {
@@ -216,11 +213,9 @@ export default function ChatPage({
     }
   }, [subQuestions]);
 
-  // handlers for modal inputs
   const handleSubMarkChange = (index: number, value: number) => {
-    const num = Number(value);
     const next = [...subQuestionMarks];
-    next[index] = Number.isNaN(num) ? 0 : num;
+    next[index] = Number(value) || 0;
     setSubQuestionMarks(next);
   };
 
@@ -237,21 +232,30 @@ export default function ChatPage({
   const handleFileUpload = (file: File) => {
     setSelectedFile(file);
 
-    // You can show file as a user message:
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "user",
-        content: `📎 Uploaded file: ${file.name}`,
-        file,
-      },
-    ]);
+    if (mode === "learning") {
+      setLearningMessages((prev) => [
+        ...prev,
+        {
+          role: "user",
+          content: `📎 Uploaded file: ${file.name}`,
+          file,
+        },
+      ]);
+    } else {
+      setEvaluationMessages((prev) => [
+        ...prev,
+        {
+          role: "user",
+          content: `📎 Uploaded file: ${file.name}`,
+          file,
+        },
+      ]);
+    }
   };
 
   useEffect(() => {
     if (chatId) {
       console.log("Loaded chat:", chatId);
-      // You can load saved messages from DB or localStorage
     }
   }, [chatId]);
 
@@ -275,6 +279,7 @@ export default function ChatPage({
           },
         ]}
       />
+
       {/* MAIN AREA */}
       <div
         className={`flex flex-col flex-1 h-screen transition-[margin,width] duration-300 ${
@@ -292,35 +297,33 @@ export default function ChatPage({
           toggleSyllabus={toggleSyllabus}
           toggleQuestions={toggleQuestions}
         />
+
         {/* MESSAGE AREA */}
-        {mode === "learning" && (
+        {mode === "learning" ? (
           <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-            {messages.length === 0 ? (
+            {learningMessages.length === 0 ? (
               <EmptyState
                 title={t("start_conversation")}
                 subtitle={t("start_learning_conversation_sub")}
               />
             ) : (
               <MessagesList
-                messages={messages}
+                messages={learningMessages}
                 mode="learning"
                 endRef={endRef}
               />
             )}
           </div>
-        )}
-
-        {/* EVALUATION MODE */}
-        {mode === "evaluation" && (
+        ) : (
           <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-            {messages.length === 0 ? (
+            {evaluationMessages.length === 0 ? (
               <EmptyState
                 title={t("start_conversation")}
                 subtitle={t("start_evaluation_conversation_sub")}
               />
             ) : (
               <MessagesList
-                messages={messages}
+                messages={evaluationMessages}
                 mode="evaluation"
                 endRef={endRef}
               />
@@ -344,12 +347,14 @@ export default function ChatPage({
               onUpload={handleFileUpload}
             />
           )}
+
           {isRecording && (
             <RecordBar
               onCancelRecording={handleCancelRecording}
               onStopRecording={handleStopRecording}
             />
           )}
+
           {mode === "learning" && (
             <>
               <div className="mb-3">

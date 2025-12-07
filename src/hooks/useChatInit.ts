@@ -15,33 +15,45 @@ export default function useChatInit({
   initialMessages?: ChatMessage[];
 }) {
   const [mode, setMode] = useState<Mode>("learning");
-  const [messages, setMessages] = useState<ChatMessage[]>(
-    initialMessages && initialMessages.length > 0 ? initialMessages : []
+
+  const [learningMessages, setLearningMessages] = useState<ChatMessage[]>([]);
+  const [evaluationMessages, setEvaluationMessages] = useState<ChatMessage[]>(
+    []
   );
 
   const initialMessagesKey = useMemo(
-    () => JSON.stringify(initialMessages || []),
+    () => JSON.stringify(initialMessages),
     [initialMessages]
   );
 
   useEffect(() => {
-    // prioritize explicit type param (from /chat?type=...)
+    // When URL contains ?type=learning or ?type=evaluation
     if (typeParam === "learning") {
       setMode("learning");
-      return;
-    }
-
-    if (typeParam === "evaluation") {
+    } else if (typeParam === "evaluation") {
       setMode("evaluation");
-      return;
     }
 
+    // Load initial messages into the correct store
     if (initialMessages && initialMessages.length > 0) {
-      setMessages(initialMessages);
+      if (typeParam === "evaluation") {
+        setEvaluationMessages(initialMessages);
+      } else {
+        setLearningMessages(initialMessages); // default
+      }
     } else {
-      setMessages([]);
+      setLearningMessages([]);
+      setEvaluationMessages([]);
     }
   }, [chatId, typeParam, initialMessagesKey]);
 
-  return { mode, setMode, messages, setMessages } as const;
+  // Return API for ChatPage
+  return {
+    mode,
+    setMode,
+    learningMessages,
+    setLearningMessages,
+    evaluationMessages,
+    setEvaluationMessages,
+  } as const;
 }
