@@ -124,7 +124,7 @@ export default function Sidebar({
         {filteredChats.map((chat) => (
           <Link
             key={chat.id}
-            href={`/chat/${chat.id}`}
+            href={`/chat/${chat.id}?type=${chat.type}`}
             className={`block px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 
                        text-gray-900 dark:text-gray-100 
                        ${isOpen ? "" : "text-center"}`}
