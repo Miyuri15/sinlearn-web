@@ -13,6 +13,7 @@ import Header from "@/components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
 import { ChatMessage, EvaluationResultContent } from "@/lib/models/chat";
 import MessagesList from "@/components/chat/MessagesList";
+import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
 import EmptyState from "@/components/chat/EmptyState";
 import useChatInit from "@/hooks/useChatInit";
@@ -51,6 +52,7 @@ export default function ChatPage({
     setLearningMessages,
     evaluationMessages,
     setEvaluationMessages,
+    isInitializing,
   } = useChatInit({
     chatId,
     typeParam,
@@ -259,6 +261,49 @@ export default function ChatPage({
     }
   }, [chatId]);
 
+  const renderMessageArea = () => {
+    if (isInitializing) {
+      return <ChatAreaSkeleton />;
+    }
+
+    if (mode === "learning") {
+      return (
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
+          {learningMessages.length === 0 ? (
+            <EmptyState
+              title={t("start_conversation")}
+              subtitle={t("start_learning_conversation_sub")}
+            />
+          ) : (
+            <MessagesList
+              messages={learningMessages}
+              mode="learning"
+              endRef={endRef}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // evaluation mode
+    return (
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
+        {evaluationMessages.length === 0 ? (
+          <EmptyState
+            title={t("start_conversation")}
+            subtitle={t("start_evaluation_conversation_sub")}
+          />
+        ) : (
+          <MessagesList
+            messages={evaluationMessages}
+            mode="evaluation"
+            endRef={endRef}
+          />
+        )}
+      </div>
+    );
+  };
+
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
       <Sidebar
@@ -299,37 +344,7 @@ export default function ChatPage({
         />
 
         {/* MESSAGE AREA */}
-        {mode === "learning" ? (
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-            {learningMessages.length === 0 ? (
-              <EmptyState
-                title={t("start_conversation")}
-                subtitle={t("start_learning_conversation_sub")}
-              />
-            ) : (
-              <MessagesList
-                messages={learningMessages}
-                mode="learning"
-                endRef={endRef}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-            {evaluationMessages.length === 0 ? (
-              <EmptyState
-                title={t("start_conversation")}
-                subtitle={t("start_evaluation_conversation_sub")}
-              />
-            ) : (
-              <MessagesList
-                messages={evaluationMessages}
-                mode="evaluation"
-                endRef={endRef}
-              />
-            )}
-          </div>
-        )}
+        {renderMessageArea()}
 
         {/* INPUT AREA */}
         <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">

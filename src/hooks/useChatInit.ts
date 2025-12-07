@@ -26,6 +26,8 @@ export default function useChatInit({
     [initialMessages]
   );
 
+  const [isInitializing, setIsInitializing] = useState(true);
+
   useEffect(() => {
     // When URL contains ?type=learning or ?type=evaluation
     if (typeParam === "learning") {
@@ -45,9 +47,10 @@ export default function useChatInit({
       setLearningMessages([]);
       setEvaluationMessages([]);
     }
+
+    setIsInitializing(false);
   }, [chatId, typeParam, initialMessagesKey]);
 
-  // Return API for ChatPage
   return {
     mode,
     setMode,
@@ -55,5 +58,6 @@ export default function useChatInit({
     setLearningMessages,
     evaluationMessages,
     setEvaluationMessages,
+    isInitializing,
   } as const;
 }
