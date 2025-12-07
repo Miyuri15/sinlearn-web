@@ -12,8 +12,11 @@ import {
 } from "lucide-react";
 import LanguageToggle from "@/components/header/LanguageToggle";
 import ThemeToggle from "@/components/header/ThemeToggle";
+import { useTranslation } from "react-i18next";
 
 export default function NotFound() {
+  const { t } = useTranslation("common");
+
   return (
     <div className="min-h-screen flex bg-gray-100 dark:bg-gray-900">
       {/* main content */}
@@ -34,18 +37,17 @@ export default function NotFound() {
             </div>
 
             <h1 className="text-3xl font-semibold mb-2 text-gray-900 dark:text-white">
-              Oops - page not found
+              {t("notFound.title")}
             </h1>
 
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              The page you&apos;re looking for doesn&apos;t exist or has been
-              moved.
+              {t("notFound.description")}
             </p>
 
             <div className="mb-6">
               <EmptyState
-                title="Try one of these pages"
-                subtitle="Or go back to the chat page."
+                title={t("notFound.suggestionsTitle")}
+                subtitle={t("notFound.suggestionsSubtitle")}
               />
             </div>
 
@@ -53,36 +55,36 @@ export default function NotFound() {
               <Link href="/chat" className="w-full">
                 <Button className="w-full flex items-center justify-center gap-2">
                   <MessageSquare className="w-5 h-5" />
-                  <span>Chat</span>
+                  <span>{t("notFound.chatButton")}</span>
                 </Button>
               </Link>
 
               <Link href="/settings" className="w-full">
                 <Button className="w-full flex items-center justify-center gap-2">
                   <Settings className="w-5 h-5" />
-                  <span>Settings</span>
+                  <span>{t("settings_text")}</span>
                 </Button>
               </Link>
             </div>
 
             <div className="mt-4 flex gap-3 justify-center">
-              <Link href="/auth/sign-in" className="w-36">
+              <Link href="/auth/sign-in" className="min-w-36">
                 <Button
                   variant="ghost"
                   className="w-full flex items-center justify-center gap-3"
                 >
                   <LogIn className="w-5 h-5" />
-                  <span>Sign in</span>
+                  <span>{t("signin_link")}</span>
                 </Button>
               </Link>
 
-              <Link href="/auth/sign-up" className="w-36">
+              <Link href="/auth/sign-up" className="min-w-36">
                 <Button
                   variant="secondary"
                   className="w-full flex items-center justify-center gap-3"
                 >
                   <UserPlus className="w-5 h-5" />
-                  <span>Sign up</span>
+                  <span>{t("signup_link")}</span>
                 </Button>
               </Link>
             </div>

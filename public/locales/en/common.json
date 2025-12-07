@@ -141,8 +141,15 @@
   "grade": "Grade",
   "subject": "Subject",
   "topics": "Topics"
-}
+},
 
+  "notFound": {
+    "title": "Oops - page not found",
+    "description": "The page you're looking for doesn't exist or has been moved.",
+    "suggestionsTitle": "Try one of these pages",
+    "suggestionsSubtitle": "Or go back to the chat page.",
+    "chatButton": "Chat"
+  }
   
 
 }
