@@ -26,7 +26,7 @@ export type EvaluationInputContent = {
   mainQuestions: number;
   requiredQuestions: number;
   subQuestions: number;
-  subQuestionMarks?: number[];
+  subQuestionMarks?: number[] | number[][];
 };
 
 export type EvaluationInputMessage = {

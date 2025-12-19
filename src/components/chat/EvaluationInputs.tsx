@@ -13,16 +13,15 @@ type EvaluationInputsProps = Readonly<{
   requiredQuestions: number;
   setRequiredQuestions: (value: number) => void;
 
-  subQuestions: number;
-  setSubQuestions: (value: number) => void;
-
   onUpload?: (files: File[]) => void; // Optional upload handler
   onSend: () => void;
+  onOpenMarks: () => void;
 }>;
 
 export default function EvaluationInputs({
   onSend,
   onUpload,
+  onOpenMarks,
 }: EvaluationInputsProps) {
   const { t } = useTranslation("chat");
 
@@ -62,9 +61,7 @@ export default function EvaluationInputs({
 
       {/* MARKS BUTTON */}
       <button
-        onClick={() => {
-          // marks logic - this can trigger opening a modal or other logic
-        }}
+        onClick={onOpenMarks}
         className="
           w-full sm:w-auto
           flex items-center justify-center gap-2

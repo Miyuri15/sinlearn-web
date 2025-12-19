@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import InputBar from "@/components/chat/InputBar";
 import EvaluationInputs from "@/components/chat/EvaluationInputs";
+import EvaluationMarksModal from "@/components/chat/EvaluationMarksModal";
 import Sidebar from "@/components/layout/Sidebar";
 import RubricSidebar from "@/components/chat/RubricSidebar";
 import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
@@ -70,10 +71,11 @@ export default function ChatPage({
   const [requiredQuestions, setRequiredQuestions] = useState<number>(0);
   const [subQuestions, setSubQuestions] = useState<number>(0);
 
-  const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>([]);
+  const [subQuestionMarks, setSubQuestionMarks] = useState<number[][]>([]);
   const [isSubMarksModalOpen, setIsSubMarksModalOpen] = useState(false);
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
 
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
@@ -205,20 +207,17 @@ export default function ChatPage({
   useEffect(() => {
     if (subQuestions > 0) {
       setSubQuestionMarks((prev) => {
-        if (prev.length === subQuestions) return prev;
-        return new Array(subQuestions).fill(0);
+        if (prev.length === mainQuestions) return prev;
+        // Initialize an array of arrays: [ [0], [0], ... ] for each main question
+        return new Array(mainQuestions).fill(null).map(() => [0]);
       });
-      setIsSubMarksModalOpen(true);
     } else {
-      setIsSubMarksModalOpen(false);
       setSubQuestionMarks([]);
     }
-  }, [subQuestions]);
+  }, [mainQuestions, subQuestions]);
 
-  const handleSubMarkChange = (index: number, value: number) => {
-    const next = [...subQuestionMarks];
-    next[index] = Number(value) || 0;
-    setSubQuestionMarks(next);
+  const handleSubMarksChange = (marks: number[][]) => {
+    setSubQuestionMarks(marks);
   };
 
   const handleSubMarksDone = () => {
@@ -356,12 +355,34 @@ export default function ChatPage({
               setMainQuestions={setMainQuestions}
               requiredQuestions={requiredQuestions}
               setRequiredQuestions={setRequiredQuestions}
-              subQuestions={subQuestions}
-              setSubQuestions={setSubQuestions}
               onSend={handleSend}
               onUpload={handleFileUpload}
+              onOpenMarks={() => setIsEvaluationModalOpen(true)}
             />
           )}
+
+          <EvaluationMarksModal
+            open={isEvaluationModalOpen}
+            onClose={() => setIsEvaluationModalOpen(false)}
+            totalMarks={totalMarks}
+            setTotalMarks={setTotalMarks}
+            mainQuestions={mainQuestions}
+            setMainQuestions={setMainQuestions}
+            requiredQuestions={requiredQuestions}
+            setRequiredQuestions={setRequiredQuestions}
+            onAllocateMarks={() => {
+              // Existing logic for sub-questions
+              setIsSubMarksModalOpen(true);
+            }}
+            onViewMarks={() => {
+              // For now, toggle the sub marks modal to view
+              setIsSubMarksModalOpen(true);
+            }}
+            onSubmit={() => {
+              setIsEvaluationModalOpen(false);
+              handleSend();
+            }}
+          />
 
           {isRecording && (
             <RecordBar
@@ -402,9 +423,9 @@ export default function ChatPage({
 
       <SubMarksModal
         open={isSubMarksModalOpen}
-        subQuestions={subQuestions}
+        mainQuestions={mainQuestions}
         marks={subQuestionMarks}
-        onChange={handleSubMarkChange}
+        onChange={handleSubMarksChange}
         onDone={handleSubMarksDone}
         onCancel={handleSubMarksCancel}
       />

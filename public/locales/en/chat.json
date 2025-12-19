@@ -13,5 +13,15 @@
     "sub_questions": "Sub-questions per Question",
     "send": "Send",
     "attach": "Attach",
-    "marks": "Marks"
+    "marks": "Marks",
+    "evaluation_details": "Evaluation Details",
+    "allocate_marks": "Allocate Marks",
+    "view_marks": "View Marks",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "question": "Question",
+    "sub_question": "Sub-question",
+    "next": "Next",
+    "previous": "Previous",
+    "add_sub_question": "Add Sub-question"
 }
