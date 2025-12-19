@@ -213,18 +213,6 @@ export default function RubricSidebar({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose, showCustomizationPopup]);
 
-  // Prevent body scroll when sidebar is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen]);
-
   const handleRubricSelect = (rubricId: string) => {
     // Toggle selection: if already selected, deselect it
     const newSelection = selectedRubric === rubricId ? "" : rubricId;
@@ -565,79 +553,153 @@ export default function RubricSidebar({
     );
   }
 
-  return (
-    <>
-      {/* Backdrop - REMOVED onClick handler to prevent closing on backdrop click */}
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
-      )}
+return (
+  <>
+    {/* Customization Popup */}
+    {showCustomizationPopup && <CustomizationPopup />}
 
-      {/* Customization Popup */}
-      {showCustomizationPopup && <CustomizationPopup />}
+    {/* Sidebar */}
+    <div
+      className={`fixed right-0 top-0 h-full
+      w-full sm:w-[380px] md:w-[400px]
+      bg-white dark:bg-[#111111]
+      border-l border-gray-200 dark:border-[#2a2a2a]
+      z-30 flex flex-col
+      transition-transform duration-300 ease-in-out
+      ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+    >
+      {/* Header (FIXED) */}
+      <div className="px-6 py-5 border-b border-gray-200 dark:border-[#2a2a2a] flex justify-between items-center">
+        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">
+          {sidebarText.selectRubric}
+        </h3>
 
-      {/* Sidebar */}
-      <div
-        className={`fixed right-0 top-0 h-full w-80 bg-white dark:bg-[#111111] border-l dark:border-[#2a2a2a] p-6 z-40 flex flex-col transform transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">
-              {sidebarText.selectRubric}
-            </h3>
+        <button
+          onClick={onClose}
+          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+          aria-label="Close sidebar"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Content (ONLY THIS SCROLLS) */}
+      <div className="flex-1 overflow-y-auto hidden-scrollbar px-6 py-6">
+        {/* Saved Rubrics Section */}
+        <div className="mb-8">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+            {sidebarText.savedRubrics}
+          </h4>
+
+          {/* Create Custom Rubric Card */}
+          <div className="mb-6">
+            <button
+              onClick={() => setShowCustomizationPopup(true)}
+              className="w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition text-left group"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 flex items-center justify-center">
+                    <Plus className="w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
+                  </div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                    {sidebarText.createCustomRubric}
+                  </span>
+                </div>
+                <Settings className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 ml-9">
+                {sidebarText.customizeMarks}
+              </p>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-            aria-label="Close sidebar"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Saved Rubrics Section */}
-          <div className="mb-8">
-            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-              {sidebarText.savedRubrics}
-            </h4>
-
-            {/* Create Custom Rubric Card */}
-            <div className="mb-6">
-              <button
-                onClick={() => setShowCustomizationPopup(true)}
-                className="w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition text-left group"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 flex items-center justify-center">
-                      <Plus className="w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
+          {/* Saved Rubrics List */}
+          {savedRubrics.map((rubric) => (
+            <div
+              key={rubric.id}
+              onClick={() => handleRubricSelect(rubric.id)}
+              className={`mb-4 p-4 rounded-lg border cursor-pointer transition ${
+                selectedRubric === rubric.id
+                  ? "border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                  : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 flex items-center justify-center">
+                    <div
+                      className={`w-4 h-4 rounded border ${
+                        selectedRubric === rubric.id
+                          ? "bg-blue-500 dark:bg-blue-400 border-blue-500 dark:border-blue-400"
+                          : "border-gray-400 dark:border-gray-500"
+                      }`}
+                    >
+                      {selectedRubric === rubric.id && (
+                        <Check className="w-3 h-3 text-white" />
+                      )}
                     </div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                      {sidebarText.createCustomRubric}
+                  </div>
+                  <div>
+                    <h5 className="font-medium text-gray-800 dark:text-gray-200">
+                      {currentLang === "si" ? rubric.title_si : rubric.title}
+                    </h5>
+                    <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded">
+                      {sidebarText.customLabel}
                     </span>
                   </div>
-                  <Settings className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 ml-9">
-                  {sidebarText.customizeMarks}
-                </p>
-              </button>
-            </div>
+                <BookOpen className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              </div>
 
-            {/* Saved Rubrics List */}
-            {savedRubrics.map((rubric) => (
+              {/* Categories */}
+              <div className="ml-8 space-y-2">
+                {rubric.categories.map((category, index) => (
+                  <div key={index} className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {currentLang === "si"
+                        ? category.name_si
+                        : category.name}
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-300">
+                      {category.percentage}%
+                    </span>
+                  </div>
+                ))}
+
+                {/* Total */}
+                <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">
+                    {sidebarText.total}
+                  </span>
+                  <span className="font-bold text-gray-900 dark:text-gray-100">
+                    {rubric.total}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div className="border-t dark:border-gray-700 my-6" />
+
+        {/* Standard Rubrics Section */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+            {sidebarText.standardRubrics}
+          </h4>
+
+          <div className="space-y-4">
+            {standardRubrics.map((rubric) => (
               <div
                 key={rubric.id}
-                className={`mb-4 p-4 rounded-lg border cursor-pointer transition ${
+                onClick={() => handleRubricSelect(rubric.id)}
+                className={`p-4 rounded-lg border cursor-pointer transition ${
                   selectedRubric === rubric.id
                     ? "border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20"
                     : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"
                 }`}
-                onClick={() => handleRubricSelect(rubric.id)}
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -654,14 +716,9 @@ export default function RubricSidebar({
                         )}
                       </div>
                     </div>
-                    <div>
-                      <h5 className="font-medium text-gray-800 dark:text-gray-200">
-                        {currentLang === "si" ? rubric.title_si : rubric.title}
-                      </h5>
-                      <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded">
-                        {sidebarText.customLabel}
-                      </span>
-                    </div>
+                    <h5 className="font-medium text-gray-800 dark:text-gray-200">
+                      {currentLang === "si" ? rubric.title_si : rubric.title}
+                    </h5>
                   </div>
                   <BookOpen className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                 </div>
@@ -669,10 +726,7 @@ export default function RubricSidebar({
                 {/* Categories */}
                 <div className="ml-8 space-y-2">
                   {rubric.categories.map((category, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between items-center"
-                    >
+                    <div key={index} className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 dark:text-gray-400">
                         {currentLang === "si"
                           ? category.name_si
@@ -697,103 +751,31 @@ export default function RubricSidebar({
               </div>
             ))}
           </div>
-
-          {/* Divider */}
-          <div className="border-t dark:border-gray-700 my-6"></div>
-
-          {/* Standard Rubrics Section */}
-          <div>
-            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-              {sidebarText.standardRubrics}
-            </h4>
-
-            <div className="space-y-4">
-              {standardRubrics.map((rubric) => (
-                <div
-                  key={rubric.id}
-                  className={`p-4 rounded-lg border cursor-pointer transition ${
-                    selectedRubric === rubric.id
-                      ? "border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                      : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"
-                  }`}
-                  onClick={() => handleRubricSelect(rubric.id)}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 flex items-center justify-center">
-                        <div
-                          className={`w-4 h-4 rounded border ${
-                            selectedRubric === rubric.id
-                              ? "bg-blue-500 dark:bg-blue-400 border-blue-500 dark:border-blue-400"
-                              : "border-gray-400 dark:border-gray-500"
-                          }`}
-                        >
-                          {selectedRubric === rubric.id && (
-                            <Check className="w-3 h-3 text-white" />
-                          )}
-                        </div>
-                      </div>
-                      <h5 className="font-medium text-gray-800 dark:text-gray-200">
-                        {currentLang === "si" ? rubric.title_si : rubric.title}
-                      </h5>
-                    </div>
-                    <BookOpen className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  </div>
-
-                  {/* Categories */}
-                  <div className="ml-8 space-y-2">
-                    {rubric.categories.map((category, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center"
-                      >
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {currentLang === "si"
-                            ? category.name_si
-                            : category.name}
-                        </span>
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-300">
-                          {category.percentage}%
-                        </span>
-                      </div>
-                    ))}
-
-                    {/* Total */}
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                      <span className="font-medium text-gray-800 dark:text-gray-200">
-                        {sidebarText.total}
-                      </span>
-                      <span className="font-bold text-gray-900 dark:text-gray-100">
-                        {rubric.total}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="pt-6 border-t dark:border-gray-700">
-          <button
-            onClick={handleApplySelectedRubric}
-            disabled={!selectedRubric}
-            className={`w-full py-3 font-medium rounded-lg transition ${
-              selectedRubric
-                ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white cursor-pointer"
-                : "bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-            }`}
-          >
-            {sidebarText.applySelectedRubric}
-          </button>
-          <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
-            {selectedRubric
-              ? sidebarText.rubricSelected
-              : sidebarText.selectRubricToApply}
-          </p>
         </div>
       </div>
-    </>
-  );
+
+      {/* Footer (FIXED) */}
+      <div className="p-4 border-t border-gray-200 dark:border-[#2a2a2a]">
+        <button
+          onClick={handleApplySelectedRubric}
+          disabled={!selectedRubric}
+          className={`w-full py-3 font-medium rounded-lg transition ${
+            selectedRubric
+              ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+              : "bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+          }`}
+        >
+          {sidebarText.applySelectedRubric}
+        </button>
+
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
+          {selectedRubric
+            ? sidebarText.rubricSelected
+            : sidebarText.selectRubricToApply}
+        </p>
+      </div>
+    </div>
+  </>
+);
+
 }
