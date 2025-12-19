@@ -25,7 +25,7 @@ export default function MessagesList({
 
     if (typeof m.content === "string") {
       return (
-        <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 wrap-break-word">
+        <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 wrap-break-word break-words">
           {m.content}
         </div>
       );
@@ -80,13 +80,13 @@ Sub Questions: ${c.subQuestions}`}
           {mode === "learning" ? (
             <>
               {m.role === "user" && (
-                <div className="ml-auto max-w-xs sm:max-w-sm">
+                <div className="ml-auto w-full sm:max-w-sm">
                   {renderUserMessageContent(m)}
                 </div>
               )}
 
               {m.role === "assistant" && (
-                <div className="p-4 rounded-lg max-w-xl bg-white dark:bg-[#0F172A] border dark:border-[#1F2937]">
+                <div className="p-4 rounded-lg w-full sm:max-w-xl bg-white dark:bg-[#0F172A] border dark:border-[#1F2937] break-words">
                   {m.content}
                 </div>
               )}
@@ -94,15 +94,17 @@ Sub Questions: ${c.subQuestions}`}
           ) : (
             <>
               {m.role === "user" && (
-                <div className="ml-auto max-w-xs sm:max-w-sm">
-                  <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A]/60 text-sm text-blue-900 dark:text-blue-100">
+                <div className="ml-auto w-full sm:max-w-sm">
+                  <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A]/60 text-xs sm:text-sm text-blue-900 dark:text-blue-100 break-words">
                     {renderEvaluationUserMessageContent(m)}
                   </div>
                 </div>
               )}
 
               {m.role === "evaluation" && (
-                <EvaluationCard data={m.content as any} />
+                <div className="w-full sm:max-w-xl">
+                  <EvaluationCard data={m.content as any} />
+                </div>
               )}
             </>
           )}

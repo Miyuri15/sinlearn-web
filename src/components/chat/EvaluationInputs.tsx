@@ -26,7 +26,7 @@ export default function EvaluationInputs({
   const { t } = useTranslation("chat");
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+    <div className="flex flex-wrap sm:flex-nowrap items-center justify-center sm:justify-start gap-2 sm:gap-3 w-full">
       {/* ATTACH BUTTON */}
       <div className="w-full sm:w-auto">
         <input

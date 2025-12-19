@@ -74,9 +74,9 @@ export default function SubMarksModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white dark:bg-[#111] rounded-2xl shadow-xl p-6 w-full max-w-sm border dark:border-[#2a2a2a]">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold dark:text-white">
+      <div className="bg-white dark:bg-[#111] rounded-2xl shadow-xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md border dark:border-[#2a2a2a]">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-xl font-bold dark:text-white">
             {t("question")} {currentIdx + 1}
           </h2>
           <button onClick={onCancel} className="p-1 hover:bg-gray-100 dark:hover:bg-[#222] rounded-full">
@@ -84,10 +84,10 @@ export default function SubMarksModal({
           </button>
         </div>
 
-        <div className="space-y-4 max-h-80 overflow-y-auto pr-1 mb-6">
+        <div className="space-y-3 sm:space-y-4 max-h-[60vh] overflow-y-auto pr-1 mb-4 sm:mb-6">
           {currentMainQuestionMarks.map((m, subIdx) => (
-            <div key={`q-${currentIdx}-sub-${subIdx}`} className="flex items-center justify-between gap-4">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+            <div key={`q-${currentIdx}-sub-${subIdx}`} className="flex items-center justify-between gap-3 sm:gap-4">
+              <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">
                 {t("sub_question")} {String.fromCodePoint(97 + subIdx)})
               </span>
               <NumberInput
@@ -95,14 +95,14 @@ export default function SubMarksModal({
                 onChange={(v) => handleSubMarkChange(subIdx, v)}
                 min={0}
                 max={100}
-                className="w-24"
+                className="w-20 sm:w-24"
               />
             </div>
           ))}
 
           <button
             onClick={addSubQuestion}
-            className="flex items-center gap-2 text-blue-600 dark:text-indigo-400 text-sm font-medium hover:underline mt-2"
+            className="flex items-center gap-2 text-blue-600 dark:text-indigo-400 text-xs sm:text-sm font-medium hover:underline mt-2"
           >
             <Plus className="w-4 h-4" />
             {t("add_sub_question")}
@@ -113,7 +113,7 @@ export default function SubMarksModal({
           <button
             disabled={currentIdx === 0}
             onClick={handlePrev}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-[#333] text-sm font-medium hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-30 transition-all"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg border dark:border-[#333] text-xs sm:text-sm font-medium hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-30 transition-all"
           >
             <ChevronLeft className="w-4 h-4" />
             {t("previous")}
@@ -121,7 +121,7 @@ export default function SubMarksModal({
 
           <button
             onClick={handleNext}
-            className="flex items-center gap-2 px-6 py-2 rounded-lg bg-blue-600 dark:bg-indigo-600 text-white text-sm font-medium shadow-sm hover:bg-blue-700 dark:hover:bg-indigo-700 transition-all"
+            className="flex items-center gap-2 px-4 sm:px-6 py-2 rounded-lg bg-blue-600 dark:bg-indigo-600 text-white text-xs sm:text-sm font-medium shadow-sm hover:bg-blue-700 dark:hover:bg-indigo-700 transition-all"
           >
             {isLast ? t("submit") : (
               <>

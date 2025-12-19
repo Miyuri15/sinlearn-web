@@ -42,9 +42,9 @@ const QuestionItem = ({
 }) => (
   <div
     onClick={() => onClickView(id)}
-    className="p-3 border border-gray-200 rounded-lg mb-3 cursor-pointer hover:bg-gray-50 transition duration-150 flex justify-between items-start"
+    className="p-3 sm:p-4 border border-gray-200 rounded-lg mb-3 cursor-pointer hover:bg-gray-50 transition duration-150 flex justify-between items-start gap-2 break-words"
   >
-    <div className="flex-1">
+    <div className="flex-1 min-w-0">
       <div className="flex items-center mb-1">
         {/* Document Icon */}
         <Image
@@ -53,17 +53,21 @@ const QuestionItem = ({
           width={16}
           height={16}
         />
-        <h5 className="font-medium text-sm text-gray-800 ml-2">{title}</h5>
+        <h5 className="font-medium text-sm sm:text-base text-gray-800 ml-2 truncate">
+          {title}
+        </h5>
       </div>
       {/* Details */}
-      <p className="text-xs text-gray-500 ml-6">
+      <p className="text-xs sm:text-sm text-gray-500 ml-6">
         {t("subject")}: {subject}
       </p>
-      <p className="text-xs text-gray-500 ml-6">
+      <p className="text-xs sm:text-sm text-gray-500 ml-6">
         {t("uploaded")}: {uploaded}
       </p>
       {/* Additional Details */}
-      <p className="text-xs text-gray-600 ml-6 mt-1">{details}</p>
+      <p className="text-xs sm:text-sm text-gray-600 ml-6 mt-1 break-words">
+        {details}
+      </p>
     </div>
     {/* Delete Button */}
     <button
@@ -171,7 +175,7 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
 
   return (
     <>
-      <div className="h-full w-[400px] bg-white dark:bg-[#111111] border-l border-gray-200 dark:border-[#2a2a2a] flex flex-col p-0">
+      <div className="h-full w-full sm:w-[380px] md:w-[400px] bg-white dark:bg-[#111111] border-l border-gray-200 dark:border-[#2a2a2a] flex flex-col p-0">
         {/* Hidden File Input */}
         <input
           type="file"
@@ -181,10 +185,10 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
           accept=".pdf,.doc,.docx"
         />
 
-        <div className="p-6 grow overflow-y-scroll hidden-scrollbar">
+        <div className="p-4 sm:p-6 grow overflow-y-auto hidden-scrollbar">
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-3">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-3">
               <HelpIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
               {t("title")}
             </h3>
@@ -196,7 +200,7 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
             </button>
           </div>
 
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-6">
             {t("description")}
           </p>
 
@@ -205,12 +209,12 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
             <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
               {t("upload_section_title")}
             </h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4">
               {t("upload_section_subtitle")}
             </p>
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-10 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition duration-150"
+              className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition duration-150"
             >
               <div className="flex justify-center mb-2">
                 {/* Upload Icon */}
@@ -266,7 +270,7 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
           type={toast.type}
           onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
         />
-        {/* Footer / Cancel Button - Fixed at the bottom */}
+        {/* Footer / Cancel Button */}
         <div className="p-4 border-t border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111]">
           <button
             onClick={onClose}

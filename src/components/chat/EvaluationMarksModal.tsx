@@ -52,7 +52,7 @@ export default function EvaluationMarksModal({
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-6">
           <div className="space-y-4">
             {/* Total Marks */}
             <div className="flex flex-col gap-2">
@@ -98,7 +98,7 @@ export default function EvaluationMarksModal({
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               onClick={onAllocateMarks}
               disabled={mainQuestions <= 0}

@@ -63,8 +63,10 @@ export default function FilePreviewModal({
 
         {/* CONTENT */}
         <div className="bg-white dark:bg-[#111] rounded-lg p-4 max-h-[100vh] overflow-auto shadow-xl w-full text-center">
-          <h3 className="text-lg font-semibold mb-1 truncate">{name}</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <h3 className="text-base sm:text-lg font-semibold mb-1 truncate">
+            {name}
+          </h3>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
             {file instanceof File
               ? (file.size / 1024).toFixed(1)
               : "size" in file && file.size
@@ -77,7 +79,7 @@ export default function FilePreviewModal({
             <img
               src={url}
               alt="preview"
-              className="max-h-[70vh] w-auto mx-auto object-contain mt-4"
+              className="max-h-[60vh] sm:max-h-[70vh] w-auto mx-auto object-contain mt-4"
             />
           )}
 
@@ -85,7 +87,7 @@ export default function FilePreviewModal({
             <video
               controls
               src={url}
-              className="max-h-[70vh] w-auto mx-auto rounded-lg mt-4"
+              className="max-h-[60vh] sm:max-h-[70vh] w-auto mx-auto rounded-lg mt-4"
             />
           )}
 
@@ -103,13 +105,13 @@ export default function FilePreviewModal({
           <a
             href={url}
             download={name}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm 
-                     hover:bg-blue-700 transition shadow-sm"
+            className="mt-4 w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg text-sm 
+                     hover:bg-blue-700 transition shadow-sm text-center"
           >
             Download
           </a>
         ) : (
-          <button className="mt-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-sm cursor-not-allowed">
+          <button className="mt-4 w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-sm cursor-not-allowed">
             Download
           </button>
         )}

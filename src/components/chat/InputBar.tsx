@@ -41,7 +41,7 @@ export default function InputBar({
   };
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 rounded-xl border bg-gray-100 border-gray-300 dark:bg-[#111111] dark:border-[#2a2a2a]      ">
+    <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl border bg-gray-100 border-gray-300 dark:bg-[#111111] dark:border-[#2a2a2a] min-w-0">
       {/* ATTACHMENT BUTTON */}
       <input
         type="file"
@@ -73,7 +73,7 @@ export default function InputBar({
         onKeyDown={handleKeyDown}
         rows={1}
         disabled={isRecording} // block editing when recording
-        className={`chat-input flex-1 bg-transparent outline-none px-3 resize-none overflow-hidden leading-relaxed max-h-40 ${
+        className={`chat-input flex-1 bg-transparent outline-none px-3 resize-none overflow-hidden leading-relaxed max-h-40 break-words min-w-0 ${
           isRecording
             ? "text-gray-700 dark:text-gray-100 italic"
             : "text-gray-800 dark:text-gray-200"
@@ -99,7 +99,7 @@ export default function InputBar({
       <button
         onClick={onSend}
         className="
-          p-2 rounded-lg transition 
+          px-3 sm:px-4 py-2 rounded-lg transition 
           bg-blue-600 hover:bg-blue-700 
           dark:bg-indigo-600 dark:hover:bg-indigo-700
           text-white
