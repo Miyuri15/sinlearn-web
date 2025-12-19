@@ -11,5 +11,7 @@
     "main_questions": "Main Questions",
     "required_questions": "Required Questions to Answer",
     "sub_questions": "Sub-questions per Question",
-    "send": "Send"
+    "send": "Send",
+    "attach": "Attach",
+    "marks": "Marks"
 }

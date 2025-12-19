@@ -73,7 +73,7 @@ export default function ChatPage({
   const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>([]);
   const [isSubMarksModalOpen, setIsSubMarksModalOpen] = useState(false);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
@@ -231,26 +231,26 @@ export default function ChatPage({
     setSubQuestionMarks([]);
   };
 
-  const handleFileUpload = (file: File) => {
-    setSelectedFile(file);
+  const handleFileUpload = (files: File[]) => {
+    setSelectedFiles(files);
 
     if (mode === "learning") {
       setLearningMessages((prev) => [
         ...prev,
-        {
-          role: "user",
+        ...files.map((file) => ({
+          role: "user" as const,
           content: `📎 Uploaded file: ${file.name}`,
           file,
-        },
+        })),
       ]);
     } else {
       setEvaluationMessages((prev) => [
         ...prev,
-        {
-          role: "user",
+        ...files.map((file) => ({
+          role: "user" as const,
           content: `📎 Uploaded file: ${file.name}`,
           file,
-        },
+        })),
       ]);
     }
   };
