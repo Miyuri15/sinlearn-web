@@ -10,7 +10,7 @@ type InputBarProps = Readonly<{
   message: string;
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onSend: () => void;
-  onUpload?: (file: File) => void;
+  onUpload?: (files: File[]) => void;
 }>;
 
 export default function InputBar({
@@ -45,14 +45,15 @@ export default function InputBar({
       {/* ATTACHMENT BUTTON */}
       <input
         type="file"
+        multiple
         accept=".pdf,.png,.jpg,.jpeg,.mp3,.wav,.mp4"
         id="chat-file-upload"
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) {
+          const selectedFiles = Array.from(e.target.files ?? []).slice(0, 10);
+          if (selectedFiles.length > 0) {
             // Trigger parent handler
-            onUpload?.(file);
+            onUpload?.(selectedFiles);
           }
         }}
       />
