@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import InputBar from "@/components/chat/InputBar";
 import EvaluationInputs from "@/components/chat/EvaluationInputs";
+import EvaluationMarksModal from "@/components/chat/EvaluationMarksModal";
 import Sidebar from "@/components/layout/Sidebar";
 import RubricSidebar from "@/components/chat/RubricSidebar";
 import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
@@ -13,6 +14,7 @@ import Header from "@/components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
 import { ChatMessage, EvaluationResultContent } from "@/lib/models/chat";
 import MessagesList from "@/components/chat/MessagesList";
+import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
 import EmptyState from "@/components/chat/EmptyState";
 import useChatInit from "@/hooks/useChatInit";
@@ -43,11 +45,21 @@ export default function ChatPage({
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
-  const { mode, setMode, messages, setMessages } = useChatInit({
+
+  const {
+    mode,
+    setMode,
+    learningMessages,
+    setLearningMessages,
+    evaluationMessages,
+    setEvaluationMessages,
+    isInitializing,
+  } = useChatInit({
     chatId,
     typeParam,
     initialMessages,
   });
+
   const router = useRouter();
   const pathname = usePathname();
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -59,10 +71,11 @@ export default function ChatPage({
   const [requiredQuestions, setRequiredQuestions] = useState<number>(0);
   const [subQuestions, setSubQuestions] = useState<number>(0);
 
-  const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>([]);
+  const [subQuestionMarks, setSubQuestionMarks] = useState<number[][]>([]);
   const [isSubMarksModalOpen, setIsSubMarksModalOpen] = useState(false);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
 
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
@@ -81,13 +94,13 @@ export default function ChatPage({
 
   const handleSetMode = (m: "learning" | "evaluation") => {
     setMode(m);
+
     try {
       const params = new URLSearchParams(searchParams?.toString() ?? "");
       params.set("type", m);
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     } catch {
-      // fallback: simple replace
       router.replace(`${pathname}?type=${m}`, { scroll: false });
     }
   };
@@ -96,13 +109,13 @@ export default function ChatPage({
     if (mode === "learning") {
       if (!message.trim()) return;
 
-      setMessages((prev) => [
+      setLearningMessages((prev) => [
         ...prev,
         { role: "user", content: message },
         { role: "assistant", content: mockLearningReply },
       ]);
     } else {
-      setMessages((prev) => [
+      setEvaluationMessages((prev) => [
         ...prev,
         {
           role: "user",
@@ -130,7 +143,7 @@ export default function ChatPage({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [learningMessages, evaluationMessages]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -172,19 +185,6 @@ export default function ChatPage({
     setTranscript("");
   };
 
-  // Reset chat when switching modes
-  useEffect(() => {
-    setMessages([]); // clear chat history
-    setMessage(""); // clear input box
-    setTranscript(""); // should clear voice transcript
-
-    // Reset evaluation inputs
-    setTotalMarks(0);
-    setMainQuestions(0);
-    setRequiredQuestions(0);
-    setSubQuestions(0);
-  }, [mode]);
-
   const handleRubricSelect = (rubricId: string) => {
     console.log("Selected rubric:", rubricId);
     // You can implement rubric selection logic here
@@ -196,32 +196,28 @@ export default function ChatPage({
     // Implement file upload logic here
   };
 
+  // Auto-fill transcript simulation
   useEffect(() => {
     if (isRecording) {
       setTranscript("student asking about solar systems…");
     }
   }, [isRecording]);
 
+  // Handle sub question modal logic
   useEffect(() => {
     if (subQuestions > 0) {
       setSubQuestionMarks((prev) => {
-        if (prev.length === subQuestions) return prev;
-        const arr = new Array(subQuestions).fill(0);
-        return arr;
+        if (prev.length === mainQuestions) return prev;
+        // Initialize an array of arrays: [ [0], [0], ... ] for each main question
+        return new Array(mainQuestions).fill(null).map(() => [0]);
       });
-      setIsSubMarksModalOpen(true);
     } else {
-      setIsSubMarksModalOpen(false);
       setSubQuestionMarks([]);
     }
-  }, [subQuestions]);
+  }, [mainQuestions, subQuestions]);
 
-  // handlers for modal inputs
-  const handleSubMarkChange = (index: number, value: number) => {
-    const num = Number(value);
-    const next = [...subQuestionMarks];
-    next[index] = Number.isNaN(num) ? 0 : num;
-    setSubQuestionMarks(next);
+  const handleSubMarksChange = (marks: number[][]) => {
+    setSubQuestionMarks(marks);
   };
 
   const handleSubMarksDone = () => {
@@ -234,26 +230,78 @@ export default function ChatPage({
     setSubQuestionMarks([]);
   };
 
-  const handleFileUpload = (file: File) => {
-    setSelectedFile(file);
+  const handleFileUpload = (files: File[]) => {
+    setSelectedFiles(files);
 
-    // You can show file as a user message:
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "user",
-        content: `📎 Uploaded file: ${file.name}`,
-        file,
-      },
-    ]);
+    if (mode === "learning") {
+      setLearningMessages((prev) => [
+        ...prev,
+        ...files.map((file) => ({
+          role: "user" as const,
+          content: `📎 Uploaded file: ${file.name}`,
+          file,
+        })),
+      ]);
+    } else {
+      setEvaluationMessages((prev) => [
+        ...prev,
+        ...files.map((file) => ({
+          role: "user" as const,
+          content: `📎 Uploaded file: ${file.name}`,
+          file,
+        })),
+      ]);
+    }
   };
 
   useEffect(() => {
     if (chatId) {
       console.log("Loaded chat:", chatId);
-      // You can load saved messages from DB or localStorage
     }
   }, [chatId]);
+
+  const renderMessageArea = () => {
+    if (isInitializing) {
+      return <ChatAreaSkeleton />;
+    }
+
+    if (mode === "learning") {
+      return (
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
+          {learningMessages.length === 0 ? (
+            <EmptyState
+              title={t("start_conversation")}
+              subtitle={t("start_learning_conversation_sub")}
+            />
+          ) : (
+            <MessagesList
+              messages={learningMessages}
+              mode="learning"
+              endRef={endRef}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // evaluation mode
+    return (
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
+        {evaluationMessages.length === 0 ? (
+          <EmptyState
+            title={t("start_conversation")}
+            subtitle={t("start_evaluation_conversation_sub")}
+          />
+        ) : (
+          <MessagesList
+            messages={evaluationMessages}
+            mode="evaluation"
+            endRef={endRef}
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
@@ -275,6 +323,7 @@ export default function ChatPage({
           },
         ]}
       />
+
       {/* MAIN AREA */}
       <div
         className={`flex flex-col flex-1 h-screen transition-[margin,width] duration-300 ${
@@ -292,41 +341,9 @@ export default function ChatPage({
           toggleSyllabus={toggleSyllabus}
           toggleQuestions={toggleQuestions}
         />
-        {/* MESSAGE AREA */}
-        {mode === "learning" && (
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-            {messages.length === 0 ? (
-              <EmptyState
-                title={t("start_conversation")}
-                subtitle={t("start_learning_conversation_sub")}
-              />
-            ) : (
-              <MessagesList
-                messages={messages}
-                mode="learning"
-                endRef={endRef}
-              />
-            )}
-          </div>
-        )}
 
-        {/* EVALUATION MODE */}
-        {mode === "evaluation" && (
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
-            {messages.length === 0 ? (
-              <EmptyState
-                title={t("start_conversation")}
-                subtitle={t("start_evaluation_conversation_sub")}
-              />
-            ) : (
-              <MessagesList
-                messages={messages}
-                mode="evaluation"
-                endRef={endRef}
-              />
-            )}
-          </div>
-        )}
+        {/* MESSAGE AREA */}
+        {renderMessageArea()}
 
         {/* INPUT AREA */}
         <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
@@ -338,18 +355,42 @@ export default function ChatPage({
               setMainQuestions={setMainQuestions}
               requiredQuestions={requiredQuestions}
               setRequiredQuestions={setRequiredQuestions}
-              subQuestions={subQuestions}
-              setSubQuestions={setSubQuestions}
               onSend={handleSend}
               onUpload={handleFileUpload}
+              onOpenMarks={() => setIsEvaluationModalOpen(true)}
             />
           )}
+
+          <EvaluationMarksModal
+            open={isEvaluationModalOpen}
+            onClose={() => setIsEvaluationModalOpen(false)}
+            totalMarks={totalMarks}
+            setTotalMarks={setTotalMarks}
+            mainQuestions={mainQuestions}
+            setMainQuestions={setMainQuestions}
+            requiredQuestions={requiredQuestions}
+            setRequiredQuestions={setRequiredQuestions}
+            onAllocateMarks={() => {
+              // Existing logic for sub-questions
+              setIsSubMarksModalOpen(true);
+            }}
+            onViewMarks={() => {
+              // For now, toggle the sub marks modal to view
+              setIsSubMarksModalOpen(true);
+            }}
+            onSubmit={() => {
+              setIsEvaluationModalOpen(false);
+              handleSend();
+            }}
+          />
+
           {isRecording && (
             <RecordBar
               onCancelRecording={handleCancelRecording}
               onStopRecording={handleStopRecording}
             />
           )}
+
           {mode === "learning" && (
             <>
               <div className="mb-3">
@@ -382,9 +423,9 @@ export default function ChatPage({
 
       <SubMarksModal
         open={isSubMarksModalOpen}
-        subQuestions={subQuestions}
+        mainQuestions={mainQuestions}
         marks={subQuestionMarks}
-        onChange={handleSubMarkChange}
+        onChange={handleSubMarksChange}
         onDone={handleSubMarksDone}
         onCancel={handleSubMarksCancel}
       />

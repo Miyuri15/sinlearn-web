@@ -141,6 +141,14 @@
   "grade": "ශ්‍රේණිය",
   "subject": "විෂය",
   "topics": "මාතෘකා"
-}
+},
+
+"notFound": {
+    "title": "පිටුව හමු නොවීය",
+    "description": "ඔබ සොයන පිටුව නොපවතී හෝ එය ඉවත් කර ඇත.",
+    "suggestionsTitle": "මෙම පිටුවලින් එකක් උත්සාහ කරන්න",
+    "suggestionsSubtitle": "නැතහොත් චැට් (Chat) පිටුවට ආපසු යන්න.",
+    "chatButton": "චැට් පිටුව"
+  }
 
 }

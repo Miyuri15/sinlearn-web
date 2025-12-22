@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { applyTheme, getStoredTheme } from "@/lib/theme";
 
-export default function ChatThemeToggle() {
+export default function ThemeToggle() {
   const [ready, setReady] = useState(false);
   const [isDark, setIsDark] = useState(false);
 

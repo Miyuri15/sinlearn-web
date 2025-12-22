@@ -17,17 +17,17 @@ export default function EvaluationCard({ data }: EvaluationCardProps) {
   return (
     <div
       className="
-        bg-green-50 border border-green-200 p-6 rounded-xl shadow-md
+        bg-green-50 border border-green-200 p-4 sm:p-6 rounded-xl shadow-md
         dark:bg-[#001a10] dark:border-green-900 dark:shadow-black/20
-        transition-colors
+        transition-colors break-words
       "
     >
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+        <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
           Evaluation Report
         </h3>
-        <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
+        <span className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
           {data.grade}
         </span>
       </div>
@@ -49,6 +49,7 @@ export default function EvaluationCard({ data }: EvaluationCardProps) {
           mt-4 p-4 rounded-lg border 
           bg-white text-gray-900 
           dark:bg-[#0b1b16] dark:border-[#1f3b32] dark:text-gray-200
+          break-words
         "
       >
         {data.feedback}
@@ -66,7 +67,7 @@ function Score({ label, value }: ScoreProps) {
   return (
     <div>
       {/* Label + Value */}
-      <div className="flex justify-between text-sm font-medium">
+      <div className="flex justify-between text-xs sm:text-sm font-medium">
         <span className="text-gray-700 dark:text-gray-300">{label}</span>
         <span className="text-gray-900 dark:text-gray-200">{value}%</span>
       </div>
@@ -110,18 +111,20 @@ function Section({ title, items, color }: SectionProps) {
   return (
     <div className="mb-4">
       <h4
-        className={`font-bold ${colorMap[color].light} ${colorMap[color].dark} mb-2`}
+        className={`text-sm sm:text-base font-bold ${colorMap[color].light} ${colorMap[color].dark} mb-2`}
       >
         {title}
       </h4>
 
-      <ul className="space-y-1 ml-4">
+      <ul className="space-y-1 ml-3 sm:ml-4">
         {items.map((item) => (
           <li
             key={item}
             className="
               list-disc 
+              text-sm sm:text-base
               text-gray-800 dark:text-gray-300
+              break-words
             "
           >
             {item}

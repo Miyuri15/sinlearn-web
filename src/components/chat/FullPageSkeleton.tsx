@@ -2,26 +2,26 @@ export default function FullPageSkeleton() {
   return (
     <div className="min-h-screen flex bg-gray-100">
       {/* LEFT SIDEBAR SKELETON */}
-      <div className="w-16 bg-white border-r flex items-start justify-center p-4">
+      <div className="hidden sm:flex w-16 bg-white border-r items-start justify-center p-4">
         <div className="w-6 h-6 bg-gray-200 rounded animate-pulse"></div>
       </div>
 
       {/* MAIN SKELETON */}
       <div className="flex-1 flex flex-col">
         {/* TOP BAR */}
-        <div className="flex items-center justify-between bg-white p-4 border-b">
+        <div className="flex items-center justify-between bg-white p-2 sm:p-4 border-b">
           {/* Left buttons */}
-          <div className="flex items-center gap-3">
-            <div className="w-32 h-10 bg-gray-200 rounded animate-pulse"></div>
-            <div className="w-36 h-10 bg-gray-200 rounded animate-pulse"></div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-24 sm:w-32 h-10 bg-gray-200 rounded animate-pulse"></div>
+            <div className="w-28 sm:w-36 h-10 bg-gray-200 rounded animate-pulse"></div>
           </div>
 
           {/* Right buttons */}
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
-            <div className="w-20 h-10 bg-gray-200 rounded animate-pulse"></div>
-            <div className="w-20 h-10 bg-gray-200 rounded animate-pulse"></div>
-            <div className="w-9 h-9 bg-gray-200 rounded-lg animate-pulse"></div>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="w-9 sm:w-10 h-9 sm:h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+            <div className="w-16 sm:w-20 h-9 sm:h-10 bg-gray-200 rounded animate-pulse"></div>
+            <div className="w-16 sm:w-20 h-9 sm:h-10 bg-gray-200 rounded animate-pulse"></div>
+            <div className="w-8 sm:w-9 h-8 sm:h-9 bg-gray-200 rounded-lg animate-pulse"></div>
           </div>
         </div>
 
@@ -34,8 +34,8 @@ export default function FullPageSkeleton() {
         </div>
 
         {/* INPUT BAR SKELETON */}
-        <div className="p-4 border-t bg-white">
-          <div className="flex items-center bg-gray-100 rounded-xl px-4 py-3 border gap-3">
+        <div className="p-3 sm:p-4 border-t bg-white">
+          <div className="flex items-center bg-gray-100 rounded-xl px-3 sm:px-4 py-3 border gap-2 sm:gap-3">
             <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
             <div className="flex-1 h-5 bg-gray-200 rounded animate-pulse"></div>
             <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>

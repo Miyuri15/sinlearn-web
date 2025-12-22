@@ -213,18 +213,6 @@ export default function RubricSidebar({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose, showCustomizationPopup]);
 
-  // Prevent body scroll when sidebar is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen]);
-
   const handleRubricSelect = (rubricId: string) => {
     // Toggle selection: if already selected, deselect it
     const newSelection = selectedRubric === rubricId ? "" : rubricId;
@@ -567,27 +555,25 @@ export default function RubricSidebar({
 
   return (
     <>
-      {/* Backdrop - REMOVED onClick handler to prevent closing on backdrop click */}
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
-      )}
-
       {/* Customization Popup */}
       {showCustomizationPopup && <CustomizationPopup />}
 
       {/* Sidebar */}
       <div
-        className={`fixed right-0 top-0 h-full w-80 bg-white dark:bg-[#111111] border-l dark:border-[#2a2a2a] p-6 z-40 flex flex-col transform transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full
+      w-full sm:w-[380px] md:w-[400px]
+      bg-white dark:bg-[#111111]
+      border-l border-gray-200 dark:border-[#2a2a2a]
+      z-30 flex flex-col p-0
+      transition-transform duration-300 ease-in-out
+      ${isOpen ? "translate-x-0" : "translate-x-full"}`}
       >
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">
-              {sidebarText.selectRubric}
-            </h3>
-          </div>
+        {/* Header (FIXED) */}
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-[#2a2a2a] flex justify-between items-center">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">
+            {sidebarText.selectRubric}
+          </h3>
+
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition"
@@ -597,8 +583,8 @@ export default function RubricSidebar({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Content (ONLY THIS SCROLLS) */}
+        <div className="flex-1 overflow-y-auto hidden-scrollbar p-4 sm:p-6">
           {/* Saved Rubrics Section */}
           <div className="mb-8">
             <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
@@ -632,12 +618,12 @@ export default function RubricSidebar({
             {savedRubrics.map((rubric) => (
               <div
                 key={rubric.id}
+                onClick={() => handleRubricSelect(rubric.id)}
                 className={`mb-4 p-4 rounded-lg border cursor-pointer transition ${
                   selectedRubric === rubric.id
                     ? "border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20"
                     : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"
                 }`}
-                onClick={() => handleRubricSelect(rubric.id)}
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -669,10 +655,7 @@ export default function RubricSidebar({
                 {/* Categories */}
                 <div className="ml-8 space-y-2">
                   {rubric.categories.map((category, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between items-center"
-                    >
+                    <div key={index} className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 dark:text-gray-400">
                         {currentLang === "si"
                           ? category.name_si
@@ -699,7 +682,7 @@ export default function RubricSidebar({
           </div>
 
           {/* Divider */}
-          <div className="border-t dark:border-gray-700 my-6"></div>
+          <div className="border-t dark:border-gray-700 my-6" />
 
           {/* Standard Rubrics Section */}
           <div>
@@ -711,12 +694,12 @@ export default function RubricSidebar({
               {standardRubrics.map((rubric) => (
                 <div
                   key={rubric.id}
+                  onClick={() => handleRubricSelect(rubric.id)}
                   className={`p-4 rounded-lg border cursor-pointer transition ${
                     selectedRubric === rubric.id
                       ? "border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20"
                       : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"
                   }`}
-                  onClick={() => handleRubricSelect(rubric.id)}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -743,10 +726,7 @@ export default function RubricSidebar({
                   {/* Categories */}
                   <div className="ml-8 space-y-2">
                     {rubric.categories.map((category, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center"
-                      >
+                      <div key={index} className="flex justify-between items-center">
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           {currentLang === "si"
                             ? category.name_si
@@ -774,19 +754,20 @@ export default function RubricSidebar({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="pt-6 border-t dark:border-gray-700">
+        {/* Footer (FIXED) */}
+        <div className="p-4 border-t border-gray-200 dark:border-[#2a2a2a]">
           <button
             onClick={handleApplySelectedRubric}
             disabled={!selectedRubric}
             className={`w-full py-3 font-medium rounded-lg transition ${
               selectedRubric
-                ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white cursor-pointer"
+                ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
                 : "bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
             }`}
           >
             {sidebarText.applySelectedRubric}
           </button>
+
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
             {selectedRubric
               ? sidebarText.rubricSelected
