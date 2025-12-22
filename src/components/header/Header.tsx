@@ -37,76 +37,11 @@ export default function Header({
 
   return (
     <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-white dark:bg-[#111111] border-b border-gray-200 dark:border-[#2a2a2a]">
-      {/* MOBILE ONLY - Two Compact Rows */}
-      <div className="flex flex-col md:hidden">
-        {/* Top Row: Menu + Mode Toggles */}
-        <div className="flex items-center justify-between p-2 gap-2">
-          {/* Mobile Menu Button - Hide when any panel is open */}
-          {!isAnyPanelOpen && (
-            <button
-              onClick={toggleSidebar}
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors flex-shrink-0"
-              aria-label="Open menu"
-            >
-              <MenuIcon className="text-lg" />
-            </button>
-          )}
-          
-          {/* Empty space when menu is hidden */}
-          {isAnyPanelOpen && <div className="w-8"></div>}
-
-          {/* MODE TOGGLE BUTTONS - Mobile */}
-          <div className="flex gap-0 bg-gray-200 dark:bg-[#2a2a2a] p-1 rounded-full flex-1">
-            <button
-              onClick={() => setMode("learning")}
-              className={`px-3 py-1 rounded-full font-medium text-xs transition-all flex items-center justify-center gap-1 flex-1 ${
-                mode === "learning"
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-              }`}
-            >
-              <span className="inline-flex items-center justify-center">
-                <Image
-                  src={"/icons/syllabus.png"}
-                  alt="Learning Mode"
-                  width={14}
-                  height={14}
-                  className={`block ${
-                    mode === "learning" ? "brightness-0 invert" : ""
-                  }`}
-                />
-              </span>
-              <span className="truncate text-xs">{t("learning_mode")}</span>
-            </button>
-
-            <button
-              onClick={() => setMode("evaluation")}
-              className={`px-3 py-1 rounded-full font-medium text-xs transition-all flex items-center justify-center gap-1 flex-1 ${
-                mode === "evaluation"
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-              }`}
-            >
-              <span className="inline-flex items-center justify-center">
-                <Image
-                  src={"/icons/Icon.png"}
-                  alt="Evaluation Mode"
-                  width={14}
-                  height={14}
-                  className={`block ${
-                    mode === "evaluation" ? "brightness-0 invert" : ""
-                  }`}
-                />
-              </span>
-              <span className="truncate text-xs">{t("evaluation_mode")}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Bottom Row: Tools - Very Compact */}
-        <div className="flex items-center justify-between p-2 border-t border-gray-100 dark:border-[#2a2a2a]">
-          {/* Left side: Theme + Language */}
-          <div className="flex items-center gap-1">
+      {/* MOBILE - Single Row */}
+      <div className="md:hidden flex items-center justify-between p-2">
+        {mode === "learning" ? (
+          // Learning mode: only Theme + Language on the right
+          <div className="flex w-full items-center justify-end gap-2">
             <div className="scale-75">
               <ThemeToggle />
             </div>
@@ -114,43 +49,67 @@ export default function Header({
               <LanguageToggle />
             </div>
           </div>
+        ) : (
+          // Evaluation mode: keep existing layout
+          // Evaluation mode: single row layout
+          <div className="flex w-full items-center gap-1 overflow-x-auto no-scrollbar">
+            {/* Mobile Menu Button - Hide when any panel is open */}
+            {toggleSidebar && (
+              <button
+                onClick={toggleSidebar}
+                className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors flex-shrink-0"
+                aria-label="Open menu"
+              >
+                <MenuIcon className="text-lg" />
+              </button>
+            )}
 
-          {/* Right side: Rubric, Syllabus, Add */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={toggleRubric}
-              className={`px-2 py-1 rounded-lg border text-xs min-w-[60px] text-center ${
-                isRubricOpen
-                  ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
-                  : "bg-white dark:bg-[#222] dark:border-[#333]"
-              }`}
-            >
-              Rubric
-            </button>
+            {mode === "evaluation" && (
+              /* Right side tools */
+              <div className="flex items-center gap-1 ml-auto">
+                {/* Theme + Language Group */}
+                <div className="flex items-center gap-2 scale-75 origin-right">
+                  <ThemeToggle />
+                  <LanguageToggle />
+                </div>
 
-            <button
-              onClick={toggleSyllabus}
-              className={`px-2 py-1 rounded-lg border text-xs min-w-[60px] text-center ${
-                isSyllabusOpen
-                  ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
-                  : "bg-white dark:bg-[#222] dark:border-[#333]"
-              }`}
-            >
-              Syllabus
-            </button>
-
-            <button
-              onClick={toggleQuestions}
-              className={`w-7 h-7 flex items-center justify-center border rounded-lg text-sm font-bold ${
-                isQuestionsOpen
-                  ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
-                  : "bg-white dark:bg-[#222] dark:border-[#333]"
-              }`}
-            >
-              <AddIcon className="text-base" />
-            </button>
+                {/* Rubric */}
+                <button
+                  onClick={toggleRubric}
+                  className={`px-2 py-1 rounded-lg border text-xs min-w-[60px] text-center whitespace-nowrap ${
+                    isRubricOpen
+                      ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
+                      : "bg-white dark:bg-[#222] dark:border-[#333]"
+                  }`}
+                >
+                  Rubric
+                </button>
+                {/* Syllabus */}
+                <button
+                  onClick={toggleSyllabus}
+                  className={`px-2 py-1 rounded-lg border text-xs min-w-[60px] text-center whitespace-nowrap ${
+                    isSyllabusOpen
+                      ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
+                      : "bg-white dark:bg-[#222] dark:border-[#333]"
+                  }`}
+                >
+                  Syllabus
+                </button>
+                {/* Add (+) */}
+                <button
+                  onClick={toggleQuestions}
+                  className={`w-7 h-7 flex items-center justify-center border rounded-lg text-sm font-bold flex-shrink-0 ${
+                    isQuestionsOpen
+                      ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
+                      : "bg-white dark:bg-[#222] dark:border-[#333]"
+                  }`}
+                >
+                  <AddIcon className="text-base" />
+                </button>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* TABLET/DESKTOP - Single Row */}
@@ -207,38 +166,43 @@ export default function Header({
           <ThemeToggle />
           <LanguageToggle />
 
-          <button
-            onClick={toggleRubric}
-            className={`px-4 py-2 rounded-lg border text-sm ${
-              isRubricOpen
-                ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
-                : "bg-white dark:bg-[#222] dark:border-[#333]"
-            }`}
-          >
-            Rubric
-          </button>
+          {/* Show action buttons only in evaluation mode */}
+          {mode === "evaluation" && (
+            <>
+              <button
+                onClick={toggleRubric}
+                className={`px-4 py-2 rounded-lg border text-sm ${
+                  isRubricOpen
+                    ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
+                    : "bg-white dark:bg-[#222] dark:border-[#333]"
+                }`}
+              >
+                Rubric
+              </button>
 
-          <button
-            onClick={toggleSyllabus}
-            className={`px-4 py-2 rounded-lg border text-sm ${
-              isSyllabusOpen
-                ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
-                : "bg-white dark:bg-[#222] dark:border-[#333]"
-            }`}
-          >
-            Syllabus
-          </button>
+              <button
+                onClick={toggleSyllabus}
+                className={`px-4 py-2 rounded-lg border text-sm ${
+                  isSyllabusOpen
+                    ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
+                    : "bg-white dark:bg-[#222] dark:border-[#333]"
+                }`}
+              >
+                Syllabus
+              </button>
 
-          <button
-            onClick={toggleQuestions}
-            className={`w-9 h-9 flex items-center justify-center border rounded-lg text-xl font-bold ${
-              isQuestionsOpen
-                ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
-                : "bg-white dark:bg-[#222] dark:border-[#333]"
-            }`}
-          >
-            <AddIcon />
-          </button>
+              <button
+                onClick={toggleQuestions}
+                className={`w-9 h-9 flex items-center justify-center border rounded-lg text-xl font-bold ${
+                  isQuestionsOpen
+                    ? "bg-blue-100 dark:bg-[#1E3A8A]/40 border-blue-300 dark:border-blue-900"
+                    : "bg-white dark:bg-[#222] dark:border-[#333]"
+                }`}
+              >
+                <AddIcon />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

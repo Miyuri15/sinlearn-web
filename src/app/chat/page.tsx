@@ -19,8 +19,8 @@ import SubMarksModal from "@/components/chat/SubMarksModal";
 import EmptyState from "@/components/chat/EmptyState";
 import useChatInit from "@/hooks/useChatInit";
 
-const RIGHT_PANEL_WIDTH_CLASS = "w-[400px]";
-const RIGHT_PANEL_MARGIN_CLASS = "mr-[400px]";
+const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
+const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
 
 interface ChatPageProps {
   chatId?: string;
