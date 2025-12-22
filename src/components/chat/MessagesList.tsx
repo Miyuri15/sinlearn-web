@@ -1,7 +1,29 @@
-import React from "react";
+import React, { useState } from "react";
 import type { ChatMessage } from "@/lib/models/chat";
 import FilePreviewCard from "@/components/chat/FilePreviewCard";
 import EvaluationCard from "@/components/chat/EvaluationCard";
+
+// Component to handle truncated messages with "Read more" functionality
+function TruncatedMessage({ content, maxLength = 300 }: { content: string; maxLength?: number }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const shouldTruncate = content.length > maxLength;
+
+  if (!shouldTruncate) {
+    return <>{content}</>;
+  }
+
+  return (
+    <>
+      {isExpanded ? content : `${content.slice(0, maxLength)}...`}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="ml-2 text-blue-600 dark:text-blue-400 hover:underline font-medium text-sm"
+      >
+        {isExpanded ? "Read less" : "Read more"}
+      </button>
+    </>
+  );
+}
 
 export default function MessagesList({
   messages,
@@ -26,7 +48,7 @@ export default function MessagesList({
     if (typeof m.content === "string") {
       return (
         <div className="p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A] text-blue-900 dark:text-blue-100 wrap-break-word break-words">
-          {m.content}
+          <TruncatedMessage content={m.content} />
         </div>
       );
     }
@@ -87,7 +109,7 @@ Sub Questions: ${c.subQuestions}`}
 
               {m.role === "assistant" && (
                 <div className="p-4 rounded-lg w-full sm:max-w-xl bg-white dark:bg-[#0F172A] border dark:border-[#1F2937] break-words">
-                  {m.content}
+                  <TruncatedMessage content={typeof m.content === 'string' ? m.content : String(m.content)} />
                 </div>
               )}
             </>

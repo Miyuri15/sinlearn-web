@@ -76,6 +76,7 @@ export default function ChatPage({
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
+  const [evaluationUploadedFilesCount, setEvaluationUploadedFilesCount] = useState(0);
 
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
@@ -94,6 +95,11 @@ export default function ChatPage({
 
   const handleSetMode = (m: "learning" | "evaluation") => {
     setMode(m);
+    
+    // Reset file count when switching to evaluation mode
+    if (m === "evaluation") {
+      setEvaluationUploadedFilesCount(0);
+    }
 
     try {
       const params = new URLSearchParams(searchParams?.toString() ?? "");
@@ -231,19 +237,38 @@ export default function ChatPage({
   };
 
   const handleFileUpload = (files: File[]) => {
-    setSelectedFiles(files);
-
-    if (mode === "learning") {
-      setLearningMessages((prev) => [
+    if (mode === "evaluation") {
+      // Check if adding these files would exceed the 10-file limit
+      const remainingSlots = 10 - evaluationUploadedFilesCount;
+      
+      if (remainingSlots <= 0) {
+        alert("You have already uploaded the maximum of 10 files for this evaluation chat.");
+        return;
+      }
+      
+      // Only take files that fit within the limit
+      const filesToUpload = files.slice(0, remainingSlots);
+      
+      if (filesToUpload.length < files.length) {
+        alert(`You can only upload ${remainingSlots} more file(s). Only the first ${remainingSlots} file(s) will be uploaded.`);
+      }
+      
+      setSelectedFiles(filesToUpload);
+      setEvaluationUploadedFilesCount(prev => prev + filesToUpload.length);
+      
+      setEvaluationMessages((prev) => [
         ...prev,
-        ...files.map((file) => ({
+        ...filesToUpload.map((file) => ({
           role: "user" as const,
           content: `📎 Uploaded file: ${file.name}`,
           file,
         })),
       ]);
     } else {
-      setEvaluationMessages((prev) => [
+      // Learning mode - no limit
+      setSelectedFiles(files);
+      
+      setLearningMessages((prev) => [
         ...prev,
         ...files.map((file) => ({
           role: "user" as const,
@@ -257,8 +282,17 @@ export default function ChatPage({
   useEffect(() => {
     if (chatId) {
       console.log("Loaded chat:", chatId);
+      // Reset file count when loading a new chat
+      setEvaluationUploadedFilesCount(0);
     }
   }, [chatId]);
+
+  // Reset file count when evaluation messages are cleared
+  useEffect(() => {
+    if (mode === "evaluation" && evaluationMessages.length === 0) {
+      setEvaluationUploadedFilesCount(0);
+    }
+  }, [mode, evaluationMessages.length]);
 
   const renderMessageArea = () => {
     if (isInitializing) {
@@ -358,6 +392,7 @@ export default function ChatPage({
               onSend={handleSend}
               onUpload={handleFileUpload}
               onOpenMarks={() => setIsEvaluationModalOpen(true)}
+              uploadedFilesCount={evaluationUploadedFilesCount}
             />
           )}
 
