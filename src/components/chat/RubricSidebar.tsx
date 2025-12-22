@@ -561,7 +561,7 @@ export default function RubricSidebar({
       {/* Sidebar */}
       <div
         className={`fixed right-0 top-0 h-full
-      w-full sm:w-[380px] md:w-[400px]
+      w-[85vw] sm:w-[380px] md:w-[400px]
       bg-white dark:bg-[#111111]
       border-l border-gray-200 dark:border-[#2a2a2a]
       z-30 flex flex-col p-0
