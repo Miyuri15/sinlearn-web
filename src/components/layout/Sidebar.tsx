@@ -21,10 +21,13 @@ interface ChatItem {
 }
 
 interface SidebarProps {
-  chats?: ChatItem[];
   isOpen: boolean;
   onToggle: () => void;
+  chats: ChatItem[];
+  onNewLearningChat: () => void;
+  onNewEvaluationChat: () => void;
 }
+
 
 export default function Sidebar({
   chats = [],

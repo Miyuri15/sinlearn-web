@@ -18,6 +18,8 @@ import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
 import EmptyState from "@/components/chat/EmptyState";
 import useChatInit from "@/hooks/useChatInit";
+import { createChatSession } from "@/lib/api/chat";
+import { listChatSessions } from "@/lib/api/chat";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
@@ -45,6 +47,15 @@ export default function ChatPage({
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [chats, setChats] = useState<SidebarChatItem[]>([]);
+
+  type SidebarChatItem = {
+    id: string;
+    title: string;
+    type: "learning" | "evaluation";
+    time: string;
+  };
 
   const {
     mode,
@@ -95,7 +106,7 @@ export default function ChatPage({
 
   const handleSetMode = (m: "learning" | "evaluation") => {
     setMode(m);
-    
+
     // Reset file count when switching to evaluation mode
     if (m === "evaluation") {
       setEvaluationUploadedFilesCount(0);
@@ -110,6 +121,28 @@ export default function ChatPage({
       router.replace(`${pathname}?type=${m}`, { scroll: false });
     }
   };
+
+  useEffect(() => {
+  const loadChats = async () => {
+    try {
+      const sessions = await listChatSessions();
+
+      const mapped = sessions.map((s) => ({
+        id: s.id,
+        title: s.title || "Untitled Chat",
+        type: s.mode,
+        time: new Date(s.created_at).toLocaleString(),
+      }));
+
+      setChats(mapped);
+    } catch (err) {
+      console.error("Failed to load chat history", err);
+    }
+  };
+
+  loadChats();
+}, []);
+
 
   const handleSend = () => {
     if (mode === "learning") {
@@ -240,22 +273,22 @@ export default function ChatPage({
     if (mode === "evaluation") {
       // Check if adding these files would exceed the 10-file limit
       const remainingSlots = 10 - evaluationUploadedFilesCount;
-      
+
       if (remainingSlots <= 0) {
         alert("You have already uploaded the maximum of 10 files for this evaluation chat.");
         return;
       }
-      
+
       // Only take files that fit within the limit
       const filesToUpload = files.slice(0, remainingSlots);
-      
+
       if (filesToUpload.length < files.length) {
         alert(`You can only upload ${remainingSlots} more file(s). Only the first ${remainingSlots} file(s) will be uploaded.`);
       }
-      
+
       setSelectedFiles(filesToUpload);
       setEvaluationUploadedFilesCount(prev => prev + filesToUpload.length);
-      
+
       setEvaluationMessages((prev) => [
         ...prev,
         ...filesToUpload.map((file) => ({
@@ -267,7 +300,7 @@ export default function ChatPage({
     } else {
       // Learning mode - no limit
       setSelectedFiles(files);
-      
+
       setLearningMessages((prev) => [
         ...prev,
         ...files.map((file) => ({
@@ -318,6 +351,8 @@ export default function ChatPage({
       );
     }
 
+
+
     // evaluation mode
     return (
       <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
@@ -337,32 +372,38 @@ export default function ChatPage({
     );
   };
 
+
+  const handleNewChat = async (mode: "learning" | "evaluation") => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const session = await createChatSession({
+        mode,
+        title: mode === "learning" ? "New Learning Chat" : "New Evaluation Chat",
+      });
+
+      router.push(`/chat/${session.id}?type=${mode}`);
+    } catch (error) {
+      console.error("Failed to create chat session", error);
+      alert("Failed to create a new chat. Please try again.");
+    }
+  };
+
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
       <Sidebar
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-        chats={[
-          {
-            id: "1",
-            title: "New Learning Chat",
-            type: "learning",
-            time: "1 minute ago",
-          },
-          {
-            id: "2",
-            title: "New Evaluation Chat",
-            type: "evaluation",
-            time: "12 minutes ago",
-          },
-        ]}
+        chats={chats}
+        onNewLearningChat={() => handleNewChat("learning")}
+        onNewEvaluationChat={() => handleNewChat("evaluation")}
       />
+
 
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-screen transition-[margin,width] duration-300 ${
-          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
-        }`}
+        className={`flex flex-col flex-1 h-screen transition-[margin,width] duration-300 ${isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+          }`}
       >
         {/* HEADER COMPONENT */}
         <Header
@@ -477,18 +518,16 @@ export default function ChatPage({
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <SyllabusPanelpage onClose={toggleSyllabus} />
       </div>
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <QuestionsPanelpage onClose={toggleQuestions} />
       </div>

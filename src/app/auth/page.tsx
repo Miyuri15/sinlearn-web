@@ -7,69 +7,71 @@ import Input from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
 import LanguageToggle from "@/components/language/LanguageToggle";
 import Link from "next/link";
-import { setUser, getUser, getLanguage } from "@/lib/localStore";
+import { getLanguage } from "@/lib/localStore";
+import { setAuthTokens } from "@/lib/localStore";
 import { GraduationCap } from "lucide-react";
+import { signup, signin } from "@/lib/api/auth";
 
 interface AuthPageProps {
   readonly defaultTab?: "signin" | "signup";
 }
 
 export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
-  const [tab, setTab] = useState<"signin" | "signup">(defaultTab);
-  const [role, setRole] = useState<"student" | "teacher">("student");
+  const [tab] = useState(defaultTab);
+
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   const { t, i18n } = useTranslation("common");
   const router = useRouter();
-  const [ready, setReady] = useState(false);
 
-  // Load stored language
   useEffect(() => {
-    const lang = getLanguage();
-    i18n.changeLanguage(lang).finally(() => setReady(true));
+    i18n.changeLanguage(getLanguage());
   }, [i18n]);
 
-  if (!ready) {
-    return <div className="min-h-screen bg-gray-100 dark:bg-gray-900"></div>;
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    const email = (
-      document.querySelector('input[type="email"]') as HTMLInputElement
-    )?.value;
-    const name = (
-      document.querySelector('input[type="text"]') as HTMLInputElement
-    )?.value;
+    try {
+      if (tab === "signup") {
+        const res = await signup({
+          email,
+          full_name: fullName,
+          password,
+        });
 
-    if (tab === "signin") {
-      const existing = getUser();
-      setUser({
-        name: existing?.name || name || "User",
-        email: email || existing?.email || "",
-        role: existing?.role || "student",
-      });
-      router.push("/chat");
-    } else {
-      setUser({
-        name: name || "User",
-        email: email || "",
-        role,
-      });
-      router.push("/auth/sign-in");
+        setAuthTokens(res);
+        router.push("/chat");
+      } else {
+        const res = await signin(email, password);
+
+        setAuthTokens(res);
+        router.push("/chat");
+      }
+    } catch (err: any) {
+      setError(err.message || "Authentication failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div
       className="
-        min-h-screen 
-        flex items-center justify-center 
-        bg-gradient-to-br 
-        from-blue-50 to-gray-100 
-        dark:from-gray-900 dark:to-gray-800
-        px-4 sm:px-6 lg:px-8
-        py-10
-      "
+      min-h-screen 
+      flex items-center justify-center 
+      bg-gradient-to-br 
+      from-blue-50 to-gray-100 
+      dark:from-gray-900 dark:to-gray-800
+      px-4 sm:px-6 lg:px-8
+      py-10
+    "
     >
       {/* TOP RIGHT LANGUAGE SWITCH */}
       <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50">
@@ -79,14 +81,14 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
       {/* MAIN CARD */}
       <div
         className="
-          bg-white dark:bg-gray-800 
-          w-full 
-          max-w-sm sm:max-w-md lg:max-w-lg 
-          rounded-xl sm:rounded-2xl 
-          p-6 sm:p-8 lg:p-10 
-          shadow-lg 
-          border border-gray-200 dark:border-gray-700
-        "
+        bg-white dark:bg-gray-800 
+        w-full 
+        max-w-sm sm:max-w-md lg:max-w-lg 
+        rounded-xl sm:rounded-2xl 
+        p-6 sm:p-8 lg:p-10 
+        shadow-lg 
+        border border-gray-200 dark:border-gray-700
+      "
       >
         {/* Logo */}
         <div className="flex justify-center mb-6">
@@ -106,22 +108,21 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         {/* Tabs */}
         <div
           className="
-            flex 
-            rounded-lg 
-            p-1 mb-6 
-            bg-gray-100 dark:bg-gray-700 
-            border border-gray-200 dark:border-gray-600
-          "
+          flex 
+          rounded-lg 
+          p-1 mb-6 
+          bg-gray-100 dark:bg-gray-700 
+          border border-gray-200 dark:border-gray-600
+        "
         >
           <Link
             href="/auth/sign-in"
             className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
-              ${
-                tab === "signin"
-                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-300"
+            ${tab === "signin"
+                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                : "text-gray-600 dark:text-gray-300"
               }
-            `}
+          `}
           >
             {t("signin")}
           </Link>
@@ -129,12 +130,11 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
           <Link
             href="/auth/sign-up"
             className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
-              ${
-                tab === "signup"
-                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-300"
+            ${tab === "signup"
+                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                : "text-gray-600 dark:text-gray-300"
               }
-            `}
+          `}
           >
             {t("signup")}
           </Link>
@@ -142,6 +142,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
 
         {/* Form */}
         <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit}>
+          {/* Full name (signup only) */}
           {tab === "signup" && (
             <div>
               <label className="block text-sm text-gray-900 dark:text-white mb-1">
@@ -149,79 +150,60 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
               </label>
               <Input
                 type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 placeholder={t("name_placeholder") || "Your Name"}
                 className="text-gray-900 dark:text-white"
+                required
               />
             </div>
           )}
 
+          {/* Email */}
           <div>
             <label className="block text-sm text-gray-900 dark:text-white mb-1">
               {t("email")}
             </label>
             <Input
               type="email"
-              placeholder="example@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="user@example.com"
               className="text-gray-900 dark:text-white"
+              required
             />
           </div>
 
+          {/* Password */}
           <div>
             <label className="block text-sm text-gray-900 dark:text-white mb-1">
               {t("password")}
             </label>
             <Input
               type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               className="text-gray-900 dark:text-white"
+              required
             />
           </div>
 
-          {/* Role selection */}
-          {tab === "signup" && (
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                type="button"
-                onClick={() => setRole("student")}
-                className={`
-                  flex-1 py-3 
-                  flex flex-col items-center justify-center 
-                  rounded-lg border transition
-                  ${
-                    role === "student"
-                      ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
-                      : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-                  }
-                `}
-              >
-                <div className="text-xl sm:text-2xl">📖</div>
-                <span className="text-sm mt-1">{t("role_student")}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setRole("teacher")}
-                className={`
-                  flex-1 py-3 
-                  flex flex-col items-center justify-center 
-                  rounded-lg border transition
-                  ${
-                    role === "teacher"
-                      ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300"
-                      : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-                  }
-                `}
-              >
-                <div className="text-xl sm:text-2xl">🎓</div>
-                <span className="text-sm mt-1">{t("role_teacher")}</span>
-              </button>
-            </div>
+          {/* Error message */}
+          {error && (
+            <p className="text-sm text-red-600 text-center">{error}</p>
           )}
 
-          <Button type="submit" className="w-full">
-            {tab === "signin" ? t("button_signin") : t("button_signup")}
+          {/* Submit */}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading
+              ? "Please wait..."
+              : tab === "signin"
+                ? t("button_signin")
+                : t("button_signup")}
           </Button>
 
+          {/* Footer links */}
           <div className="pt-4 text-center border-t border-gray-200 dark:border-gray-700">
             {tab === "signin" ? (
               <p className="text-sm text-gray-600 dark:text-gray-400">
