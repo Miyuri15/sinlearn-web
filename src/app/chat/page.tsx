@@ -18,8 +18,7 @@ import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
 import EmptyState from "@/components/chat/EmptyState";
 import useChatInit from "@/hooks/useChatInit";
-import { createChatSession } from "@/lib/api/chat";
-import { listChatSessions } from "@/lib/api/chat";
+import { postMessage, listChatSessions } from "@/lib/api/chat";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
@@ -123,61 +122,147 @@ export default function ChatPage({
   };
 
   useEffect(() => {
-  const loadChats = async () => {
-    try {
-      const sessions = await listChatSessions();
+    const loadChats = async () => {
+      try {
+        const sessions = await listChatSessions();
 
-      const mapped = sessions.map((s) => ({
-        id: s.id,
-        title: s.title || "Untitled Chat",
-        type: s.mode,
-        time: new Date(s.created_at).toLocaleString(),
-      }));
+        const mapped = sessions.map((s) => ({
+          id: s.id,
+          title: s.title || "Untitled Chat",
+          type: s.mode,
+          time: new Date(s.created_at).toLocaleString(),
+        }));
 
-      setChats(mapped);
-    } catch (err) {
-      console.error("Failed to load chat history", err);
-    }
-  };
+        setChats(mapped);
+      } catch (err) {
+        console.error("Failed to load chat history", err);
+      }
+    };
 
-  loadChats();
-}, []);
+    loadChats();
+  }, []);
 
 
   const handleSend = () => {
-    if (mode === "learning") {
-      if (!message.trim()) return;
+    const run = async () => {
+      if (mode === "learning") {
+        if (!message.trim()) return;
+      }
 
-      setLearningMessages((prev) => [
-        ...prev,
-        { role: "user", content: message },
-        { role: "assistant", content: mockLearningReply },
-      ]);
-    } else {
-      setEvaluationMessages((prev) => [
-        ...prev,
-        {
-          role: "user",
-          content: {
-            totalMarks,
-            mainQuestions,
-            requiredQuestions,
-            subQuestions,
-            subQuestionMarks,
+      const isTempChat = !chatId || chatId.startsWith("local-") || chatId.startsWith("new-");
+
+      if (isTempChat) {
+        // First message in a new UI-only chat: create server session then navigate and persist the pending messages
+        setCreating(true);
+        try {
+          // Send message to messages endpoint. If sessionId is missing, backend will create session.
+          let payload: any;
+          if (mode === "learning") {
+            payload = { role: "user", content: message, mode };
+          } else {
+            payload = {
+              role: "user",
+              content: {
+                totalMarks,
+                mainQuestions,
+                requiredQuestions,
+                subQuestions,
+                subQuestionMarks,
+              },
+              mode,
+            };
+          }
+
+          const resp = await postMessage(undefined, payload);
+
+          // Try to extract session id from response (be permissive)
+          const newSessionId = resp?.session?.id || resp?.session_id || resp?.id || resp?.chat_id;
+
+          // Persist the UI messages (in case backend doesn't return them)
+          let messagesToStore: any[] = [];
+          if (mode === "learning") {
+            messagesToStore = [
+              { role: "user", content: message },
+              { role: "assistant", content: mockLearningReply },
+            ];
+          } else {
+            messagesToStore = [
+              payload,
+              { role: "evaluation", content: mockEvaluation },
+            ];
+          }
+
+          try {
+            // If backend returned a session id use that key, otherwise keep using a generated one if needed
+            const storeKey = newSessionId ? `chatMessages:${newSessionId}` : `chatMessages:pending-${Date.now()}`;
+            sessionStorage.setItem(storeKey, JSON.stringify(messagesToStore));
+          } catch (e) {
+            console.warn("Could not persist pending messages to sessionStorage", e);
+          }
+
+          // Update sidebar with returned session if available
+          if (newSessionId) {
+            setChats((prev) => [
+              {
+                id: newSessionId,
+                title: resp?.session?.title || (mode === "learning" ? "New Learning Chat" : "New Evaluation Chat"),
+                type: resp?.session?.mode || mode,
+                time: new Date().toLocaleString(),
+              },
+              ...prev,
+            ]);
+
+            router.push(`/chat/${newSessionId}?type=${mode}`);
+          } else {
+            // Fallback: navigate to a generated local id (backend should usually return id)
+            const fallbackId = `local-${Date.now()}`;
+            router.push(`/chat/${fallbackId}?type=${mode}`);
+          }
+        } catch (error) {
+          console.error("Failed to create chat session", error);
+          alert("Failed to create a new chat. Please try again.");
+        } finally {
+          setCreating(false);
+        }
+
+        // Clear the draft input regardless
+        setMessage("");
+        return;
+      }
+
+      // Existing chat: just append messages locally (mocked reply)
+      if (mode === "learning") {
+        setLearningMessages((prev) => [
+          ...prev,
+          { role: "user", content: message },
+          { role: "assistant", content: mockLearningReply },
+        ]);
+      } else {
+        setEvaluationMessages((prev) => [
+          ...prev,
+          {
+            role: "user",
+            content: {
+              totalMarks,
+              mainQuestions,
+              requiredQuestions,
+              subQuestions,
+              subQuestionMarks,
+            },
           },
-        },
-        { role: "evaluation", content: mockEvaluation },
-      ]);
-    }
+          { role: "evaluation", content: mockEvaluation },
+        ]);
+      }
 
-    setTimeout(() => {
-      const textarea = document.querySelector(
-        "textarea.chat-input"
-      ) as HTMLTextAreaElement;
-      if (textarea) textarea.style.height = "auto";
-    }, 0);
+      setTimeout(() => {
+        const textarea = document.querySelector("textarea.chat-input") as HTMLTextAreaElement;
+        if (textarea) textarea.style.height = "auto";
+      }, 0);
 
-    setMessage("");
+      setMessage("");
+    };
+
+    void run();
   };
 
   useEffect(() => {
@@ -375,17 +460,13 @@ export default function ChatPage({
 
   const handleNewChat = async (mode: "learning" | "evaluation") => {
     if (creating) return;
-    setCreating(true);
+    // Don't create server session here. Open a local temporary chat UI.
+    const tempId = `local-${Date.now()}`;
     try {
-      const session = await createChatSession({
-        mode,
-        title: mode === "learning" ? "New Learning Chat" : "New Evaluation Chat",
-      });
-
-      router.push(`/chat/${session.id}?type=${mode}`);
+      router.push(`/chat/${tempId}?type=${mode}`);
     } catch (error) {
-      console.error("Failed to create chat session", error);
-      alert("Failed to create a new chat. Please try again.");
+      console.error("Failed to open new chat UI", error);
+      alert("Failed to open a new chat. Please try again.");
     }
   };
 
@@ -476,10 +557,10 @@ export default function ChatPage({
                   onChange={(e) => setResponseLevel(e.target.value)}
                   className="border rounded-lg px-3 py-1 bg-white dark:bg-[#1A1A1A]"
                 >
-                  <option>Grades 6–8</option>
-                  <option>Grades 9–11</option>
-                  <option>Grades 12–13</option>
-                  <option>University Level</option>
+                  <option value="grade_6_8">Grades 6–8</option>
+                  <option value="grade_9_11">Grades 9–11</option>
+                  <option value="grade_12_13">Grades 12–13</option>
+                  <option value="university">University Level</option>
                 </select>
               </div>
 

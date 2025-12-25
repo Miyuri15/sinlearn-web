@@ -38,3 +38,22 @@ export const listChatSessions = () => {
     );
 };
 
+export type PostMessagePayload = {
+    role?: string;
+    content: any;
+    mode?: "learning" | "evaluation";
+    // include other fields as needed (files, metadata)
+};
+
+export const postMessage = (
+  sessionId: string | undefined,
+  payload: PostMessagePayload
+) => {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/messages/sessions/${sessionId}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+};
