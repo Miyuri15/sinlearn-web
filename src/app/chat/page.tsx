@@ -145,22 +145,30 @@ export default function ChatPage({
 
   const handleSend = () => {
     const run = async () => {
-      if (mode === "learning") {
-        if (!message.trim()) return;
-      }
+      if (mode === "learning" && !message.trim()) return;
 
-      const isTempChat = !chatId || chatId.startsWith("local-") || chatId.startsWith("new-");
+      /**
+       * CHANGE 1️⃣
+       * We no longer treat "existing chat" differently.
+       * Backend is ALWAYS the source of truth.
+       */
+      setCreating(true);
 
-      if (isTempChat) {
-        // First message in a new UI-only chat: create server session then navigate and persist the pending messages
-        setCreating(true);
-        try {
-          // Send message to messages endpoint. If sessionId is missing, backend will create session.
-          let payload: any;
-          if (mode === "learning") {
-            payload = { role: "user", content: message, mode };
-          } else {
-            payload = {
+      try {
+        /**
+         * CHANGE 2️⃣
+         * Optimistically render the user's message
+         * so UI updates instantly.
+         */
+        if (mode === "learning") {
+          setLearningMessages((prev) => [
+            ...prev,
+            { role: "user", content: message },
+          ]);
+        } else {
+          setEvaluationMessages((prev) => [
+            ...prev,
+            {
               role: "user",
               content: {
                 totalMarks,
@@ -169,79 +177,25 @@ export default function ChatPage({
                 subQuestions,
                 subQuestionMarks,
               },
-              mode,
-            };
-          }
-
-          const resp = await postMessage(undefined, payload);
-
-          // Try to extract session id from response (be permissive)
-          const newSessionId = resp?.session?.id || resp?.session_id || resp?.id || resp?.chat_id;
-
-          // Persist the UI messages (in case backend doesn't return them)
-          let messagesToStore: any[] = [];
-          if (mode === "learning") {
-            messagesToStore = [
-              { role: "user", content: message },
-              { role: "assistant", content: mockLearningReply },
-            ];
-          } else {
-            messagesToStore = [
-              payload,
-              { role: "evaluation", content: mockEvaluation },
-            ];
-          }
-
-          try {
-            // If backend returned a session id use that key, otherwise keep using a generated one if needed
-            const storeKey = newSessionId ? `chatMessages:${newSessionId}` : `chatMessages:pending-${Date.now()}`;
-            sessionStorage.setItem(storeKey, JSON.stringify(messagesToStore));
-          } catch (e) {
-            console.warn("Could not persist pending messages to sessionStorage", e);
-          }
-
-          // Update sidebar with returned session if available
-          if (newSessionId) {
-            setChats((prev) => [
-              {
-                id: newSessionId,
-                title: resp?.session?.title || (mode === "learning" ? "New Learning Chat" : "New Evaluation Chat"),
-                type: resp?.session?.mode || mode,
-                time: new Date().toLocaleString(),
-              },
-              ...prev,
-            ]);
-
-            router.push(`/chat/${newSessionId}?type=${mode}`);
-          } else {
-            // Fallback: navigate to a generated local id (backend should usually return id)
-            const fallbackId = `local-${Date.now()}`;
-            router.push(`/chat/${fallbackId}?type=${mode}`);
-          }
-        } catch (error) {
-          console.error("Failed to create chat session", error);
-          alert("Failed to create a new chat. Please try again.");
-        } finally {
-          setCreating(false);
+            },
+          ]);
         }
 
-        // Clear the draft input regardless
-        setMessage("");
-        return;
-      }
+        /**
+         * CHANGE 3️⃣
+         * Build backend payload ONLY for message creation.
+         * Session creation is backend responsibility.
+         */
+        let payload: any;
 
-      // Existing chat: just append messages locally (mocked reply)
-      if (mode === "learning") {
-        setLearningMessages((prev) => [
-          ...prev,
-          { role: "user", content: message },
-          { role: "assistant", content: mockLearningReply },
-        ]);
-      } else {
-        setEvaluationMessages((prev) => [
-          ...prev,
-          {
-            role: "user",
+        if (mode === "learning") {
+          payload = {
+            content: message,
+            modality: "text",
+            grade_level: responseLevel.toLowerCase().replace(/[–—]/g, "_").replace("grades ", "grade_")
+          };
+        } else {
+          payload = {
             content: {
               totalMarks,
               mainQuestions,
@@ -249,21 +203,66 @@ export default function ChatPage({
               subQuestions,
               subQuestionMarks,
             },
-          },
-          { role: "evaluation", content: mockEvaluation },
-        ]);
+            modality: "text",
+          };
+        }
+
+        /**
+         * CHANGE 4️⃣
+         * ALWAYS call backend.
+         * If chatId is undefined / local-xxx → backend creates session.
+         */
+        const resp = await postMessage(chatId, payload);
+
+        /**
+         * CHANGE 5️⃣
+         * Extract session id safely from backend response.
+         */
+        const newSessionId =
+          resp?.session?.id ||
+          resp?.session_id ||
+          resp?.chat_id ||
+          resp?.id;
+
+        /**
+         * CHANGE 6️⃣
+         * If this was the FIRST message → redirect to real session
+         * and hydrate chat properly.
+         */
+        if (newSessionId && chatId?.startsWith("local-")) {
+          router.replace(`/chat/${newSessionId}?type=${mode}`);
+        }
+
+        /**
+         * CHANGE 7️⃣
+         * Append assistant reply ONLY if backend returns it.
+         * (No mocked replies anymore)
+         */
+        if (resp?.assistant_message) {
+          if (mode === "learning") {
+            setLearningMessages((prev) => [
+              ...prev,
+              resp.assistant_message,
+            ]);
+          } else {
+            setEvaluationMessages((prev) => [
+              ...prev,
+              resp.assistant_message,
+            ]);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to send message", error);
+        alert("Failed to send message. Please try again.");
+      } finally {
+        setCreating(false);
+        setMessage("");
       }
-
-      setTimeout(() => {
-        const textarea = document.querySelector("textarea.chat-input") as HTMLTextAreaElement;
-        if (textarea) textarea.style.height = "auto";
-      }, 0);
-
-      setMessage("");
     };
 
     void run();
   };
+
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });

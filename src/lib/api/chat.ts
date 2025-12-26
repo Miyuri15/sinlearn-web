@@ -49,11 +49,18 @@ export const postMessage = (
   sessionId: string | undefined,
   payload: PostMessagePayload
 ) => {
+  // ✅ FORCE backend to receive "undefined" string when no session exists
+  const sid =
+    !sessionId || sessionId.startsWith("local-")
+      ? "undefined"
+      : sessionId;
+
   return apiFetch<any>(
-    `${API_BASE_URL}/api/v1/messages/sessions/${sessionId}`,
+    `${API_BASE_URL}/api/v1/messages/sessions/${sid}`,
     {
       method: "POST",
       body: JSON.stringify(payload),
     }
   );
 };
+
