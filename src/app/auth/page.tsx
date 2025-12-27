@@ -184,7 +184,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         {/* Logo */}
         <div className="flex justify-center mb-6">
           <div className="flex items-center justify-center rounded-full bg-blue-600 w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28">
-            <GraduationCap className="w-6 h-6 sm:w-12 sm:h-12 lg:w-14 lg:h-14 text-white" />
+            <GraduationCap className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 text-white" />
           </div>
         </div>
 
