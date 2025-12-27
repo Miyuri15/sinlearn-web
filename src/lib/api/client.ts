@@ -17,10 +17,21 @@ function dispatchLogoutEvent() {
   }
 }
 
+async function ensureAccessTokenRefreshed(): Promise<void> {
+  if (isRefreshing && refreshPromise) {
+    await refreshPromise;
+  } else {
+    isRefreshing = true;
+    refreshPromise = refreshAccessToken().finally(() => {
+      isRefreshing = false;
+      refreshPromise = null;
+    });
+    await refreshPromise;
+  }
+}
+
 async function refreshAccessToken(): Promise<void> {
   const authTokens = getAuthTokens();
-
-  console.log("Refreshing access token...");
 
   if (!authTokens?.refresh_token) {
     logout();
@@ -59,16 +70,7 @@ export async function apiFetch<T>(
 
   // 1. Proactive Refresh
   if (!isAuthEndpoint && isAccessTokenExpired()) {
-    if (isRefreshing && refreshPromise) {
-      await refreshPromise;
-    } else {
-      isRefreshing = true;
-      refreshPromise = refreshAccessToken().finally(() => {
-        isRefreshing = false;
-        refreshPromise = null;
-      });
-      await refreshPromise;
-    }
+    await ensureAccessTokenRefreshed();
   }
 
   // 2. Prepare Headers (Robust Method)
@@ -88,16 +90,7 @@ export async function apiFetch<T>(
   // 3. Reactive Refresh (401 Handling)
   if (res.status === 401 && !isAuthEndpoint && !isRetry) {
     try {
-      if (isRefreshing && refreshPromise) {
-        await refreshPromise;
-      } else {
-        isRefreshing = true;
-        refreshPromise = refreshAccessToken().finally(() => {
-          isRefreshing = false;
-          refreshPromise = null;
-        });
-        await refreshPromise;
-      }
+      await ensureAccessTokenRefreshed();
 
       // Retry with new token
       return apiFetch<T>(url, options, true);
