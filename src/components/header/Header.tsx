@@ -6,6 +6,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import Image from "next/image";
 import LanguageToggle from "@/components/header/LanguageToggle";
 import ThemeToggle from "@/components/header/ThemeToggle";
+import { BookOpen, ClipboardCheck } from "lucide-react";
 
 interface HeaderProps {
   mode: "learning" | "evaluation";
@@ -13,6 +14,7 @@ interface HeaderProps {
   isRubricOpen: boolean;
   isSyllabusOpen: boolean;
   isQuestionsOpen: boolean;
+  isSidebarOpen?: boolean;
   toggleRubric: () => void;
   toggleSyllabus: () => void;
   toggleQuestions: () => void;
@@ -25,15 +27,33 @@ export default function Header({
   isRubricOpen,
   isSyllabusOpen,
   isQuestionsOpen,
+  isSidebarOpen,
   toggleRubric,
   toggleSyllabus,
   toggleQuestions,
   toggleSidebar,
-}: HeaderProps) {
+}: Readonly<HeaderProps>) {
   const { t } = useTranslation("chat");
 
   // Check if any panel is open
   const isAnyPanelOpen = isRubricOpen || isSyllabusOpen || isQuestionsOpen;
+
+  const modeDetails =
+    mode === "learning"
+      ? {
+          label: t("learning_mode"),
+          icon: <BookOpen className="w-5 h-5" />,
+          bgColor: "bg-blue-50 dark:bg-blue-900/20",
+          textColor: "text-blue-700 dark:text-blue-300",
+          borderColor: "border-blue-200 dark:border-blue-800",
+        }
+      : {
+          label: t("evaluation_mode"),
+          icon: <ClipboardCheck className="w-5 h-5" />,
+          bgColor: "bg-emerald-50 dark:bg-emerald-900/20",
+          textColor: "text-emerald-700 dark:text-emerald-300",
+          borderColor: "border-emerald-200 dark:border-emerald-800",
+        };
 
   return (
     <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-white dark:bg-[#111111] border-b border-gray-200 dark:border-[#2a2a2a]">
@@ -42,6 +62,15 @@ export default function Header({
         {mode === "learning" ? (
           // Learning mode: only Theme + Language on the right
           <div className="flex w-full items-center justify-end gap-2">
+            {toggleSidebar && (
+              <button
+                onClick={toggleSidebar}
+                className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors flex-shrink-0"
+                aria-label="Open menu"
+              >
+                <MenuIcon className="text-lg" />
+              </button>
+            )}
             <div className="scale-75">
               <ThemeToggle />
             </div>

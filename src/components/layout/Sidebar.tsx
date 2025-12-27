@@ -73,17 +73,6 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Mobile opener when sidebar is closed */}
-      {!isOpen && (
-        <button
-          onClick={onToggle}
-          className="fixed left-4 top-4 sm:hidden z-50 p-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-          aria-label="Open sidebar"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-      )}
-
       {/* Mobile backdrop when sidebar is open */}
       {isOpen && (
         <div
