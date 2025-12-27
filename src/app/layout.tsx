@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import I18nProvider from "./providers/I18nProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 import AuthListener from "@/components/auth/AuthListener";
+import AuthenticatedLayout from "./AuthenticatedLayout";
 
 export const metadata = {
   title: "SinLearn",
@@ -43,7 +44,7 @@ export default function RootLayout({
         <I18nProvider>
           <ToastProvider>
             <AuthListener />
-            {children}
+            <AuthenticatedLayout>{children}</AuthenticatedLayout>
           </ToastProvider>
         </I18nProvider>
       </body>

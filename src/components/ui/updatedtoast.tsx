@@ -1,4 +1,5 @@
 import React from "react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 
 type ToastProps = {
   message: string;
@@ -13,46 +14,21 @@ const UpdatedToast = ({ message, isVisible, type, onClose }: ToastProps) => {
   const baseClasses =
     "fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white transition-opacity duration-300 z-50";
   const typeClasses = type === "success" ? "bg-green-500" : "bg-red-500";
+
   const icon =
     type === "success" ? (
-      <svg
-        className="w-5 h-5 mr-2"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M5 13l4 4L19 7"
-        ></path>
-      </svg>
+      <CheckCircle2 className="w-5 h-5" />
     ) : (
-      <svg
-        className="w-5 h-5 mr-2"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M6 18L18 6M6 6l12 12"
-        ></path>
-      </svg>
+      <AlertCircle className="w-5 h-5" />
     );
 
   return (
-    <div className={`${baseClasses} ${typeClasses} flex items-center`}>
+    <div className={`${baseClasses} ${typeClasses} flex items-center gap-3`}>
       {icon}
-      <span>{message}</span>
+      <span className="flex-1">{message}</span>
       <button
         onClick={onClose}
-        className="ml-4 text-white opacity-75 hover:opacity-100"
+        className="text-white/80 hover:text-white leading-none"
       >
         ✕
       </button>
