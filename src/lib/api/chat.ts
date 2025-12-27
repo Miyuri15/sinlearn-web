@@ -64,3 +64,13 @@ export const postMessage = (
   );
 };
 
+export const listSessionMessages = (sessionId: string) => {
+  return apiFetch<any[]>(
+    `${API_BASE_URL}/api/v1/messages/sessions/${sessionId}`,
+    {
+      method: "GET",
+    }
+  );
+};
+
+

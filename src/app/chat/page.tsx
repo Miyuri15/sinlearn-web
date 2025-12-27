@@ -18,7 +18,8 @@ import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
 import EmptyState from "@/components/chat/EmptyState";
 import useChatInit from "@/hooks/useChatInit";
-import { postMessage, listChatSessions } from "@/lib/api/chat";
+import { postMessage, listChatSessions, listSessionMessages } from "@/lib/api/chat";
+
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
@@ -123,6 +124,36 @@ export default function ChatPage({
       router.replace(`${pathname}?type=${m}`, { scroll: false });
     }
   };
+
+  // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!chatId) return;
+      if (chatId.startsWith("local-") || chatId.startsWith("new-")) return;
+
+      try {
+        const messages = await listSessionMessages(chatId);
+
+        // ✅ SORT BY created_at (oldest → newest)
+        const sorted = messages.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() -
+            new Date(b.created_at).getTime()
+        );
+
+        if (mode === "learning") {
+          setLearningMessages(sorted);
+        } else {
+          setEvaluationMessages(sorted);
+        }
+      } catch (err) {
+        console.error("Failed to load messages", err);
+      }
+    };
+
+    loadMessages();
+  }, [chatId, mode]);
+
 
   useEffect(() => {
     const loadChats = async () => {
