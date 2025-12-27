@@ -55,10 +55,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
   };
 
   const validatePassword = (passwordValue: string): string | undefined => {
-    if (!passwordValue) {
+    if (!passwordValue.trim()) {
       return t("validation.password_required");
     }
-    if (passwordValue.length < 6) {
+    if (passwordValue.trim().length < 6) {
       return t("validation.password_min_length");
     }
     return undefined;
