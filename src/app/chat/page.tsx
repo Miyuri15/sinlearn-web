@@ -22,6 +22,7 @@ import {
   listChatSessions,
   listSessionMessages,
 } from "@/lib/api/chat";
+import { formatDistanceToNow } from "date-fns";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
@@ -164,7 +165,9 @@ export default function ChatPage({
           id: s.id,
           title: s.title || "Untitled Chat",
           type: s.mode,
-          time: new Date(s.updated_at || s.created_at).toLocaleString(),
+          time: formatDistanceToNow(new Date(s.updated_at || s.created_at), {
+            addSuffix: true,
+          }),
         }));
 
         setChats(mapped);
