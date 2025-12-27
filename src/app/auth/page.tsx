@@ -7,13 +7,18 @@ import Input from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
 import LanguageToggle from "@/components/language/LanguageToggle";
 import Link from "next/link";
-import { getLanguage } from "@/lib/localStore";
-import { setAuthTokens } from "@/lib/localStore";
+import { getLanguage, setAuthTokens } from "@/lib/localStore";
 import { GraduationCap } from "lucide-react";
 import { signup, signin } from "@/lib/api/auth";
 
 interface AuthPageProps {
   readonly defaultTab?: "signin" | "signup";
+}
+
+interface ValidationErrors {
+  fullName?: string;
+  email?: string;
+  password?: string;
 }
 
 export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
@@ -25,6 +30,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
+    {}
+  );
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const { t, i18n } = useTranslation("common");
   const router = useRouter();
@@ -33,9 +42,91 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
     i18n.changeLanguage(getLanguage());
   }, [i18n]);
 
+  // Validation functions
+  const validateEmail = (emailValue: string): string | undefined => {
+    if (!emailValue.trim()) {
+      return t("validation.email_required");
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailValue)) {
+      return t("validation.email_invalid");
+    }
+    return undefined;
+  };
+
+  const validatePassword = (passwordValue: string): string | undefined => {
+    if (!passwordValue.trim()) {
+      return t("validation.password_required");
+    }
+    if (passwordValue.trim().length < 6) {
+      return t("validation.password_min_length");
+    }
+    return undefined;
+  };
+
+  const validateFullName = (nameValue: string): string | undefined => {
+    if (!nameValue.trim()) {
+      return t("validation.full_name_required");
+    }
+    if (nameValue.trim().length < 2) {
+      return t("validation.full_name_min_length");
+    }
+    return undefined;
+  };
+
+  // Validate all fields
+  const validateForm = (): boolean => {
+    const errors: ValidationErrors = {};
+
+    if (tab === "signup") {
+      const nameError = validateFullName(fullName);
+      if (nameError) errors.fullName = nameError;
+    }
+
+    const emailError = validateEmail(email);
+    if (emailError) errors.email = emailError;
+
+    const passwordError = validatePassword(password);
+    if (passwordError) errors.password = passwordError;
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleFieldBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+
+    let fieldError: string | undefined;
+    if (field === "fullName") {
+      fieldError = validateFullName(fullName);
+    } else if (field === "email") {
+      fieldError = validateEmail(email);
+    } else if (field === "password") {
+      fieldError = validatePassword(password);
+    }
+
+    setValidationErrors((prev) => ({
+      ...prev,
+      [field]: fieldError,
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // Mark all fields as touched to show validation errors
+    const fieldsToTouch: Record<string, boolean> =
+      tab === "signup"
+        ? { fullName: true, email: true, password: true }
+        : { email: true, password: true };
+    setTouched(fieldsToTouch);
+
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -64,13 +155,16 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
   return (
     <div
       className="
-      min-h-screen 
-      flex items-center justify-center 
+      min-h-dvh    
+      flex flex-col items-center justify-center 
+      overflow-y-auto
       bg-gradient-to-br 
       from-blue-50 to-gray-100 
       dark:from-gray-900 dark:to-gray-800
+      
       px-4 sm:px-6 lg:px-8
-      py-10
+      
+      py-8 sm:py-10
     "
     >
       {/* TOP RIGHT LANGUAGE SWITCH */}
@@ -83,11 +177,17 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         className="
         bg-white dark:bg-gray-800 
         w-full 
-        max-w-sm sm:max-w-md lg:max-w-lg 
+        
+        max-w-[400px] sm:max-w-md lg:max-w-lg 
+        
         rounded-xl sm:rounded-2xl 
-        p-6 sm:p-8 lg:p-10 
+        
+        p-5 sm:p-8 lg:p-10 
+        
         shadow-lg 
         border border-gray-200 dark:border-gray-700
+        
+        relative z-10
       "
       >
         {/* Logo */}
@@ -118,10 +218,11 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
           <Link
             href="/auth/sign-in"
             className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
-            ${tab === "signin"
+            ${
+              tab === "signin"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-300"
-              }
+            }
           `}
           >
             {t("signin")}
@@ -130,10 +231,11 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
           <Link
             href="/auth/sign-up"
             className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
-            ${tab === "signup"
+            ${
+              tab === "signup"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-300"
-              }
+            }
           `}
           >
             {t("signup")}
@@ -152,10 +254,19 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
+                onBlur={() => handleFieldBlur("fullName")}
                 placeholder={t("name_placeholder") || "Your Name"}
-                className="text-gray-900 dark:text-white"
-                required
+                className={`text-base sm:text-sm text-gray-900 dark:text-white ${
+                  touched.fullName && validationErrors.fullName
+                    ? "border-red-500 focus:border-red-500"
+                    : ""
+                }`}
               />
+              {touched.fullName && validationErrors.fullName && (
+                <p className="text-sm text-red-600 mt-1">
+                  {validationErrors.fullName}
+                </p>
+              )}
             </div>
           )}
 
@@ -168,10 +279,19 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => handleFieldBlur("email")}
               placeholder="user@example.com"
-              className="text-gray-900 dark:text-white"
-              required
+              className={`text-base sm:text-sm text-gray-900 dark:text-white ${
+                touched.email && validationErrors.email
+                  ? "border-red-500 focus:border-red-500"
+                  : ""
+              }`}
             />
+            {touched.email && validationErrors.email && (
+              <p className="text-sm text-red-600 mt-1">
+                {validationErrors.email}
+              </p>
+            )}
           </div>
 
           {/* Password */}
@@ -183,24 +303,31 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onBlur={() => handleFieldBlur("password")}
               placeholder="••••••••"
-              className="text-gray-900 dark:text-white"
-              required
+              className={`text-base sm:text-sm text-gray-900 dark:text-white ${
+                touched.password && validationErrors.password
+                  ? "border-red-500 focus:border-red-500"
+                  : ""
+              }`}
             />
+            {touched.password && validationErrors.password && (
+              <p className="text-sm text-red-600 mt-1">
+                {validationErrors.password}
+              </p>
+            )}
           </div>
 
           {/* Error message */}
-          {error && (
-            <p className="text-sm text-red-600 text-center">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
 
           {/* Submit */}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading
               ? "Please wait..."
               : tab === "signin"
-                ? t("button_signin")
-                : t("button_signup")}
+              ? t("button_signin")
+              : t("button_signup")}
           </Button>
 
           {/* Footer links */}

@@ -12,6 +12,9 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { signout } from "@/lib/api/auth";
+import { logout as logoutLocal } from "@/lib/localStore";
+import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
 
 interface ChatItem {
   id: string;
@@ -28,19 +31,36 @@ interface SidebarProps {
   onNewEvaluationChat: () => void;
 }
 
-
 export default function Sidebar({
   chats = [],
   isOpen,
   onToggle,
 }: Readonly<SidebarProps>) {
   const [search, setSearch] = useState("");
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
   const { t } = useTranslation("common");
 
   const filteredChats = chats.filter((c) =>
     c.title.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      // Call backend signout endpoint
+      await signout();
+    } catch (error) {
+      console.error("Signout API call failed:", error);
+    } finally {
+      // Clear local storage and redirect
+      logoutLocal();
+      setIsLogoutModalOpen(false);
+      setIsLoggingOut(false);
+      router.push("/auth/sign-in");
+    }
+  };
 
   return (
     <>
@@ -65,16 +85,12 @@ export default function Sidebar({
       )}
 
       <div
-          className={`h-dvh flex flex-col border-r border-gray-200 dark:border-[#2a2a2a]
+        className={`h-dvh flex flex-col border-r border-gray-200 dark:border-[#2a2a2a]
           bg-white dark:bg-gray-900 
           transition-all duration-300 sm:overflow-hidden overflow-y-auto
           fixed sm:static left-0 top-0
-          ${
-            isOpen
-              ? "w-[92vw] sm:w-72 md:w-80"
-              : "w-0 sm:w-16"
-          } z-40`}
-        >
+          ${isOpen ? "w-[92vw] sm:w-72 md:w-80" : "w-0 sm:w-16"} z-40`}
+      >
         {/* TOP BAR */}
         <div className="p-4 flex items-center justify-between dark:border-gray-700">
           <Menu
@@ -196,7 +212,7 @@ export default function Sidebar({
             </button>
 
             <button
-              onClick={() => router.push("/logout")}
+              onClick={() => setIsLogoutModalOpen(true)}
               className={`flex items-center gap-3 w-full border rounded-lg px-3 py-2 
               hover:bg-red-100 dark:hover:bg-red-900
               bg-white dark:bg-gray-900
@@ -209,6 +225,14 @@ export default function Sidebar({
           </div>
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        isLoading={isLoggingOut}
+        onConfirm={handleLogout}
+        onCancel={() => setIsLogoutModalOpen(false)}
+      />
     </>
   );
 }

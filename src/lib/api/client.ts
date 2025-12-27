@@ -1,37 +1,108 @@
-import { getAccessToken, isAccessTokenExpired, logout } from "@/lib/localStore";
+import {
+  getAccessToken,
+  getAuthTokens,
+  isAccessTokenExpired,
+  logout,
+  setAuthTokens,
+} from "@/lib/localStore";
+import { API_BASE_URL } from "../config";
+
+let isRefreshing = false;
+let refreshPromise: Promise<void> | null = null;
+
+// Dispatch logout event for components to handle redirect
+function dispatchLogoutEvent() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("auth:logout"));
+  }
+}
+
+async function ensureAccessTokenRefreshed(): Promise<void> {
+  if (isRefreshing && refreshPromise) {
+    await refreshPromise;
+  } else {
+    isRefreshing = true;
+    refreshPromise = refreshAccessToken().finally(() => {
+      isRefreshing = false;
+      refreshPromise = null;
+    });
+    await refreshPromise;
+  }
+}
+
+async function refreshAccessToken(): Promise<void> {
+  const authTokens = getAuthTokens();
+
+  if (!authTokens?.refresh_token) {
+    logout();
+    dispatchLogoutEvent();
+    throw new Error("No refresh token available");
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: authTokens.refresh_token }),
+    });
+
+    if (!response.ok) throw new Error("Token refresh failed");
+
+    const newTokens = await response.json();
+    setAuthTokens(newTokens);
+  } catch (error) {
+    console.error("Failed to refresh token:", error);
+    logout();
+    dispatchLogoutEvent();
+    throw error;
+  }
+}
 
 export async function apiFetch<T>(
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  isRetry = false
 ): Promise<T> {
-  const token = getAccessToken();
+  const isAuthEndpoint =
+    url.includes("/auth/signin") ||
+    url.includes("/auth/signup") ||
+    url.includes("/auth/refresh");
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(options.headers ? Object.fromEntries(Object.entries(options.headers)) : {}),
-  };
-
-  // Attach Authorization header if token exists
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+  // 1. Proactive Refresh
+  if (!isAuthEndpoint && isAccessTokenExpired()) {
+    await ensureAccessTokenRefreshed();
   }
 
-  const res = await fetch(url, {
-    ...options,
-    headers,
-  });
+  // 2. Prepare Headers (Robust Method)
+  const token = getAccessToken();
+  const headers = new Headers(options.headers);
 
-  // Handle unauthorized globally
-  if (res.status === 401) {
-    console.error("Unauthorized – logging out");
-    logout();
-    window.location.href = "/auth/sign-in";
-    throw new Error("Unauthorized");
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(url, { ...options, headers });
+
+  // 3. Reactive Refresh (401 Handling)
+  if (res.status === 401 && !isAuthEndpoint && !isRetry) {
+    try {
+      await ensureAccessTokenRefreshed();
+
+      // Retry with new token
+      return apiFetch<T>(url, options, true);
+    } catch {
+      dispatchLogoutEvent();
+      throw new Error("Session expired");
+    }
   }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.detail || "API request failed");
+    throw new Error(error.detail || error.message || "API request failed");
   }
 
   return res.json();

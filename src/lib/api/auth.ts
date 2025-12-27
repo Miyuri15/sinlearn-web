@@ -15,3 +15,9 @@ export function signin(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
 }
+
+export function signout() {
+  return apiFetch<{ success: boolean }>(`${API_BASE_URL}/api/v1/auth/signout`, {
+    method: "POST",
+  });
+}
