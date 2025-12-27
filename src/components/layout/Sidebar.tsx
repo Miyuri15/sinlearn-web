@@ -4,13 +4,13 @@ import { useState } from "react";
 import {
   Search,
   BookOpen,
-  CheckSquare,
   Menu,
   LogOut,
   Settings,
   Pencil,
   Trash2,
   X,
+  ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -155,7 +155,7 @@ export default function Sidebar({
               colorClass="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800"
             />
             <ActionButton
-              icon={<CheckSquare className="w-4 h-4" />}
+              icon={<ClipboardCheck className="w-4 h-4" />}
               label={t("new_evaluation_chat")}
               isOpen={isOpen}
               onClick={() => router.push("/chat?type=evaluation")}
@@ -189,7 +189,7 @@ export default function Sidebar({
                     {chat.type === "learning" ? (
                       <BookOpen className="w-4 h-4" />
                     ) : (
-                      <CheckSquare className="w-4 h-4" />
+                      <ClipboardCheck className="w-4 h-4" />
                     )}
                   </div>
 
