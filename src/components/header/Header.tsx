@@ -12,7 +12,6 @@ import { useState } from "react";
 
 interface HeaderProps {
   mode: "learning" | "evaluation";
-  setMode: (mode: "learning" | "evaluation") => void;
   isRubricOpen: boolean;
   isSyllabusOpen: boolean;
   isQuestionsOpen: boolean;
@@ -25,7 +24,6 @@ interface HeaderProps {
 
 export default function Header({
   mode,
-  setMode,
   isRubricOpen,
   isSyllabusOpen,
   isQuestionsOpen,

@@ -1,7 +1,7 @@
 "use client";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import InputBar from "@/components/chat/InputBar";
 import EvaluationInputs from "@/components/chat/EvaluationInputs";
 import EvaluationMarksModal from "@/components/chat/EvaluationMarksModal";
@@ -11,7 +11,7 @@ import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
 import QuestionsPanelpage from "@/components/chat/QuestionsPanelpage";
 import Header from "@/components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
-import { ChatMessage, EvaluationResultContent } from "@/lib/models/chat";
+import { ChatMessage } from "@/lib/models/chat";
 import MessagesList from "@/components/chat/MessagesList";
 import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
@@ -28,6 +28,7 @@ import {
   deleteChatSession,
 } from "@/lib/api/chat";
 import { formatDistanceToNow } from "date-fns";
+import { getSelectedChatType } from "@/lib/localStore";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
@@ -42,15 +43,14 @@ export default function ChatPage({
   initialMessages = [],
 }: Readonly<ChatPageProps>) {
   const { t } = useTranslation("chat");
-
-  const searchParams = useSearchParams();
-  const typeParam = searchParams?.get("type") ?? undefined;
+  const chatType = getSelectedChatType() || "learning";
   // ✅ ADD THIS: active server session id for the current chat
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   // STATES
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [loading] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isSyllabusOpen, setIsSyllabusOpen] = useState(false);
   const [isQuestionsOpen, setIsQuestionsOpen] = useState(false);
@@ -90,12 +90,11 @@ export default function ChatPage({
     isInitializing,
   } = useChatInit({
     chatId,
-    typeParam,
+    chatType: chatType,
     initialMessages,
   });
 
   const router = useRouter();
-  const pathname = usePathname();
   const endRef = useRef<HTMLDivElement | null>(null);
   const [responseLevel, setResponseLevel] = useState("Grades 9–11");
 
@@ -113,45 +112,13 @@ export default function ChatPage({
   const [evaluationUploadedFilesCount, setEvaluationUploadedFilesCount] =
     useState(0);
 
-  const mockLearningReply =
-    "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
-
-  const mockEvaluation: EvaluationResultContent = {
-    grade: "B+",
-    coverage: 76,
-    accuracy: 85,
-    clarity: 72,
-    strengths: ["Correct substitution", "Steps shown clearly"],
-    weaknesses: ["Could improve explanation clarity"],
-    missing: ["Final conclusion missing"],
-    feedback:
-      "Your answer is mostly correct. Adding a final conclusion will improve clarity.",
-  };
-
-  const handleSetMode = (m: "learning" | "evaluation") => {
-    setMode(m);
-
-    // Reset file count when switching to evaluation mode
-    if (m === "evaluation") {
-      setEvaluationUploadedFilesCount(0);
-    }
-
-    try {
-      const params = new URLSearchParams(searchParams?.toString() ?? "");
-      params.set("type", m);
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    } catch {
-      router.replace(`${pathname}?type=${m}`, { scroll: false });
-    }
-  };
-
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
     const loadMessages = async () => {
       if (!chatId) return;
       if (chatId.startsWith("local-") || chatId.startsWith("new-")) return;
 
+      setIsLoadingMessages(true);
       try {
         const messages = await listSessionMessages(chatId);
 
@@ -168,6 +135,10 @@ export default function ChatPage({
         }
       } catch (err) {
         console.error("Failed to load messages", err);
+      } finally {
+        setTimeout(() => {
+          setIsLoadingMessages(false);
+        }, 500);
       }
     };
 
@@ -291,7 +262,7 @@ export default function ChatPage({
           setActiveSessionId(newSessionId);
 
           if (chatId?.startsWith("local-")) {
-            router.replace(`/chat/${newSessionId}?type=${mode}`);
+            router.replace(`/chat/${newSessionId}`);
           }
         }
 
@@ -477,7 +448,7 @@ export default function ChatPage({
   }, [mode, evaluationMessages.length]);
 
   const renderMessageArea = () => {
-    if (isInitializing) {
+    if (isInitializing || isLoadingMessages) {
       return <ChatAreaSkeleton />;
     }
 
@@ -522,9 +493,9 @@ export default function ChatPage({
   const handleNewChat = async (mode: "learning" | "evaluation") => {
     if (creating) return;
     // Don't create server session here. Open a local temporary chat UI.
-    const tempId = `local-${Date.now()}`;
+    const tempId = `local-${Date.now()}-${mode}`;
     try {
-      router.push(`/chat/${tempId}?type=${mode}`);
+      router.push(`/chat/${tempId}`);
     } catch (error) {
       console.error("Failed to open new chat UI", error);
       setToastMessage("Failed to open a new chat. Please try again.");
@@ -642,7 +613,6 @@ export default function ChatPage({
         {/* HEADER COMPONENT */}
         <Header
           mode={mode}
-          setMode={handleSetMode}
           isRubricOpen={isRubricOpen}
           isSyllabusOpen={isSyllabusOpen}
           isQuestionsOpen={isQuestionsOpen}
