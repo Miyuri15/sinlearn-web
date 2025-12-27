@@ -30,6 +30,7 @@
   "logout": "Log Out",
   "logout_confirm_message": "Do you want to Log out?",
   "cancel": "Cancel",
+  "logging_out": "Logging out...",
 
   "settings": {
     "title": "Settings",

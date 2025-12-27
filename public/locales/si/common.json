@@ -30,6 +30,7 @@
   "logout": "පිටවීම",
   "logout_confirm_message": "ඔබට Log out වීමට අවශ්‍යද?",
   "cancel": "අවලංගු කරන්න",
+  "logging_out": "පිටවෙමින් පවතී...",
   
   "settings": {
     "title": "සැකසුම්",
