@@ -507,6 +507,30 @@ export default function ChatPage({
     }
   };
 
+  const handleEditChat = (chat: SidebarChatItem) => {
+    const nextTitle = prompt("Edit chat title", chat.title)?.trim();
+
+    if (!nextTitle) return;
+
+    setChats((prev) =>
+      prev.map((item) =>
+        item.id === chat.id ? { ...item, title: nextTitle } : item
+      )
+    );
+  };
+
+  const handleDeleteChat = (chat: SidebarChatItem) => {
+    const confirmed = confirm(`Delete "${chat.title}"?`);
+
+    if (!confirmed) return;
+
+    setChats((prev) => prev.filter((item) => item.id !== chat.id));
+
+    if (chatId === chat.id) {
+      router.push("/chat");
+    }
+  };
+
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
       <Sidebar
@@ -515,6 +539,8 @@ export default function ChatPage({
         chats={chats}
         onNewLearningChat={() => handleNewChat("learning")}
         onNewEvaluationChat={() => handleNewChat("evaluation")}
+        onEditChat={handleEditChat}
+        onDeleteChat={handleDeleteChat}
       />
 
       {/* MAIN AREA */}
