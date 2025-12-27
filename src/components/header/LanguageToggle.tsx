@@ -23,7 +23,7 @@ export default function LanguageToggle() {
   return (
     <div
       className="
-        flex items-center gap-1 px-2 py-1 rounded-full border
+        flex items-center gap-1 px-1 py-1 rounded-full border
         bg-gray-100 border-gray-300
         dark:bg-[#111111] dark:border-[#2a2a2a]
         transition-colors

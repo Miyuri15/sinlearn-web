@@ -556,6 +556,7 @@ export default function ChatPage({
           isRubricOpen={isRubricOpen}
           isSyllabusOpen={isSyllabusOpen}
           isQuestionsOpen={isQuestionsOpen}
+          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           toggleRubric={toggleRubric}
           toggleSyllabus={toggleSyllabus}
           toggleQuestions={toggleQuestions}
