@@ -2,47 +2,44 @@ import { apiFetch } from "./client";
 import { API_BASE_URL } from "../config";
 
 export type CreateChatPayload = {
-    mode: "learning" | "evaluation";
-    channel?: "text" | "voice" | "mixed";
-    title?: string;
-    description?: string;
-    grade?: number;
-    subject?: string;
+  mode: "learning" | "evaluation";
+  channel?: "text" | "voice" | "mixed";
+  title?: string;
+  description?: string;
+  grade?: number;
+  subject?: string;
 };
 
 export type ChatSessionResponse = {
-    id: string;
-    mode: "learning" | "evaluation";
-    channel: string;
-    created_at: string;
-    updated_at: string;
-    title?: string;
+  id: string;
+  mode: "learning" | "evaluation";
+  channel: string;
+  created_at: string;
+  updated_at: string;
+  title?: string;
 };
 
 export const createChatSession = (payload: CreateChatPayload) => {
-    return apiFetch<ChatSessionResponse>(
-        `${API_BASE_URL}/api/v1/chat/sessions`,
-        {
-            method: "POST",
-            body: JSON.stringify({
-                channel: "text",
-                ...payload,
-            }),
-        }
-    );
+  return apiFetch<ChatSessionResponse>(`${API_BASE_URL}/api/v1/chat/sessions`, {
+    method: "POST",
+    body: JSON.stringify({
+      channel: "text",
+      ...payload,
+    }),
+  });
 };
 
 export const listChatSessions = () => {
-    return apiFetch<ChatSessionResponse[]>(
-        `${API_BASE_URL}/api/v1/chat/sessions`
-    );
+  return apiFetch<ChatSessionResponse[]>(
+    `${API_BASE_URL}/api/v1/chat/sessions`
+  );
 };
 
 export type PostMessagePayload = {
-    role?: string;
-    content: any;
-    mode?: "learning" | "evaluation";
-    // include other fields as needed (files, metadata)
+  role?: string;
+  content: any;
+  mode?: "learning" | "evaluation";
+  // include other fields as needed (files, metadata)
 };
 
 export const postMessage = (
@@ -51,17 +48,12 @@ export const postMessage = (
 ) => {
   // ✅ FORCE backend to receive "undefined" string when no session exists
   const sid =
-    !sessionId || sessionId.startsWith("local-")
-      ? "undefined"
-      : sessionId;
+    !sessionId || sessionId.startsWith("local-") ? "undefined" : sessionId;
 
-  return apiFetch<any>(
-    `${API_BASE_URL}/api/v1/messages/sessions/${sid}`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }
-  );
+  return apiFetch<any>(`${API_BASE_URL}/api/v1/messages/sessions/${sid}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 };
 
 export const listSessionMessages = (sessionId: string) => {
@@ -73,4 +65,25 @@ export const listSessionMessages = (sessionId: string) => {
   );
 };
 
+export type UpdateChatSessionPayload = {
+  title?: string;
+};
 
+export const updateChatSession = (
+  sessionId: string,
+  payload: UpdateChatSessionPayload
+) => {
+  return apiFetch<ChatSessionResponse>(
+    `${API_BASE_URL}/api/v1/chat/sessions/${sessionId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }
+  );
+};
+
+export const deleteChatSession = (sessionId: string) => {
+  return apiFetch<void>(`${API_BASE_URL}/api/v1/chat/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+};

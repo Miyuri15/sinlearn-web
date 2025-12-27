@@ -16,11 +16,16 @@ import MessagesList from "@/components/chat/MessagesList";
 import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
 import EmptyState from "@/components/chat/EmptyState";
+import UpdatedToast from "@/components/ui/updatedtoast";
+import EditModal from "@/components/ui/EditModal";
+import DeleteModal from "@/components/ui/DeleteModal";
 import useChatInit from "@/hooks/useChatInit";
 import {
   postMessage,
   listChatSessions,
   listSessionMessages,
+  updateChatSession,
+  deleteChatSession,
 } from "@/lib/api/chat";
 import { formatDistanceToNow } from "date-fns";
 
@@ -54,6 +59,19 @@ export default function ChatPage({
   const [message, setMessage] = useState("");
   const [creating, setCreating] = useState(false);
   const [chats, setChats] = useState<SidebarChatItem[]>([]);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<
+    "success" | "error" | "info" | "warning"
+  >("success");
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingChat, setEditingChat] = useState<SidebarChatItem | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingChat, setDeletingChat] = useState<SidebarChatItem | null>(
+    null
+  );
+  const [isDeletingChat, setIsDeletingChat] = useState(false);
 
   type SidebarChatItem = {
     id: string;
@@ -291,7 +309,9 @@ export default function ChatPage({
         }
       } catch (error) {
         console.error("Failed to send message", error);
-        alert("Failed to send message. Please try again.");
+        setToastMessage("Failed to send message. Please try again.");
+        setToastType("error");
+        setIsToastVisible(true);
       } finally {
         setCreating(false);
         setMessage("");
@@ -396,9 +416,11 @@ export default function ChatPage({
       const remainingSlots = 10 - evaluationUploadedFilesCount;
 
       if (remainingSlots <= 0) {
-        alert(
+        setToastMessage(
           "You have already uploaded the maximum of 10 files for this evaluation chat."
         );
+        setToastType("error");
+        setIsToastVisible(true);
         return;
       }
 
@@ -406,9 +428,11 @@ export default function ChatPage({
       const filesToUpload = files.slice(0, remainingSlots);
 
       if (filesToUpload.length < files.length) {
-        alert(
+        setToastMessage(
           `You can only upload ${remainingSlots} more file(s). Only the first ${remainingSlots} file(s) will be uploaded.`
         );
+        setToastType("error");
+        setIsToastVisible(true);
       }
 
       setSelectedFiles(filesToUpload);
@@ -503,32 +527,98 @@ export default function ChatPage({
       router.push(`/chat/${tempId}?type=${mode}`);
     } catch (error) {
       console.error("Failed to open new chat UI", error);
-      alert("Failed to open a new chat. Please try again.");
+      setToastMessage("Failed to open a new chat. Please try again.");
+      setToastType("error");
+      setIsToastVisible(true);
     }
   };
 
   const handleEditChat = (chat: SidebarChatItem) => {
-    const nextTitle = prompt("Edit chat title", chat.title)?.trim();
+    setEditingChat(chat);
+    setEditingTitle(chat.title);
+    setIsEditModalOpen(true);
+  };
 
-    if (!nextTitle) return;
+  const handleConfirmEdit = () => {
+    const nextTitle = editingTitle.trim();
 
-    setChats((prev) =>
-      prev.map((item) =>
-        item.id === chat.id ? { ...item, title: nextTitle } : item
-      )
-    );
+    if (!nextTitle || !editingChat) {
+      setIsEditModalOpen(false);
+      return;
+    }
+
+    const run = async () => {
+      try {
+        await updateChatSession(editingChat.id, { title: nextTitle });
+
+        setChats((prev) =>
+          prev.map((item) =>
+            item.id === editingChat.id ? { ...item, title: nextTitle } : item
+          )
+        );
+
+        setToastMessage("Chat title updated successfully");
+        setToastType("success");
+        setIsToastVisible(true);
+        setIsEditModalOpen(false);
+      } catch (error) {
+        console.error("Failed to update chat title", error);
+        setToastMessage("Failed to update chat title. Please try again.");
+        setToastType("error");
+        setIsToastVisible(true);
+      }
+    };
+
+    void run();
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditModalOpen(false);
+    setEditingChat(null);
+    setEditingTitle("");
   };
 
   const handleDeleteChat = (chat: SidebarChatItem) => {
-    const confirmed = confirm(`Delete "${chat.title}"?`);
+    setDeletingChat(chat);
+    setIsDeleteModalOpen(true);
+  };
 
-    if (!confirmed) return;
+  const handleConfirmDelete = () => {
+    if (!deletingChat) return;
 
-    setChats((prev) => prev.filter((item) => item.id !== chat.id));
+    const run = async () => {
+      setIsDeletingChat(true);
+      try {
+        await deleteChatSession(deletingChat.id);
 
-    if (chatId === chat.id) {
-      router.push("/chat");
-    }
+        setChats((prev) => prev.filter((item) => item.id !== deletingChat.id));
+
+        if (chatId === deletingChat.id) {
+          router.push("/chat");
+        }
+
+        setToastMessage("Chat deleted successfully");
+        setToastType("success");
+        setIsToastVisible(true);
+        setIsDeleteModalOpen(false);
+        setDeletingChat(null);
+      } catch (error) {
+        console.error("Failed to delete chat", error);
+        setToastMessage("Failed to delete chat. Please try again.");
+        setToastType("error");
+        setIsToastVisible(true);
+      } finally {
+        setIsDeletingChat(false);
+      }
+    };
+
+    void run();
+  };
+
+  const handleCancelDelete = () => {
+    setIsDeleteModalOpen(false);
+    setDeletingChat(null);
+    setIsDeletingChat(false);
   };
 
   return (
@@ -678,6 +768,39 @@ export default function ChatPage({
       >
         <QuestionsPanelpage onClose={toggleQuestions} />
       </div>
+
+      <UpdatedToast
+        message={toastMessage}
+        isVisible={isToastVisible}
+        type={toastType}
+        onClose={() => setIsToastVisible(false)}
+      />
+
+      {/* EDIT CHAT TITLE MODAL */}
+      <EditModal
+        isOpen={isEditModalOpen}
+        title="Edit Chat Title"
+        placeholder="Enter new title"
+        value={editingTitle}
+        onChange={setEditingTitle}
+        onConfirm={handleConfirmEdit}
+        onCancel={handleCancelEdit}
+        confirmLabel="Save"
+        cancelLabel="Cancel"
+      />
+
+      {/* DELETE CHAT MODAL */}
+      <DeleteModal
+        isOpen={isDeleteModalOpen}
+        title="Delete Chat"
+        message={`Are you sure you want to delete "${deletingChat?.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={isDeletingChat}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        iconColor="red"
+      />
     </main>
   );
 }
