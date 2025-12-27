@@ -6,8 +6,11 @@ import AuthListener from "@/components/auth/AuthListener";
 import AuthenticatedLayout from "./AuthenticatedLayout";
 
 export const metadata = {
-  title: "SinLearn",
+  title: "SinhalaLearn",
   description: "AI-Powered Sinhala Educational Assistant",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

@@ -1,5 +1,4 @@
 "use client";
-
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
@@ -18,8 +17,11 @@ import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
 import EmptyState from "@/components/chat/EmptyState";
 import useChatInit from "@/hooks/useChatInit";
-import { postMessage, listChatSessions, listSessionMessages } from "@/lib/api/chat";
-
+import {
+  postMessage,
+  listChatSessions,
+  listSessionMessages,
+} from "@/lib/api/chat";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
@@ -39,7 +41,6 @@ export default function ChatPage({
   const typeParam = searchParams?.get("type") ?? undefined;
   // ✅ ADD THIS: active server session id for the current chat
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-
 
   // STATES
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -90,7 +91,8 @@ export default function ChatPage({
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
-  const [evaluationUploadedFilesCount, setEvaluationUploadedFilesCount] = useState(0);
+  const [evaluationUploadedFilesCount, setEvaluationUploadedFilesCount] =
+    useState(0);
 
   const mockLearningReply =
     "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
@@ -137,8 +139,7 @@ export default function ChatPage({
         // ✅ SORT BY created_at (oldest → newest)
         const sorted = messages.sort(
           (a, b) =>
-            new Date(a.created_at).getTime() -
-            new Date(b.created_at).getTime()
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
 
         if (mode === "learning") {
@@ -154,7 +155,6 @@ export default function ChatPage({
     loadMessages();
   }, [chatId, mode]);
 
-
   useEffect(() => {
     const loadChats = async () => {
       try {
@@ -164,7 +164,7 @@ export default function ChatPage({
           id: s.id,
           title: s.title || "Untitled Chat",
           type: s.mode,
-          time: new Date(s.created_at).toLocaleString(),
+          time: new Date(s.updated_at || s.created_at).toLocaleString(),
         }));
 
         setChats(mapped);
@@ -234,7 +234,10 @@ export default function ChatPage({
           payload = {
             content: message,
             modality: "text",
-            grade_level: responseLevel.toLowerCase().replace(/[–—]/g, "_").replace("grades ", "grade_")
+            grade_level: responseLevel
+              .toLowerCase()
+              .replace(/[–—]/g, "_")
+              .replace("grades ", "grade_"),
           };
         } else {
           payload = {
@@ -260,7 +263,8 @@ export default function ChatPage({
          * CHANGE 5️⃣
          * Extract session id safely from backend response.
          */
-        const newSessionId = resp?.session_id || resp?.session?.id || resp?.chat_id || resp?.id;
+        const newSessionId =
+          resp?.session_id || resp?.session?.id || resp?.chat_id || resp?.id;
 
         if (newSessionId) {
           setActiveSessionId(newSessionId);
@@ -277,15 +281,9 @@ export default function ChatPage({
          */
         if (resp?.assistant_message) {
           if (mode === "learning") {
-            setLearningMessages((prev) => [
-              ...prev,
-              resp.assistant_message,
-            ]);
+            setLearningMessages((prev) => [...prev, resp.assistant_message]);
           } else {
-            setEvaluationMessages((prev) => [
-              ...prev,
-              resp.assistant_message,
-            ]);
+            setEvaluationMessages((prev) => [...prev, resp.assistant_message]);
           }
         }
       } catch (error) {
@@ -299,7 +297,6 @@ export default function ChatPage({
 
     void run();
   };
-
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -396,7 +393,9 @@ export default function ChatPage({
       const remainingSlots = 10 - evaluationUploadedFilesCount;
 
       if (remainingSlots <= 0) {
-        alert("You have already uploaded the maximum of 10 files for this evaluation chat.");
+        alert(
+          "You have already uploaded the maximum of 10 files for this evaluation chat."
+        );
         return;
       }
 
@@ -404,11 +403,13 @@ export default function ChatPage({
       const filesToUpload = files.slice(0, remainingSlots);
 
       if (filesToUpload.length < files.length) {
-        alert(`You can only upload ${remainingSlots} more file(s). Only the first ${remainingSlots} file(s) will be uploaded.`);
+        alert(
+          `You can only upload ${remainingSlots} more file(s). Only the first ${remainingSlots} file(s) will be uploaded.`
+        );
       }
 
       setSelectedFiles(filesToUpload);
-      setEvaluationUploadedFilesCount(prev => prev + filesToUpload.length);
+      setEvaluationUploadedFilesCount((prev) => prev + filesToUpload.length);
 
       setEvaluationMessages((prev) => [
         ...prev,
@@ -472,8 +473,6 @@ export default function ChatPage({
       );
     }
 
-
-
     // evaluation mode
     return (
       <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
@@ -492,7 +491,6 @@ export default function ChatPage({
       </div>
     );
   };
-
 
   const handleNewChat = async (mode: "learning" | "evaluation") => {
     if (creating) return;
@@ -516,11 +514,11 @@ export default function ChatPage({
         onNewEvaluationChat={() => handleNewChat("evaluation")}
       />
 
-
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-screen transition-[margin,width] duration-300 ${isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
-          }`}
+        className={`flex flex-col flex-1 h-screen transition-[margin,width] duration-300 ${
+          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+        }`}
       >
         {/* HEADER COMPONENT */}
         <Header
@@ -635,16 +633,18 @@ export default function ChatPage({
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isSyllabusOpen ? "translate-x-0" : "translate-x-full"
-          }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+        }`}
       >
         <SyllabusPanelpage onClose={toggleSyllabus} />
       </div>
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isQuestionsOpen ? "translate-x-0" : "translate-x-full"
-          }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+        }`}
       >
         <QuestionsPanelpage onClose={toggleQuestions} />
       </div>
