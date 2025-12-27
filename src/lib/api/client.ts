@@ -10,11 +10,21 @@ import { API_BASE_URL } from "../config";
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
+// Dispatch logout event for components to handle redirect
+function dispatchLogoutEvent() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("auth:logout"));
+  }
+}
+
 async function refreshAccessToken(): Promise<void> {
   const authTokens = getAuthTokens();
 
+  console.log("Refreshing access token...");
+
   if (!authTokens?.refresh_token) {
     logout();
+    dispatchLogoutEvent();
     throw new Error("No refresh token available");
   }
 
@@ -32,6 +42,7 @@ async function refreshAccessToken(): Promise<void> {
   } catch (error) {
     console.error("Failed to refresh token:", error);
     logout();
+    dispatchLogoutEvent();
     throw error;
   }
 }
@@ -91,7 +102,7 @@ export async function apiFetch<T>(
       // Retry with new token
       return apiFetch<T>(url, options, true);
     } catch {
-      // If refresh fails, the catch block in refreshAccessToken already logged out
+      dispatchLogoutEvent();
       throw new Error("Session expired");
     }
   }

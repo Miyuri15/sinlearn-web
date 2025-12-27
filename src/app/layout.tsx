@@ -2,6 +2,7 @@ import "./globals.css";
 import type { ReactNode } from "react";
 import I18nProvider from "./providers/I18nProvider";
 import { ToastProvider } from "@/components/ui/Toast";
+import AuthListener from "@/components/auth/AuthListener";
 
 export const metadata = {
   title: "SinLearn",
@@ -40,7 +41,10 @@ export default function RootLayout({
       </head>
       <body className="h-dvh transition-colors duration-300">
         <I18nProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <AuthListener />
+            {children}
+          </ToastProvider>
         </I18nProvider>
       </body>
     </html>
