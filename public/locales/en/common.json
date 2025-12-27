@@ -7,6 +7,7 @@
   "button_signup": "Sign Up",
   "title": "SinhalaLearn",
   "subtitle": "AI-Powered Sinhala Educational Assistant",
+  "name": "Name",
   "role_teacher" : "Teacher",
   "role_student" : "Student" ,
   "name_placeholder": "Enter your name",
@@ -14,6 +15,14 @@
   "already_have_account": "Already have an account?",
   "signup_link": "Sign Up",
   "signin_link": "Sign In",
+  "validation": {
+    "email_required": "Email is required",
+    "email_invalid": "Please enter a valid email address",
+    "password_required": "Password is required",
+    "password_min_length": "Password must be at least 6 characters",
+    "full_name_required": "Full name is required",
+    "full_name_min_length": "Full name must be at least 2 characters"
+  },
   "chat_history": "Chat History",
   "new_learning_chat": "New Learning Chat",
   "new_evaluation_chat": "New Evaluation Chat",

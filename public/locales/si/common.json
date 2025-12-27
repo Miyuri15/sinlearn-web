@@ -7,6 +7,7 @@
   "button_signup": "ලියාපදිංචි වන්න",
   "title": "SinhalaLearn",
   "subtitle": "AI-බලගැන්වූ සිංහල අධ්‍යාපන සහායකයා",
+  "name": "නම",
   "role_teacher" : "ගුරු",
   "role_student" : "ශිෂ්‍ය",
   "name_placeholder": "ඔබගේ නම ඇතුලත් කරන්න",
@@ -14,6 +15,14 @@
   "already_have_account": "දැනටමත් ගිණුමක් තිබේද?",
   "signup_link": "ලියාපදිංචි වන්න",
   "signin_link": "ඇතුළු වන්න",
+  "validation": {
+    "email_required": "විද්‍යුත් තැපෑල අවශ්‍යයි",
+    "email_invalid": "කරුණාකර වලංගු විද්‍යුත් තැපෑලක් ඇතුළත් කරන්න",
+    "password_required": "මුරපදය අවශ්‍යයි",
+    "password_min_length": "මුරපදය අවම අක්ෂර 6ක් විය යුතුය",
+    "full_name_required": "පූර්ණ නම අවශ්‍යයි",
+    "full_name_min_length": "පූර්ණ නම අවම අක්ෂර 2ක් විය යුතුය"
+  },
   "chat_history": "සංවාද ඉතිහාසය",
   "new_learning_chat": "නව අධ්‍යයන සංවාදය",
   "new_evaluation_chat": "නව ඇගයීම් සංවාදය",

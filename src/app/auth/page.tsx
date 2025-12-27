@@ -15,6 +15,12 @@ interface AuthPageProps {
   readonly defaultTab?: "signin" | "signup";
 }
 
+interface ValidationErrors {
+  fullName?: string;
+  email?: string;
+  password?: string;
+}
+
 export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
   const [tab] = useState(defaultTab);
 
@@ -24,6 +30,10 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
+    {}
+  );
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const { t, i18n } = useTranslation("common");
   const router = useRouter();
@@ -32,9 +42,91 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
     i18n.changeLanguage(getLanguage());
   }, [i18n]);
 
+  // Validation functions
+  const validateEmail = (emailValue: string): string | undefined => {
+    if (!emailValue.trim()) {
+      return t("validation.email_required");
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailValue)) {
+      return t("validation.email_invalid");
+    }
+    return undefined;
+  };
+
+  const validatePassword = (passwordValue: string): string | undefined => {
+    if (!passwordValue) {
+      return t("validation.password_required");
+    }
+    if (passwordValue.length < 6) {
+      return t("validation.password_min_length");
+    }
+    return undefined;
+  };
+
+  const validateFullName = (nameValue: string): string | undefined => {
+    if (!nameValue.trim()) {
+      return t("validation.full_name_required");
+    }
+    if (nameValue.trim().length < 2) {
+      return t("validation.full_name_min_length");
+    }
+    return undefined;
+  };
+
+  // Validate all fields
+  const validateForm = (): boolean => {
+    const errors: ValidationErrors = {};
+
+    if (tab === "signup") {
+      const nameError = validateFullName(fullName);
+      if (nameError) errors.fullName = nameError;
+    }
+
+    const emailError = validateEmail(email);
+    if (emailError) errors.email = emailError;
+
+    const passwordError = validatePassword(password);
+    if (passwordError) errors.password = passwordError;
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleFieldBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+
+    let fieldError: string | undefined;
+    if (field === "fullName") {
+      fieldError = validateFullName(fullName);
+    } else if (field === "email") {
+      fieldError = validateEmail(email);
+    } else if (field === "password") {
+      fieldError = validatePassword(password);
+    }
+
+    setValidationErrors((prev) => ({
+      ...prev,
+      [field]: fieldError,
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // Mark all fields as touched to show validation errors
+    const fieldsToTouch: Record<string, boolean> =
+      tab === "signup"
+        ? { fullName: true, email: true, password: true }
+        : { email: true, password: true };
+    setTouched(fieldsToTouch);
+
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -153,10 +245,19 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
+                onBlur={() => handleFieldBlur("fullName")}
                 placeholder={t("name_placeholder") || "Your Name"}
-                className="text-gray-900 dark:text-white"
-                required
+                className={`text-gray-900 dark:text-white ${
+                  touched.fullName && validationErrors.fullName
+                    ? "border-red-500 focus:border-red-500"
+                    : ""
+                }`}
               />
+              {touched.fullName && validationErrors.fullName && (
+                <p className="text-sm text-red-600 mt-1">
+                  {validationErrors.fullName}
+                </p>
+              )}
             </div>
           )}
 
@@ -169,10 +270,19 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => handleFieldBlur("email")}
               placeholder="user@example.com"
-              className="text-gray-900 dark:text-white"
-              required
+              className={`text-gray-900 dark:text-white ${
+                touched.email && validationErrors.email
+                  ? "border-red-500 focus:border-red-500"
+                  : ""
+              }`}
             />
+            {touched.email && validationErrors.email && (
+              <p className="text-sm text-red-600 mt-1">
+                {validationErrors.email}
+              </p>
+            )}
           </div>
 
           {/* Password */}
@@ -184,10 +294,19 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onBlur={() => handleFieldBlur("password")}
               placeholder="••••••••"
-              className="text-gray-900 dark:text-white"
-              required
+              className={`text-gray-900 dark:text-white ${
+                touched.password && validationErrors.password
+                  ? "border-red-500 focus:border-red-500"
+                  : ""
+              }`}
             />
+            {touched.password && validationErrors.password && (
+              <p className="text-sm text-red-600 mt-1">
+                {validationErrors.password}
+              </p>
+            )}
           </div>
 
           {/* Error message */}
