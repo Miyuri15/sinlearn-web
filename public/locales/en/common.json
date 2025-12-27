@@ -19,6 +19,8 @@
   "new_evaluation_chat": "New Evaluation Chat",
   "settings_text": "Settings",
   "logout": "Log Out",
+  "logout_confirm_message": "Do you want to Log out?",
+  "cancel": "Cancel",
 
   "settings": {
     "title": "Settings",
@@ -55,7 +57,7 @@
     "name_placeholder": "Enter your name",
     "email": "Email",
     "email_placeholder": "Enter your email",
-    "settings.user_type_locked": "User Type Locked",
+    "user_type_locked": "Cannot be changed after registration.",
 
     
     "message_notifications": "Message Notifications",

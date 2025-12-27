@@ -7,8 +7,7 @@ import Input from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
 import LanguageToggle from "@/components/language/LanguageToggle";
 import Link from "next/link";
-import { getLanguage } from "@/lib/localStore";
-import { setAuthTokens } from "@/lib/localStore";
+import { getLanguage, setAuthTokens } from "@/lib/localStore";
 import { GraduationCap } from "lucide-react";
 import { signup, signin } from "@/lib/api/auth";
 
@@ -93,7 +92,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         {/* Logo */}
         <div className="flex justify-center mb-6">
           <div className="flex items-center justify-center rounded-full bg-blue-600 w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28">
-            <GraduationCap className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 text-white" />
+            <GraduationCap className="w-6 h-6 sm:w-12 sm:h-12 lg:w-14 lg:h-14 text-white" />
           </div>
         </div>
 
@@ -118,10 +117,11 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
           <Link
             href="/auth/sign-in"
             className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
-            ${tab === "signin"
+            ${
+              tab === "signin"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-300"
-              }
+            }
           `}
           >
             {t("signin")}
@@ -130,10 +130,11 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
           <Link
             href="/auth/sign-up"
             className={`flex-1 py-2 text-center text-sm rounded-lg font-medium transition
-            ${tab === "signup"
+            ${
+              tab === "signup"
                 ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
                 : "text-gray-600 dark:text-gray-300"
-              }
+            }
           `}
           >
             {t("signup")}
@@ -190,17 +191,15 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
           </div>
 
           {/* Error message */}
-          {error && (
-            <p className="text-sm text-red-600 text-center">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
 
           {/* Submit */}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading
               ? "Please wait..."
               : tab === "signin"
-                ? t("button_signin")
-                : t("button_signup")}
+              ? t("button_signin")
+              : t("button_signup")}
           </Button>
 
           {/* Footer links */}

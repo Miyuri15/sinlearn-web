@@ -19,6 +19,8 @@
   "new_evaluation_chat": "නව ඇගයීම් සංවාදය",
   "settings_text": "සැකසුම්",
   "logout": "පිටවීම",
+  "logout_confirm_message": "ඔබට Log out වීමට අවශ්‍යද?",
+  "cancel": "අවලංගු කරන්න",
   
   "settings": {
     "title": "සැකසුම්",
@@ -55,7 +57,7 @@
     "name_placeholder": "ඔබගේ නම ඇතුලත් කරන්න",
     "email": "විද්‍යුත් තැපෑල",
     "email_placeholder": "ඔබගේ විද්‍යුත් තැපෑල ඇතුලත් කරන්න",
-    "settings.user_type_locked": "පරිශීලක වර්ගය අගුලු දමා ඇත",
+    "user_type_locked": "ලියාපදිංචි කිරීමෙන් පසු වෙනස් කළ නොහැක.",
 
     
     "message_notifications": "පණිවිඩ දැනුම්දීම්",
