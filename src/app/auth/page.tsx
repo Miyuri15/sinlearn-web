@@ -155,13 +155,16 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
   return (
     <div
       className="
-      min-h-screen 
-      flex items-center justify-center 
+      min-h-dvh    
+      flex flex-col items-center justify-center 
+      overflow-y-auto
       bg-gradient-to-br 
       from-blue-50 to-gray-100 
       dark:from-gray-900 dark:to-gray-800
+      
       px-4 sm:px-6 lg:px-8
-      py-10
+      
+      py-8 sm:py-10
     "
     >
       {/* TOP RIGHT LANGUAGE SWITCH */}
@@ -174,11 +177,17 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         className="
         bg-white dark:bg-gray-800 
         w-full 
-        max-w-sm sm:max-w-md lg:max-w-lg 
+        
+        max-w-[400px] sm:max-w-md lg:max-w-lg 
+        
         rounded-xl sm:rounded-2xl 
-        p-6 sm:p-8 lg:p-10 
+        
+        p-5 sm:p-8 lg:p-10 
+        
         shadow-lg 
         border border-gray-200 dark:border-gray-700
+        
+        relative z-10
       "
       >
         {/* Logo */}
@@ -247,7 +256,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
                 onChange={(e) => setFullName(e.target.value)}
                 onBlur={() => handleFieldBlur("fullName")}
                 placeholder={t("name_placeholder") || "Your Name"}
-                className={`text-gray-900 dark:text-white ${
+                className={`text-base sm:text-sm text-gray-900 dark:text-white ${
                   touched.fullName && validationErrors.fullName
                     ? "border-red-500 focus:border-red-500"
                     : ""
@@ -272,7 +281,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
               onChange={(e) => setEmail(e.target.value)}
               onBlur={() => handleFieldBlur("email")}
               placeholder="user@example.com"
-              className={`text-gray-900 dark:text-white ${
+              className={`text-base sm:text-sm text-gray-900 dark:text-white ${
                 touched.email && validationErrors.email
                   ? "border-red-500 focus:border-red-500"
                   : ""
@@ -296,7 +305,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
               onChange={(e) => setPassword(e.target.value)}
               onBlur={() => handleFieldBlur("password")}
               placeholder="••••••••"
-              className={`text-gray-900 dark:text-white ${
+              className={`text-base sm:text-sm text-gray-900 dark:text-white ${
                 touched.password && validationErrors.password
                   ? "border-red-500 focus:border-red-500"
                   : ""
