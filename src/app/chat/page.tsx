@@ -36,6 +36,9 @@ export default function ChatPage({
 
   const searchParams = useSearchParams();
   const typeParam = searchParams?.get("type") ?? undefined;
+  // ✅ ADD THIS: active server session id for the current chat
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
 
   // STATES
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -142,6 +145,14 @@ export default function ChatPage({
     loadChats();
   }, []);
 
+  useEffect(() => {
+    // ✅ If URL contains a real UUID chatId, use it
+    if (chatId && !chatId.startsWith("local-") && !chatId.startsWith("new-")) {
+      setActiveSessionId(chatId);
+    } else {
+      setActiveSessionId(null);
+    }
+  }, [chatId]);
 
   const handleSend = () => {
     const run = async () => {
@@ -212,25 +223,20 @@ export default function ChatPage({
          * ALWAYS call backend.
          * If chatId is undefined / local-xxx → backend creates session.
          */
-        const resp = await postMessage(chatId, payload);
+        const resp = await postMessage(activeSessionId ?? undefined, payload);
 
         /**
          * CHANGE 5️⃣
          * Extract session id safely from backend response.
          */
-        const newSessionId =
-          resp?.session?.id ||
-          resp?.session_id ||
-          resp?.chat_id ||
-          resp?.id;
+        const newSessionId = resp?.session_id || resp?.session?.id || resp?.chat_id || resp?.id;
 
-        /**
-         * CHANGE 6️⃣
-         * If this was the FIRST message → redirect to real session
-         * and hydrate chat properly.
-         */
-        if (newSessionId && chatId?.startsWith("local-")) {
-          router.replace(`/chat/${newSessionId}?type=${mode}`);
+        if (newSessionId) {
+          setActiveSessionId(newSessionId);
+
+          if (chatId?.startsWith("local-")) {
+            router.replace(`/chat/${newSessionId}?type=${mode}`);
+          }
         }
 
         /**
