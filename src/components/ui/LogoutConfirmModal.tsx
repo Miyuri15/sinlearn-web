@@ -77,8 +77,7 @@ export default function LogoutConfirmModal({
             {/* Body */}
             <div className="p-6">
               <p className="text-gray-700 dark:text-gray-300">
-                {t("logout_confirm_message") ||
-                  "Are you sure you want to logout? You'll need to sign in again to access your account."}
+                {t("logout_confirm_message") || "Do you want to Log out?"}
               </p>
             </div>
 
