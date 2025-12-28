@@ -133,8 +133,11 @@ export default function ChatPage({
         } else {
           setEvaluationMessages(sorted);
         }
-      } catch (err) {
-        console.error("Failed to load messages", err);
+      } catch {
+        router.replace("/chat");
+        setToastMessage("Failed to load chat messages. Please try again.");
+        setToastType("error");
+        setIsToastVisible(true);
       } finally {
         setTimeout(() => {
           setIsLoadingMessages(false);
