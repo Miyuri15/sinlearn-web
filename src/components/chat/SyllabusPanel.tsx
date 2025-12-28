@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import PDFViewer from "@/components/ui/PDFViewer";
 import CloseIcon from "@mui/icons-material/Close";
 import UpdatedToast from "@/components/ui/updatedtoast";
+import { BookOpen } from "lucide-react";
 
 type ToastState = {
   message: string;
@@ -201,18 +202,12 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
           accept=".pdf,.doc,.docx"
         />
 
-        <div className="p-4 sm:p-6 grow overflow-y-auto hidden-scrollbar">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
+        {/* Header (FIXED) */}
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-[#2a2a2a]">
+          <div className="flex justify-between items-center mb-4">
             <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-3">
-              <Image
-                className="mt-1"
-                src="/icons/syllabus.png"
-                alt="Document Icon"
-                width={20}
-                height={20}
-              />
-              {t("title")}
+              <BookOpen className="w-5 h-5 text-blue-500 dark:text-gray-400" />
+              <span>{t("title")}</span>
             </h3>
             <button
               onClick={onClose}
@@ -222,10 +217,13 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
             </button>
           </div>
 
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             {t("description")}
           </p>
+        </div>
 
+        {/* Content (ONLY THIS SCROLLS) */}
+        <div className="flex-1 overflow-y-auto hidden-scrollbar p-4 sm:p-6">
           {/* Upload Syllabus Section */}
           <div className="mb-8">
             <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">

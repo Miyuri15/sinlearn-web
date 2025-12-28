@@ -1,7 +1,7 @@
 "use client";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import InputBar from "@/components/chat/InputBar";
 import EvaluationInputs from "@/components/chat/EvaluationInputs";
 import EvaluationMarksModal from "@/components/chat/EvaluationMarksModal";
@@ -11,18 +11,24 @@ import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
 import QuestionsPanelpage from "@/components/chat/QuestionsPanelpage";
 import Header from "@/components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
-import { ChatMessage, EvaluationResultContent } from "@/lib/models/chat";
+import { ChatMessage } from "@/lib/models/chat";
 import MessagesList from "@/components/chat/MessagesList";
 import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
 import EmptyState from "@/components/chat/EmptyState";
+import UpdatedToast from "@/components/ui/updatedtoast";
+import EditModal from "@/components/ui/EditModal";
+import DeleteModal from "@/components/ui/DeleteModal";
 import useChatInit from "@/hooks/useChatInit";
 import {
   postMessage,
   listChatSessions,
   listSessionMessages,
+  updateChatSession,
+  deleteChatSession,
 } from "@/lib/api/chat";
 import { formatDistanceToNow } from "date-fns";
+import { getSelectedChatType } from "@/lib/localStore";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
@@ -37,15 +43,14 @@ export default function ChatPage({
   initialMessages = [],
 }: Readonly<ChatPageProps>) {
   const { t } = useTranslation("chat");
-
-  const searchParams = useSearchParams();
-  const typeParam = searchParams?.get("type") ?? undefined;
+  const chatType = getSelectedChatType() || "learning";
   // ✅ ADD THIS: active server session id for the current chat
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   // STATES
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [loading] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isSyllabusOpen, setIsSyllabusOpen] = useState(false);
   const [isQuestionsOpen, setIsQuestionsOpen] = useState(false);
@@ -54,6 +59,19 @@ export default function ChatPage({
   const [message, setMessage] = useState("");
   const [creating, setCreating] = useState(false);
   const [chats, setChats] = useState<SidebarChatItem[]>([]);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<
+    "success" | "error" | "info" | "warning"
+  >("success");
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingChat, setEditingChat] = useState<SidebarChatItem | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingChat, setDeletingChat] = useState<SidebarChatItem | null>(
+    null
+  );
+  const [isDeletingChat, setIsDeletingChat] = useState(false);
 
   type SidebarChatItem = {
     id: string;
@@ -72,12 +90,11 @@ export default function ChatPage({
     isInitializing,
   } = useChatInit({
     chatId,
-    typeParam,
+    chatType: chatType,
     initialMessages,
   });
 
   const router = useRouter();
-  const pathname = usePathname();
   const endRef = useRef<HTMLDivElement | null>(null);
   const [responseLevel, setResponseLevel] = useState("Grades 9–11");
 
@@ -95,45 +112,13 @@ export default function ChatPage({
   const [evaluationUploadedFilesCount, setEvaluationUploadedFilesCount] =
     useState(0);
 
-  const mockLearningReply =
-    "Good job! When x = 5, the expression 3x² - 2x + 4 becomes:\n3(25) - 10 + 4 = 69.";
-
-  const mockEvaluation: EvaluationResultContent = {
-    grade: "B+",
-    coverage: 76,
-    accuracy: 85,
-    clarity: 72,
-    strengths: ["Correct substitution", "Steps shown clearly"],
-    weaknesses: ["Could improve explanation clarity"],
-    missing: ["Final conclusion missing"],
-    feedback:
-      "Your answer is mostly correct. Adding a final conclusion will improve clarity.",
-  };
-
-  const handleSetMode = (m: "learning" | "evaluation") => {
-    setMode(m);
-
-    // Reset file count when switching to evaluation mode
-    if (m === "evaluation") {
-      setEvaluationUploadedFilesCount(0);
-    }
-
-    try {
-      const params = new URLSearchParams(searchParams?.toString() ?? "");
-      params.set("type", m);
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    } catch {
-      router.replace(`${pathname}?type=${m}`, { scroll: false });
-    }
-  };
-
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
     const loadMessages = async () => {
       if (!chatId) return;
       if (chatId.startsWith("local-") || chatId.startsWith("new-")) return;
 
+      setIsLoadingMessages(true);
       try {
         const messages = await listSessionMessages(chatId);
 
@@ -150,6 +135,10 @@ export default function ChatPage({
         }
       } catch (err) {
         console.error("Failed to load messages", err);
+      } finally {
+        setTimeout(() => {
+          setIsLoadingMessages(false);
+        }, 500);
       }
     };
 
@@ -273,7 +262,7 @@ export default function ChatPage({
           setActiveSessionId(newSessionId);
 
           if (chatId?.startsWith("local-")) {
-            router.replace(`/chat/${newSessionId}?type=${mode}`);
+            router.replace(`/chat/${newSessionId}`);
           }
         }
 
@@ -291,7 +280,9 @@ export default function ChatPage({
         }
       } catch (error) {
         console.error("Failed to send message", error);
-        alert("Failed to send message. Please try again.");
+        setToastMessage("Failed to send message. Please try again.");
+        setToastType("error");
+        setIsToastVisible(true);
       } finally {
         setCreating(false);
         setMessage("");
@@ -396,9 +387,11 @@ export default function ChatPage({
       const remainingSlots = 10 - evaluationUploadedFilesCount;
 
       if (remainingSlots <= 0) {
-        alert(
+        setToastMessage(
           "You have already uploaded the maximum of 10 files for this evaluation chat."
         );
+        setToastType("error");
+        setIsToastVisible(true);
         return;
       }
 
@@ -406,9 +399,11 @@ export default function ChatPage({
       const filesToUpload = files.slice(0, remainingSlots);
 
       if (filesToUpload.length < files.length) {
-        alert(
+        setToastMessage(
           `You can only upload ${remainingSlots} more file(s). Only the first ${remainingSlots} file(s) will be uploaded.`
         );
+        setToastType("error");
+        setIsToastVisible(true);
       }
 
       setSelectedFiles(filesToUpload);
@@ -453,7 +448,7 @@ export default function ChatPage({
   }, [mode, evaluationMessages.length]);
 
   const renderMessageArea = () => {
-    if (isInitializing) {
+    if (isInitializing || isLoadingMessages) {
       return <ChatAreaSkeleton />;
     }
 
@@ -498,13 +493,103 @@ export default function ChatPage({
   const handleNewChat = async (mode: "learning" | "evaluation") => {
     if (creating) return;
     // Don't create server session here. Open a local temporary chat UI.
-    const tempId = `local-${Date.now()}`;
+    const tempId = `local-${Date.now()}-${mode}`;
     try {
-      router.push(`/chat/${tempId}?type=${mode}`);
+      router.push(`/chat/${tempId}`);
     } catch (error) {
       console.error("Failed to open new chat UI", error);
-      alert("Failed to open a new chat. Please try again.");
+      setToastMessage("Failed to open a new chat. Please try again.");
+      setToastType("error");
+      setIsToastVisible(true);
     }
+  };
+
+  const handleEditChat = (chat: SidebarChatItem) => {
+    setEditingChat(chat);
+    setEditingTitle(chat.title);
+    setIsEditModalOpen(true);
+  };
+
+  const handleConfirmEdit = () => {
+    const nextTitle = editingTitle.trim();
+
+    if (!nextTitle || !editingChat) {
+      setIsEditModalOpen(false);
+      return;
+    }
+
+    const run = async () => {
+      try {
+        await updateChatSession(editingChat.id, { title: nextTitle });
+
+        setChats((prev) =>
+          prev.map((item) =>
+            item.id === editingChat.id ? { ...item, title: nextTitle } : item
+          )
+        );
+
+        setToastMessage("Chat title updated successfully");
+        setToastType("success");
+        setIsToastVisible(true);
+        setIsEditModalOpen(false);
+      } catch (error) {
+        console.error("Failed to update chat title", error);
+        setToastMessage("Failed to update chat title. Please try again.");
+        setToastType("error");
+        setIsToastVisible(true);
+      }
+    };
+
+    void run();
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditModalOpen(false);
+    setEditingChat(null);
+    setEditingTitle("");
+  };
+
+  const handleDeleteChat = (chat: SidebarChatItem) => {
+    setDeletingChat(chat);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deletingChat) return;
+
+    const run = async () => {
+      setIsDeletingChat(true);
+      try {
+        await deleteChatSession(deletingChat.id);
+
+        setChats((prev) => prev.filter((item) => item.id !== deletingChat.id));
+
+        if (chatId === deletingChat.id) {
+          router.push("/chat");
+        }
+
+        setToastMessage("Chat deleted successfully");
+        setToastType("success");
+        setIsToastVisible(true);
+        setIsDeleteModalOpen(false);
+        setDeletingChat(null);
+      } catch (error) {
+        console.error("Failed to delete chat", error);
+        setToastMessage("Failed to delete chat. Please try again.");
+        setToastType("error");
+        setIsToastVisible(true);
+      } finally {
+        setIsDeletingChat(false);
+      }
+    };
+
+    void run();
+  };
+
+  const handleCancelDelete = () => {
+    setIsDeleteModalOpen(false);
+    setDeletingChat(null);
+    setIsDeletingChat(false);
   };
 
   return (
@@ -515,6 +600,8 @@ export default function ChatPage({
         chats={chats}
         onNewLearningChat={() => handleNewChat("learning")}
         onNewEvaluationChat={() => handleNewChat("evaluation")}
+        onEditChat={handleEditChat}
+        onDeleteChat={handleDeleteChat}
       />
 
       {/* MAIN AREA */}
@@ -526,10 +613,10 @@ export default function ChatPage({
         {/* HEADER COMPONENT */}
         <Header
           mode={mode}
-          setMode={handleSetMode}
           isRubricOpen={isRubricOpen}
           isSyllabusOpen={isSyllabusOpen}
           isQuestionsOpen={isQuestionsOpen}
+          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           toggleRubric={toggleRubric}
           toggleSyllabus={toggleSyllabus}
           toggleQuestions={toggleQuestions}
@@ -636,7 +723,7 @@ export default function ChatPage({
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
           isSyllabusOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -645,12 +732,45 @@ export default function ChatPage({
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
           isQuestionsOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <QuestionsPanelpage onClose={toggleQuestions} />
       </div>
+
+      <UpdatedToast
+        message={toastMessage}
+        isVisible={isToastVisible}
+        type={toastType}
+        onClose={() => setIsToastVisible(false)}
+      />
+
+      {/* EDIT CHAT TITLE MODAL */}
+      <EditModal
+        isOpen={isEditModalOpen}
+        title="Edit Chat Title"
+        placeholder="Enter new title"
+        value={editingTitle}
+        onChange={setEditingTitle}
+        onConfirm={handleConfirmEdit}
+        onCancel={handleCancelEdit}
+        confirmLabel="Save"
+        cancelLabel="Cancel"
+      />
+
+      {/* DELETE CHAT MODAL */}
+      <DeleteModal
+        isOpen={isDeleteModalOpen}
+        title="Delete Chat"
+        message={`Are you sure you want to delete "${deletingChat?.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={isDeletingChat}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        iconColor="red"
+      />
     </main>
   );
 }

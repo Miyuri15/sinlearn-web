@@ -117,6 +117,22 @@ export const getThemeLS = (): "light" | "dark" => {
   );
 };
 
+/* ───────────────── CHAT TYPE ───────────────── */
+
+export const setSelectedChatType = (chatType: "learning" | "evaluation") => {
+  if (!isBrowser()) return;
+  localStorage.setItem("sinlearn_selected_chat_type", chatType);
+};
+
+export const getSelectedChatType = (): "learning" | "evaluation" => {
+  if (!isBrowser()) return "learning";
+  return (
+    (localStorage.getItem("sinlearn_selected_chat_type") as
+      | "learning"
+      | "evaluation") || "learning"
+  );
+};
+
 /* ───────────────── SETTINGS ───────────────── */
 
 export const setSettings = (newSettings: Settings) => {
