@@ -19,6 +19,7 @@ export type TextMessage = {
   content: string;
   file?: FileMeta | File;
   timestamp?: string;
+  grade_level?: string;
 };
 
 export type EvaluationInputContent = {

@@ -79,7 +79,10 @@ export default function FilePreviewCard({
         <div className="flex items-center gap-3 min-w-0">
           {getIcon()}
           <div className="flex flex-col min-w-0">
-            <p className="font-medium truncate max-w-[70vw] sm:max-w-[260px]" title={name}>
+            <p
+              className="font-medium truncate max-w-[70vw] sm:max-w-[260px]"
+              title={name}
+            >
               {name}
             </p>
             <span className="text-xs sm:text-sm text-blue-600">

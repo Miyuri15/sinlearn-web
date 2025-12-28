@@ -96,7 +96,7 @@ export default function ChatPage({
 
   const router = useRouter();
   const endRef = useRef<HTMLDivElement | null>(null);
-  const [responseLevel, setResponseLevel] = useState("Grades 9–11");
+  const [responseLevel, setResponseLevel] = useState("grade_9_11");
 
   // Evaluation inputs state
   const [totalMarks, setTotalMarks] = useState<number>(0);
@@ -111,6 +111,7 @@ export default function ChatPage({
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
   const [evaluationUploadedFilesCount, setEvaluationUploadedFilesCount] =
     useState(0);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
@@ -200,7 +201,12 @@ export default function ChatPage({
         if (mode === "learning") {
           setLearningMessages((prev) => [
             ...prev,
-            { role: "user", content: message },
+            {
+              role: "user",
+              content: message,
+              grade_level: responseLevel,
+              files: pendingFiles,
+            },
           ]);
         } else {
           setEvaluationMessages((prev) => [
@@ -229,10 +235,7 @@ export default function ChatPage({
           payload = {
             content: message,
             modality: "text",
-            grade_level: responseLevel
-              .toLowerCase()
-              .replace(/[–—]/g, "_")
-              .replace("grades ", "grade_"),
+            grade_level: responseLevel,
           };
         } else {
           payload = {
@@ -246,7 +249,6 @@ export default function ChatPage({
             modality: "text",
           };
         }
-
         /**
          * CHANGE 4️⃣
          * ALWAYS call backend.
@@ -289,6 +291,7 @@ export default function ChatPage({
       } finally {
         setCreating(false);
         setMessage("");
+        clearPendingFiles();
       }
     };
 
@@ -420,19 +423,22 @@ export default function ChatPage({
           file,
         })),
       ]);
-    } else {
-      // Learning mode - no limit
-      setSelectedFiles(files);
-
-      setLearningMessages((prev) => [
-        ...prev,
-        ...files.map((file) => ({
-          role: "user" as const,
-          content: `📎 Uploaded file: ${file.name}`,
-          file,
-        })),
-      ]);
     }
+  };
+
+  // Handle adding files to pending queue in learning mode
+  const handlePendingFilesAdd = (files: File[]) => {
+    setPendingFiles((prev) => [...prev, ...files]);
+  };
+
+  // Handle removing a pending file
+  const handleRemovePendingFile = (index: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Clear pending files after sending
+  const clearPendingFiles = () => {
+    setPendingFiles([]);
   };
 
   useEffect(() => {
@@ -698,7 +704,9 @@ export default function ChatPage({
                 message={message}
                 handleInputChange={handleInputChange}
                 onSend={handleSend}
-                onUpload={handleFileUpload}
+                onFilesSelected={handlePendingFilesAdd} // Previously onUpload
+                pendingFiles={pendingFiles}
+                onRemoveFile={handleRemovePendingFile}
               />
             </>
           )}
