@@ -185,9 +185,9 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
           accept=".pdf,.doc,.docx"
         />
 
-        <div className="p-4 sm:p-6 grow overflow-y-auto hidden-scrollbar">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
+        {/* Header (FIXED) */}
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-[#2a2a2a]">
+          <div className="flex justify-between items-center mb-4">
             <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-3">
               <HelpIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
               {t("title")}
@@ -200,10 +200,13 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
             </button>
           </div>
 
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             {t("description")}
           </p>
+        </div>
 
+        {/* Content (ONLY THIS SCROLLS) */}
+        <div className="flex-1 overflow-y-auto hidden-scrollbar p-4 sm:p-6">
           {/* Upload Question Section */}
           <div className="mb-8">
             <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
