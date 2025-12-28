@@ -111,6 +111,7 @@ export default function ChatPage({
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
   const [evaluationUploadedFilesCount, setEvaluationUploadedFilesCount] =
     useState(0);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
@@ -200,7 +201,12 @@ export default function ChatPage({
         if (mode === "learning") {
           setLearningMessages((prev) => [
             ...prev,
-            { role: "user", content: message, grade_level: responseLevel },
+            {
+              role: "user",
+              content: message,
+              grade_level: responseLevel,
+              files: pendingFiles,
+            },
           ]);
         } else {
           setEvaluationMessages((prev) => [
@@ -285,6 +291,7 @@ export default function ChatPage({
       } finally {
         setCreating(false);
         setMessage("");
+        clearPendingFiles();
       }
     };
 
@@ -416,19 +423,22 @@ export default function ChatPage({
           file,
         })),
       ]);
-    } else {
-      // Learning mode - no limit
-      setSelectedFiles(files);
-
-      setLearningMessages((prev) => [
-        ...prev,
-        ...files.map((file) => ({
-          role: "user" as const,
-          content: `📎 Uploaded file: ${file.name}`,
-          file,
-        })),
-      ]);
     }
+  };
+
+  // Handle adding files to pending queue in learning mode
+  const handlePendingFilesAdd = (files: File[]) => {
+    setPendingFiles((prev) => [...prev, ...files]);
+  };
+
+  // Handle removing a pending file
+  const handleRemovePendingFile = (index: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Clear pending files after sending
+  const clearPendingFiles = () => {
+    setPendingFiles([]);
   };
 
   useEffect(() => {
@@ -694,7 +704,9 @@ export default function ChatPage({
                 message={message}
                 handleInputChange={handleInputChange}
                 onSend={handleSend}
-                onUpload={handleFileUpload}
+                onFilesSelected={handlePendingFilesAdd} // Previously onUpload
+                pendingFiles={pendingFiles}
+                onRemoveFile={handleRemovePendingFile}
               />
             </>
           )}
