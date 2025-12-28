@@ -106,7 +106,7 @@ export default function DeleteModal({
             </div>
 
             {/* Footer */}
-            <div className="flex gap-3 p-6 border-gray-200 dark:border-gray-700">
+            <div className="flex gap-3 p-6">
               <button
                 onClick={onCancel}
                 disabled={isLoading}
@@ -131,7 +131,7 @@ export default function DeleteModal({
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">
-                    <div className="h-4 w-4 border-2 border-white/30 rounded-full animate-spin" />
+                    <div className="h-4 w-4 border-2 border-white rounded-full animate-spin" />
                     {confirmLabel}
                   </span>
                 ) : (

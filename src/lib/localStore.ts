@@ -121,20 +121,11 @@ export const getThemeLS = (): "light" | "dark" => {
 
 export const setSelectedChatType = (chatType: "learning" | "evaluation") => {
   if (!isBrowser()) return;
-  console.log("Setting chat type in localStorage:", chatType);
   localStorage.setItem("sinlearn_selected_chat_type", chatType);
-  console.log(
-    "Chat type set in localStorage:",
-    localStorage.getItem("sinlearn_selected_chat_type")
-  );
 };
 
 export const getSelectedChatType = (): "learning" | "evaluation" => {
   if (!isBrowser()) return "learning";
-  console.log(
-    "Retrieving chat type from localStorage:",
-    localStorage.getItem("sinlearn_selected_chat_type")
-  );
   return (
     (localStorage.getItem("sinlearn_selected_chat_type") as
       | "learning"

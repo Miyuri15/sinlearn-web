@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import AddIcon from "@mui/icons-material/Add";
 import MenuIcon from "@mui/icons-material/Menu";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import Image from "next/image";
 import LanguageToggle from "@/components/header/LanguageToggle";
 import ThemeToggle from "@/components/header/ThemeToggle";
 import { BookOpen, ClipboardCheck } from "lucide-react";
@@ -15,7 +14,6 @@ interface HeaderProps {
   isRubricOpen: boolean;
   isSyllabusOpen: boolean;
   isQuestionsOpen: boolean;
-  isSidebarOpen?: boolean;
   toggleRubric: () => void;
   toggleSyllabus: () => void;
   toggleQuestions: () => void;
