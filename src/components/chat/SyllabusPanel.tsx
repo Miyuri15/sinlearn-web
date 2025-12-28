@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import PDFViewer from "@/components/ui/PDFViewer";
 import CloseIcon from "@mui/icons-material/Close";
 import UpdatedToast from "@/components/ui/updatedtoast";
+import { BookOpen } from "lucide-react";
 
 type ToastState = {
   message: string;
@@ -205,14 +206,8 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-[#2a2a2a]">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-3">
-              <Image
-                className="mt-1"
-                src="/icons/syllabus.png"
-                alt="Document Icon"
-                width={20}
-                height={20}
-              />
-              {t("title")}
+              <BookOpen className="w-5 h-5 text-blue-500 dark:text-gray-400" />
+              <span>{t("title")}</span>
             </h3>
             <button
               onClick={onClose}
