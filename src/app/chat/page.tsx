@@ -96,7 +96,7 @@ export default function ChatPage({
 
   const router = useRouter();
   const endRef = useRef<HTMLDivElement | null>(null);
-  const [responseLevel, setResponseLevel] = useState("Grades 9–11");
+  const [responseLevel, setResponseLevel] = useState("grade_9_11");
 
   // Evaluation inputs state
   const [totalMarks, setTotalMarks] = useState<number>(0);
@@ -200,7 +200,7 @@ export default function ChatPage({
         if (mode === "learning") {
           setLearningMessages((prev) => [
             ...prev,
-            { role: "user", content: message },
+            { role: "user", content: message, grade_level: responseLevel },
           ]);
         } else {
           setEvaluationMessages((prev) => [
@@ -229,10 +229,7 @@ export default function ChatPage({
           payload = {
             content: message,
             modality: "text",
-            grade_level: responseLevel
-              .toLowerCase()
-              .replace(/[–—]/g, "_")
-              .replace("grades ", "grade_"),
+            grade_level: responseLevel,
           };
         } else {
           payload = {
@@ -246,7 +243,6 @@ export default function ChatPage({
             modality: "text",
           };
         }
-
         /**
          * CHANGE 4️⃣
          * ALWAYS call backend.
