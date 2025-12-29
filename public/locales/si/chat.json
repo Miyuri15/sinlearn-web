@@ -12,5 +12,17 @@
     "main_questions": "ප්‍රධාන ප්‍රශ්න",
     "required_questions": "පිළිතුරු දියත් කිරීමට අවශ්‍ය ප්‍රශ්න",
     "sub_questions": "ප්‍රශ්නයකට උප ප්‍රශ්න",
-    "send": "ඉදිරිපත් කරන්න"
+    "send": "ඉදිරිපත් කරන්න",
+    "attach": "උඩුගත කරන්න",
+    "marks": "ලකුණු",
+    "evaluation_details": "ඇගයීම් විස්තර",
+    "allocate_marks": "ලකුණු වෙන් කරන්න",
+    "view_marks": "ලකුණු බලන්න",
+    "cancel": "අවලංගු කරන්න",
+    "submit": "ඉදිරිපත් කරන්න",
+    "question": "ප්‍රශ්නය",
+    "sub_question": "උප ප්‍රශ්නය",
+    "next": "මීළඟ",
+    "previous": "පෙර",
+    "add_sub_question": "උප ප්‍රශ්නයක් එක් කරන්න"
 }

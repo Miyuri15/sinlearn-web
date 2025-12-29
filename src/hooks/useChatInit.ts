@@ -7,11 +7,11 @@ type Mode = "learning" | "evaluation";
 
 export default function useChatInit({
   chatId,
-  typeParam,
+  chatType,
   initialMessages = [],
 }: {
   chatId?: string;
-  typeParam?: string | null;
+  chatType?: string | null;
   initialMessages?: ChatMessage[];
 }) {
   const [mode, setMode] = useState<Mode>("learning");
@@ -30,15 +30,15 @@ export default function useChatInit({
 
   useEffect(() => {
     // When URL contains ?type=learning or ?type=evaluation
-    if (typeParam === "learning") {
+    if (chatType === "learning") {
       setMode("learning");
-    } else if (typeParam === "evaluation") {
+    } else if (chatType === "evaluation") {
       setMode("evaluation");
     }
 
     // Load initial messages into the correct store
     if (initialMessages && initialMessages.length > 0) {
-      if (typeParam === "evaluation") {
+      if (chatType === "evaluation") {
         setEvaluationMessages(initialMessages);
       } else {
         setLearningMessages(initialMessages); // default
@@ -49,7 +49,7 @@ export default function useChatInit({
     }
 
     setIsInitializing(false);
-  }, [chatId, typeParam, initialMessagesKey]);
+  }, [chatId, chatType, initialMessagesKey]);
 
   return {
     mode,

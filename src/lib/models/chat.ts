@@ -11,6 +11,7 @@ export type FileMeta = {
   size?: number;
   type?: string;
   url?: string; // optional preview or storage URL
+  resource_id?: string;
 };
 
 export type TextMessage = {
@@ -19,6 +20,7 @@ export type TextMessage = {
   content: string;
   file?: FileMeta | File;
   timestamp?: string;
+  grade_level?: string;
 };
 
 export type EvaluationInputContent = {
@@ -26,7 +28,7 @@ export type EvaluationInputContent = {
   mainQuestions: number;
   requiredQuestions: number;
   subQuestions: number;
-  subQuestionMarks?: number[];
+  subQuestionMarks?: number[] | number[][];
 };
 
 export type EvaluationInputMessage = {

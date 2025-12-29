@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import PDFViewer from "@/components/ui/PDFViewer";
 import CloseIcon from "@mui/icons-material/Close";
 import UpdatedToast from "@/components/ui/updatedtoast";
+import { BookOpen } from "lucide-react";
 
 type ToastState = {
   message: string;
@@ -43,9 +44,9 @@ const SyllabusItem = ({
 }) => (
   <div
     onClick={() => onClickView(id)}
-    className="p-3 border border-gray-200 rounded-lg mb-3 cursor-pointer hover:bg-gray-200 transition duration-150 flex justify-between items-start"
+    className="p-3 sm:p-4 border border-gray-200 rounded-lg mb-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition duration-150 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 break-words"
   >
-    <div>
+    <div className="min-w-0">
       <div className="flex items-center mb-1">
         <Image
           src="/icons/document.svg"
@@ -53,22 +54,26 @@ const SyllabusItem = ({
           width={16}
           height={16}
         />
-        <h5 className="font-medium text-sm text-gray-800 ml-2">{title}</h5>
+        <h5 className="font-medium text-sm sm:text-base text-gray-800 ml-2 truncate">
+          {title}
+        </h5>
       </div>
-      <p className="text-xs text-gray-500 ml-6">
+      <p className="text-xs sm:text-sm text-gray-500 ml-6">
         {subject} • {grade}
       </p>
-      <p className="text-xs text-gray-500 ml-6">
+      <p className="text-xs sm:text-sm text-gray-500 ml-6">
         {t("uploaded")}: {uploaded}
       </p>
-      <p className="text-xs text-gray-600 ml-6 mt-1">{topics}</p>
+      <p className="text-xs sm:text-sm text-gray-600 ml-6 mt-1 break-words">
+        {topics}
+      </p>
     </div>
     <button
       onClick={(e) => {
         e.stopPropagation();
         onClickDelete(id, title);
       }}
-      className="text-red-400 hover:text-red-600 p-1 rounded transition duration-150 ml-2"
+      className="text-red-400 hover:text-red-600 p-1 rounded transition duration-150 sm:ml-2 self-end sm:self-auto"
       aria-label={`Delete ${title}`}
     >
       <Image src="/icons/trash.svg" alt="Delete Icon" width={16} height={16} />
@@ -187,7 +192,7 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
 
   return (
     <>
-      <div className="h-full w-[400px] bg-white dark:bg-[#111111] border-l border-gray-200 dark:border-[#2a2a2a] flex flex-col p-0">
+      <div className="h-full w-full sm:w-[380px] md:w-[400px] bg-white dark:bg-[#111111] border-l border-gray-200 dark:border-[#2a2a2a] flex flex-col p-0">
         {/* Hidden File Input */}
         <input
           type="file"
@@ -197,19 +202,12 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
           accept=".pdf,.doc,.docx"
         />
 
-        {/* MODIFIED: Growable content area now has the padding */}
-        <div className="p-6 grow overflow-y-scroll hidden-scrollbar">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-3">
-              <Image
-                className="mt-1"
-                src="/icons/syllabus.png"
-                alt="Document Icon"
-                width={20}
-                height={20}
-              />
-              {t("title")}
+        {/* Header (FIXED) */}
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-[#2a2a2a]">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-3">
+              <BookOpen className="w-5 h-5 text-blue-500 dark:text-gray-400" />
+              <span>{t("title")}</span>
             </h3>
             <button
               onClick={onClose}
@@ -219,10 +217,13 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
             </button>
           </div>
 
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             {t("description")}
           </p>
+        </div>
 
+        {/* Content (ONLY THIS SCROLLS) */}
+        <div className="flex-1 overflow-y-auto hidden-scrollbar p-4 sm:p-6">
           {/* Upload Syllabus Section */}
           <div className="mb-8">
             <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
@@ -233,7 +234,7 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
             </p>
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-10 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition duration-150"
+              className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition duration-150"
             >
               <div className="flex justify-center mb-2">
                 <Image
@@ -292,7 +293,7 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
           </button>
         </div>
 
-        {/* ... (Toast and PDFViewer) */}
+        {/* Toast */}
         <UpdatedToast
           message={toast.message}
           isVisible={toast.isVisible}

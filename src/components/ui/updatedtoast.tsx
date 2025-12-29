@@ -1,58 +1,57 @@
-import React from "react";
+import { useEffect } from "react";
+import { CheckCircle2, AlertCircle, Info, AlertTriangle } from "lucide-react";
 
 type ToastProps = {
   message: string;
   isVisible: boolean;
-  type: "success" | "error";
+  type: "success" | "error" | "info" | "warning";
   onClose: () => void;
+  duration?: number;
 };
 
-const UpdatedToast = ({ message, isVisible, type, onClose }: ToastProps) => {
+const UpdatedToast = ({
+  message,
+  isVisible,
+  type,
+  onClose,
+  duration = 3000,
+}: ToastProps) => {
+  useEffect(() => {
+    if (isVisible) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, duration);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible, duration, onClose]);
+
   if (!isVisible) return null;
 
   const baseClasses =
     "fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white transition-opacity duration-300 z-50";
-  const typeClasses = type === "success" ? "bg-green-500" : "bg-red-500";
-  const icon =
-    type === "success" ? (
-      <svg
-        className="w-5 h-5 mr-2"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M5 13l4 4L19 7"
-        ></path>
-      </svg>
-    ) : (
-      <svg
-        className="w-5 h-5 mr-2"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M6 18L18 6M6 6l12 12"
-        ></path>
-      </svg>
-    );
+
+  const typeClasses = {
+    success: "bg-green-500",
+    error: "bg-red-500",
+    info: "bg-blue-500",
+    warning: "bg-orange-500",
+  }[type];
+
+  const icon = {
+    success: <CheckCircle2 className="w-5 h-5" />,
+    error: <AlertCircle className="w-5 h-5" />,
+    info: <Info className="w-5 h-5" />,
+    warning: <AlertTriangle className="w-5 h-5" />,
+  }[type];
 
   return (
-    <div className={`${baseClasses} ${typeClasses} flex items-center`}>
+    <div className={`${baseClasses} ${typeClasses} flex items-center gap-3`}>
       {icon}
-      <span>{message}</span>
+      <span className="flex-1">{message}</span>
       <button
         onClick={onClose}
-        className="ml-4 text-white opacity-75 hover:opacity-100"
+        className="text-white/80 hover:text-white leading-none"
       >
         ✕
       </button>

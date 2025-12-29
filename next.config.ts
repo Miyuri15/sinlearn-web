@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
 
   experimental: {
     optimizePackageImports: [],
+    optimizeCss: false, // ⛔ disables lightningcss
   },
 };
 

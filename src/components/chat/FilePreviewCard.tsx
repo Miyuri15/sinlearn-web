@@ -72,16 +72,20 @@ export default function FilePreviewCard({
         }}
         className="p-3 rounded-lg bg-blue-50 border border-blue-200 
                    shadow-sm flex flex-col gap-3 cursor-pointer
-                   hover:bg-blue-100 hover:shadow transition duration-200"
+                   hover:bg-blue-100 hover:shadow transition duration-200
+                   break-words"
       >
         {/* Header */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           {getIcon()}
           <div className="flex flex-col min-w-0">
-            <p className="font-medium truncate max-w-[180px]" title={name}>
+            <p
+              className="font-medium truncate max-w-[70vw] sm:max-w-[260px]"
+              title={name}
+            >
               {name}
             </p>
-            <span className="text-xs text-blue-600">
+            <span className="text-xs sm:text-sm text-blue-600">
               {sizeKB ? `${sizeKB} KB` : ""}
             </span>
           </div>
@@ -92,13 +96,13 @@ export default function FilePreviewCard({
           {isImage && url && (
             <img
               src={url}
-              className="object-cover w-full h-48 hover:scale-105 transition"
+              className="object-cover w-full h-40 sm:h-48 hover:scale-105 transition"
               alt="preview"
             />
           )}
 
           {isVideo && url && (
-            <div className="relative w-full h-48 bg-black/50 flex justify-center items-center">
+            <div className="relative w-full h-40 sm:h-48 bg-black/50 flex justify-center items-center">
               <video
                 src={url}
                 className="absolute inset-0 object-cover opacity-70"
@@ -114,7 +118,7 @@ export default function FilePreviewCard({
           )}
 
           {(!isImage || !url) && !isVideo && !isAudio && (
-            <div className="flex flex-col items-center justify-center text-blue-700 h-20 w-full bg-white rounded border">
+            <div className="flex flex-col items-center justify-center text-blue-700 h-24 sm:h-20 w-full bg-white rounded border">
               {getIcon()}
               <p className="text-xs mt-1">No preview available</p>
             </div>
@@ -128,7 +132,7 @@ export default function FilePreviewCard({
               e.stopPropagation();
               setOpen(true);
             }}
-            className="flex items-center gap-1 text-blue-700 text-xs font-medium hover:opacity-80"
+            className="flex items-center gap-1 text-blue-700 text-xs sm:text-sm font-medium hover:opacity-80"
           >
             <Eye className="w-4 h-4" />
             View

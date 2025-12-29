@@ -1,24 +1,43 @@
 // ─────────────────────────────────────────────────────────────
 // LocalStorage Helper (Safe, Centralized)
-// Keys: sinlearn_user, sinlearn_lang, sinlearn_theme, sinlearn_settings
+// Keys:
+//   sinlearn_user
+//   sinlearn_auth
+//   sinlearn_lang
+//   sinlearn_theme
+//   sinlearn_settings
+//   sinlearn_selected_rubric
+//   sinlearn_custom_rubrics
 // ─────────────────────────────────────────────────────────────
 
-type User = {
-  name: string;
+/* ───────────────── TYPES ───────────────── */
+
+export type User = {
+  name?: string;
   email: string;
-  role: "student" | "teacher";
+  role?: "student" | "teacher";
 };
 
-type Settings = {
+export type AuthTokens = {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number; // seconds
+  token_type: "bearer";
+  stored_at: number; // epoch ms
+};
+
+export type Settings = {
   notifications?: boolean;
   evaluationNotifications?: boolean;
   saveHistory?: boolean;
   dataCollection?: boolean;
 };
 
+/* ───────────────── UTILS ───────────────── */
+
 const isBrowser = () => typeof window !== "undefined";
 
-// ─── USER ────────────────────────────────────────────────────
+/* ───────────────── USER ───────────────── */
 
 export const setUser = (user: User) => {
   if (!isBrowser()) return;
@@ -36,7 +55,43 @@ export const removeUser = () => {
   localStorage.removeItem("sinlearn_user");
 };
 
-// ─── LANGUAGE ───────────────────────────────────────────────
+/* ───────────────── AUTH TOKENS ───────────────── */
+
+export const setAuthTokens = (tokens: Omit<AuthTokens, "stored_at">) => {
+  if (!isBrowser()) return;
+
+  const payload: AuthTokens = {
+    ...tokens,
+    stored_at: Date.now(),
+  };
+
+  localStorage.setItem("sinlearn_auth", JSON.stringify(payload));
+};
+
+export const getAuthTokens = (): AuthTokens | null => {
+  if (!isBrowser()) return null;
+  const data = localStorage.getItem("sinlearn_auth");
+  return data ? JSON.parse(data) : null;
+};
+
+export const getAccessToken = (): string | null => {
+  return getAuthTokens()?.access_token || null;
+};
+
+export const isAccessTokenExpired = (): boolean => {
+  const auth = getAuthTokens();
+  if (!auth) return true;
+
+  const expiryTime = auth.stored_at + auth.expires_in * 1000;
+  return Date.now() > expiryTime;
+};
+
+export const removeAuthTokens = () => {
+  if (!isBrowser()) return;
+  localStorage.removeItem("sinlearn_auth");
+};
+
+/* ───────────────── LANGUAGE ───────────────── */
 
 export const setLanguage = (lang: "en" | "si") => {
   if (!isBrowser()) return;
@@ -48,7 +103,7 @@ export const getLanguage = (): "en" | "si" => {
   return (localStorage.getItem("sinlearn_lang") as "en" | "si") || "en";
 };
 
-// ─── THEME ──────────────────────────────────────────────────
+/* ───────────────── THEME ───────────────── */
 
 export const setThemeLS = (theme: "light" | "dark") => {
   if (!isBrowser()) return;
@@ -62,17 +117,29 @@ export const getThemeLS = (): "light" | "dark" => {
   );
 };
 
-// ─── SETTINGS (Notifications / Privacy / etc.) ───────────────
+/* ───────────────── CHAT TYPE ───────────────── */
+
+export const setSelectedChatType = (chatType: "learning" | "evaluation") => {
+  if (!isBrowser()) return;
+  localStorage.setItem("sinlearn_selected_chat_type", chatType);
+};
+
+export const getSelectedChatType = (): "learning" | "evaluation" => {
+  if (!isBrowser()) return "learning";
+  return (
+    (localStorage.getItem("sinlearn_selected_chat_type") as
+      | "learning"
+      | "evaluation") || "learning"
+  );
+};
+
+/* ───────────────── SETTINGS ───────────────── */
 
 export const setSettings = (newSettings: Settings) => {
-  if (typeof window === "undefined") return;
+  if (!isBrowser()) return;
 
   const current = getSettings();
-
-  const merged = {
-    ...current,
-    ...newSettings,
-  };
+  const merged = { ...current, ...newSettings };
 
   localStorage.setItem("sinlearn_settings", JSON.stringify(merged));
 };
@@ -83,7 +150,15 @@ export const getSettings = (): Settings => {
   return data ? JSON.parse(data) : {};
 };
 
-// ─── RUBRIC ──────────────────────────────────────────────────
+/* ───────────────── LOGOUT (SAFE) ───────────────── */
+
+export const logout = () => {
+  if (!isBrowser()) return;
+  removeUser();
+  removeAuthTokens();
+};
+
+/* ───────────────── RUBRICS ───────────────── */
 
 export type StoredRubric = {
   id: string;
@@ -96,42 +171,36 @@ export type StoredRubric = {
     percentage: number;
   }>;
   total: number;
-  selectedAt: string; // ISO timestamp
+  selectedAt: string;
 };
 
-// Store a single selected rubric
 export const setSelectedRubric = (rubric: StoredRubric) => {
   if (!isBrowser()) return;
   localStorage.setItem("sinlearn_selected_rubric", JSON.stringify(rubric));
 };
 
-// Get the currently selected rubric
 export const getSelectedRubric = (): StoredRubric | null => {
   if (!isBrowser()) return null;
   const data = localStorage.getItem("sinlearn_selected_rubric");
   return data ? JSON.parse(data) : null;
 };
 
-// Clear selected rubric
 export const removeSelectedRubric = () => {
   if (!isBrowser()) return;
   localStorage.removeItem("sinlearn_selected_rubric");
 };
 
-// Store multiple custom rubrics (for saved rubrics section)
 export const setCustomRubrics = (rubrics: StoredRubric[]) => {
   if (!isBrowser()) return;
   localStorage.setItem("sinlearn_custom_rubrics", JSON.stringify(rubrics));
 };
 
-// Get all custom rubrics
 export const getCustomRubrics = (): StoredRubric[] => {
   if (!isBrowser()) return [];
   const data = localStorage.getItem("sinlearn_custom_rubrics");
   return data ? JSON.parse(data) : [];
 };
 
-// Add a custom rubric
 export const addCustomRubric = (rubric: Omit<StoredRubric, "selectedAt">) => {
   const rubrics = getCustomRubrics();
   const newRubric: StoredRubric = {
@@ -143,7 +212,6 @@ export const addCustomRubric = (rubric: Omit<StoredRubric, "selectedAt">) => {
   return newRubric;
 };
 
-// Remove a custom rubric by ID
 export const removeCustomRubric = (id: string) => {
   const rubrics = getCustomRubrics();
   const filtered = rubrics.filter((r) => r.id !== id);
