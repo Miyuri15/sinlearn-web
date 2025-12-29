@@ -29,6 +29,17 @@ export default function FilePreviewModal({
     }
   }, [file]);
 
+  // Close on ESC key
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   const name =
     file instanceof File
       ? file.name
