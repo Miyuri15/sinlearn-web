@@ -14,11 +14,16 @@ export function LearningModeUserMessage({ message }: { message: ChatMessage }) {
   return (
     <div className={MESSAGE_STYLES.userMessageWrapper}>
       <div className={MESSAGE_STYLES.userMessageContent}>
-        <MessageAttachments resourceIds={resIds} />
+        {/* Attachments */}
+        {resIds.length > 0 && (
+          <div className="mb-2">
+            <MessageAttachments resourceIds={resIds} />
+          </div>
+        )}
 
         {isTextMessage && (
           <div className="flex flex-col">
-            <div>
+            <div className="leading-relaxed">
               <TruncatedMessage
                 content={contentStr}
                 expandStyle={MESSAGE_STYLES.expandButtonUser}
