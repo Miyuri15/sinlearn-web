@@ -4,7 +4,7 @@
 
 export const MESSAGE_STYLES = {
   // Wrappers
-  userMessageWrapper: "ml-auto w-full sm:max-w-sm",
+  userMessageWrapper: "ml-auto w-full sm:max-w-sm md:max-w-md lg:max-w-lg",
 
   // Message containers
   userMessageContent:
@@ -12,8 +12,8 @@ export const MESSAGE_STYLES = {
   userMessageContentEval:
     "p-3 rounded-lg bg-blue-100 dark:bg-[#1E3A8A]/60 text-xs sm:text-sm text-blue-900 dark:text-blue-100 break-words",
   assistantMessage:
-    "p-4 rounded-lg w-full sm:max-w-xl bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#1F2937] break-words",
-  evaluationMessage: "w-full sm:max-w-xl",
+    "p-4 rounded-lg w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl   bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#1F2937] break-words",
+  evaluationMessage: "w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl",
 
   // Grade label
   gradeLabel:
