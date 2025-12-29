@@ -3,9 +3,10 @@
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatBytes } from "@/lib/utils/format";
+import type { FileMeta } from "@/lib/models/chat";
 
 interface FilePreviewModalProps {
-  file: File | { url: string; name?: string };
+  file: File | FileMeta;
   onClose: () => void;
 }
 
