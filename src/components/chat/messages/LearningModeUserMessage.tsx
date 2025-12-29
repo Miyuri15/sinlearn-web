@@ -7,17 +7,23 @@ import { MessageAttachments } from "./MessageAttachments";
 export function LearningModeUserMessage({ message }: { message: ChatMessage }) {
   const m = message as any;
   const isTextMessage = typeof m.content === "string";
+  const contentStr = isTextMessage ? m.content : String(m.content);
 
-  const files = m.files || [];
+  const resIds = m.resource_ids ?? [];
 
   return (
     <div className={MESSAGE_STYLES.userMessageWrapper}>
       <div className={MESSAGE_STYLES.userMessageContent}>
-        <MessageAttachments files={files} />
+        <MessageAttachments resourceIds={resIds} />
 
         {isTextMessage && (
           <div className="flex flex-col">
-            <TruncatedMessage content={m.content} />
+            <div>
+              <TruncatedMessage
+                content={contentStr}
+                expandStyle={MESSAGE_STYLES.expandButtonUser}
+              />
+            </div>
 
             {m.grade_level && (
               <div className="pt-2">

@@ -40,6 +40,30 @@ export type PostMessagePayload = {
   content: any;
   mode?: "learning" | "evaluation";
   // include other fields as needed (files, metadata)
+  resource_ids?: string[];
+};
+
+export type ResourceUploadResponse = {
+  resource_id: string;
+  filename: string;
+  size_bytes: number;
+  mime_type: string;
+};
+
+export const uploadResources = (files: File[]) => {
+  const formData = new FormData();
+
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  return apiFetch<ResourceUploadResponse[]>(
+    `${API_BASE_URL}/api/v1/resources/upload/batch`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
 };
 
 export const postMessage = (

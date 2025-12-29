@@ -29,6 +29,16 @@ export default function FilePreviewModal({
     return undefined;
   }, [file]);
 
+  const fileSize = useMemo(() => {
+    if (file instanceof File) {
+      return (file.size / 1024).toFixed(1);
+    }
+    if ("size" in file && file.size) {
+      return (file.size / 1024).toFixed(1);
+    }
+    return "";
+  }, [file]);
+
   useEffect(() => {
     return () => {
       if (file instanceof File && url) URL.revokeObjectURL(url);
@@ -67,12 +77,7 @@ export default function FilePreviewModal({
             {name}
           </h3>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-            {file instanceof File
-              ? (file.size / 1024).toFixed(1)
-              : "size" in file && file.size
-              ? (file.size / 1024).toFixed(1)
-              : ""}{" "}
-            KB
+            {fileSize} {fileSize ? "KB" : ""}{" "}
           </p>
 
           {isImage && (

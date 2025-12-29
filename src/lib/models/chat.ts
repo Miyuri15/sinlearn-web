@@ -11,6 +11,7 @@ export type FileMeta = {
   size?: number;
   type?: string;
   url?: string; // optional preview or storage URL
+  resource_id?: string;
 };
 
 export type TextMessage = {

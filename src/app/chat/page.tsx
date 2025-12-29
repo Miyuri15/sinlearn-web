@@ -26,6 +26,8 @@ import {
   listSessionMessages,
   updateChatSession,
   deleteChatSession,
+  uploadResources,
+  ResourceUploadResponse,
 } from "@/lib/api/chat";
 import { formatDistanceToNow } from "date-fns";
 import { getSelectedChatType } from "@/lib/localStore";
@@ -192,6 +194,26 @@ export default function ChatPage({
        */
       setCreating(true);
 
+      let uploadedResources: ResourceUploadResponse[] = [];
+
+      // Upload pending files before sending the message so backend receives resource ids
+      if (mode === "learning" && pendingFiles.length > 0) {
+        try {
+          uploadedResources = await uploadResources(pendingFiles);
+        } catch (error) {
+          console.error("Failed to upload files", error);
+          let message = "Failed to upload files. Please try again.";
+          if (error instanceof Error) {
+            message = error.message;
+          }
+          setToastMessage(message);
+          setToastType("error");
+          setIsToastVisible(true);
+          setCreating(false);
+          return;
+        }
+      }
+
       try {
         /**
          * CHANGE 2️⃣
@@ -205,7 +227,7 @@ export default function ChatPage({
               role: "user",
               content: message,
               grade_level: responseLevel,
-              files: pendingFiles,
+              resource_ids: uploadedResources.map((r) => r.resource_id),
             },
           ]);
         } else {
@@ -232,10 +254,21 @@ export default function ChatPage({
         let payload: any;
 
         if (mode === "learning") {
+          const resourceAttachments = uploadedResources.map((item, index) => ({
+            resource_id: item.resource_id,
+            display_name: pendingFiles[index]?.name ?? "Attachment",
+            attachment_type: pendingFiles[index]?.type?.startsWith("image/")
+              ? "image"
+              : "file",
+          }));
+
           payload = {
             content: message,
             modality: "text",
             grade_level: responseLevel,
+            ...(resourceAttachments.length
+              ? { attachments: resourceAttachments }
+              : {}),
           };
         } else {
           payload = {
