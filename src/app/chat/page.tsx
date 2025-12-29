@@ -114,6 +114,7 @@ export default function ChatPage({
   const [evaluationUploadedFilesCount, setEvaluationUploadedFilesCount] =
     useState(0);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
@@ -198,6 +199,7 @@ export default function ChatPage({
 
       // Upload pending files before sending the message so backend receives resource ids
       if (mode === "learning" && pendingFiles.length > 0) {
+        setIsUploading(true);
         try {
           uploadedResources = await uploadResources(pendingFiles);
         } catch (error) {
@@ -210,7 +212,10 @@ export default function ChatPage({
           setToastType("error");
           setIsToastVisible(true);
           setCreating(false);
+          setIsUploading(false);
           return;
+        } finally {
+          setIsUploading(false);
         }
       }
 
@@ -740,6 +745,8 @@ export default function ChatPage({
                 onFilesSelected={handlePendingFilesAdd} // Previously onUpload
                 pendingFiles={pendingFiles}
                 onRemoveFile={handleRemovePendingFile}
+                onClearFiles={clearPendingFiles}
+                isUploading={isUploading}
               />
             </>
           )}
