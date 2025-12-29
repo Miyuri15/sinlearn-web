@@ -1,7 +1,8 @@
 import "@/lib/i18n";
-import { Mic, Paperclip, Send, X, FileText } from "lucide-react";
+import { Mic, Paperclip, Send, X, FileText, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { KeyboardEvent, useState, DragEvent } from "react";
+import { KeyboardEvent, useState, DragEvent, useRef, useEffect } from "react";
+import { formatBytes } from "@/lib/utils/format";
 import FilePreviewModal from "@/components/chat/FilePreviewModal";
 
 type InputBarProps = Readonly<{
@@ -15,6 +16,8 @@ type InputBarProps = Readonly<{
   onFilesSelected: (files: File[]) => void;
   pendingFiles?: File[];
   onRemoveFile?: (index: number) => void;
+  onClearFiles?: () => void;
+  isUploading?: boolean;
 }>;
 
 export default function InputBar({
@@ -27,18 +30,26 @@ export default function InputBar({
   onFilesSelected,
   pendingFiles = [],
   onRemoveFile,
+  onClearFiles,
+  isUploading = false,
 }: InputBarProps) {
   const { t } = useTranslation("chat");
   const [isDragging, setIsDragging] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (message === "" && textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  }, [message]);
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && e.shiftKey) return;
     if (e.key === "Enter") {
       e.preventDefault();
-      // Reset height
-      e.currentTarget.style.height = "auto";
       onSend();
     }
   };
@@ -69,6 +80,9 @@ export default function InputBar({
     }
   };
 
+  const isDisableSend =
+    (message.trim().length === 0 && pendingFiles.length === 0) || isUploading;
+
   return (
     <div
       onDragOver={handleDragOver}
@@ -85,39 +99,75 @@ export default function InputBar({
     >
       {/* 1. PREVIEW AREA (Inside the box) */}
       {pendingFiles.length > 0 && (
-        <div className="flex gap-3 p-3 pb-0 overflow-x-auto custom-scrollbar">
-          {pendingFiles.map((file, index) => (
-            <div
-              key={index}
-              className="relative group flex-shrink-0 w-16 h-16 bg-white dark:bg-[#1A1A1A] rounded-md border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer"
-              onClick={() => {
-                setPreviewFile(file);
-                setIsPreviewOpen(true);
-              }}
-            >
-              {/* Simple Image Preview or Icon */}
-              {file.type.startsWith("image/") ? (
-                <img
-                  src={URL.createObjectURL(file)}
-                  alt="preview"
-                  className="w-full h-full object-cover opacity-80"
-                />
-              ) : (
-                <FileText className="w-8 h-8 text-blue-700" />
-              )}
-
-              {/* Delete Button (appears on hover) */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemoveFile?.(index);
+        <div className="flex items-center justify-between px-3 pt-3">
+          <div className="flex gap-3 overflow-x-auto custom-scrollbar">
+            {pendingFiles.map((file, index) => (
+              <div
+                key={index}
+                className={`relative group flex-shrink-0 w-16 h-16 bg-white dark:bg-[#1A1A1A] rounded-md border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer ${
+                  isUploading ? "animate-pulse" : ""
+                }`}
+                onClick={() => {
+                  if (!isUploading) {
+                    setPreviewFile(file);
+                    setIsPreviewOpen(true);
+                  }
                 }}
-                className="absolute top-0.5 right-0.5 bg-black/50 hover:bg-red-500 text-white rounded-full p-0.5 transition"
               >
-                <X className="w-3 h-3" />
+                {/* Simple Image Preview or Icon */}
+                {file.type.startsWith("image/") ? (
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt="preview"
+                    className={`w-full h-full object-cover ${
+                      isUploading ? "opacity-50" : "opacity-80"
+                    }`}
+                  />
+                ) : (
+                  <FileText
+                    className={`w-8 h-8 text-blue-700 ${
+                      isUploading ? "opacity-50" : ""
+                    }`}
+                  />
+                )}
+
+                {/* File size badge */}
+                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] leading-4 py-0.5 px-1 text-center">
+                  {formatBytes(file.size)}
+                </div>
+
+                {/* Uploading overlay */}
+                {isUploading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+
+                {/* Delete Button (appears on hover, disabled during upload) */}
+                {!isUploading && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveFile?.(index);
+                    }}
+                    className="absolute top-0.5 right-0.5 bg-black/50 hover:bg-red-500 text-white rounded-full p-0.5 transition"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {!isUploading && pendingFiles.length > 1 && (
+              <button
+                onClick={onClearFiles}
+                className="ml-auto mr-2 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                title="Clear all"
+              >
+                <Trash2 className="w-5 h-5" />
               </button>
-            </div>
-          ))}
+            )}
+          </div>
         </div>
       )}
 
@@ -149,6 +199,7 @@ export default function InputBar({
 
         {/* TEXT AREA */}
         <textarea
+          ref={textareaRef}
           placeholder={t("typing_placeholder")}
           value={isRecording ? transcript : message}
           onChange={handleInputChange}
@@ -180,17 +231,21 @@ export default function InputBar({
         {/* SEND BUTTON */}
         <button
           onClick={onSend}
-          disabled={!message.trim() && pendingFiles.length === 0}
+          disabled={isDisableSend}
           className={`
             px-3 sm:px-4 py-2 rounded-lg transition text-white
             ${
-              !message.trim() && pendingFiles.length === 0
+              isDisableSend
                 ? "bg-gray-400 dark:bg-gray-700 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700 dark:bg-indigo-600 dark:hover:bg-indigo-700"
             }
           `}
         >
-          <Send className="w-5 h-5" />
+          {isUploading ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            <Send className="w-5 h-5" />
+          )}
         </button>
       </div>
 
