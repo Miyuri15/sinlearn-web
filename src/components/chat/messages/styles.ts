@@ -31,6 +31,9 @@ export const MESSAGE_STYLES = {
   expandButton:
     "ml-2 text-blue-600 dark:text-blue-400 hover:underline font-medium text-sm",
 
+  expandButtonUser:
+    "ml-2 text-blue-700 dark:text-gray-400 hover:text-blue-900 dark:hover:text-white hover:underline font-semibold text-sm cursor-pointer",
+
   // Text content
   evaluationInputPre: "whitespace-pre-wrap text-sm",
 } as const;

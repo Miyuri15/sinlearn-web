@@ -1,90 +1,109 @@
 "use client";
 
-import { FileText, ImageIcon, Music, Video, Download } from "lucide-react";
-import { useMemo, useState } from "react";
-import FilePreviewModal from "../FilePreviewModal";
+import { FileText, Music, Video } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { viewResource } from "@/lib/api/resource";
+import FilePreviewModal from "../uploads/FilePreviewModal";
 
 interface InlineAttachmentProps {
-  file: File | any; // accommodating your specific FileMeta type
+  resourceId?: string;
 }
 
-export function InlineAttachment({ file }: InlineAttachmentProps) {
+export function InlineAttachment({ resourceId }: InlineAttachmentProps) {
   const [showModal, setShowModal] = useState(false);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [mimeType, setMimeType] = useState<string | null>(null);
 
-  // --- 1. Data Normalization (Same logic as before, just kept purely for data) ---
-  const name =
-    file instanceof File
-      ? file.name
-      : file.name || file.url?.split("/").pop() || "file";
-  const size = file instanceof File ? file.size : file.size;
-  const sizeLabel = size ? `${(size / 1024).toFixed(1)} KB` : "";
-  const ext = name.split(".").pop()?.toLowerCase() || "";
+  const id = resourceId;
 
-  const isImage = ["png", "jpg", "jpeg", "webp", "gif"].includes(ext);
-  const isVideo = ["mp4", "mov", "webm"].includes(ext);
-  const isAudio = ["mp3", "wav", "aac"].includes(ext);
+  // Fetch blob URL if resourceId is provided
+  useEffect(() => {
+    if (!id) return;
 
-  const url = useMemo(() => {
-    if (file instanceof File) return URL.createObjectURL(file);
-    return file.url;
-  }, [file]);
+    let isMounted = true;
+    const fetchResource = async () => {
+      try {
+        setLoading(true);
+        const blob = await viewResource(id); // fetch blob
+        if (isMounted) {
+          const url = URL.createObjectURL(blob);
+          setBlobUrl(url);
+          setMimeType(blob.type); // save MIME type for rendering
+        }
+      } catch (error) {
+        console.error("Failed to fetch resource:", error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
 
-  // --- 2. Render Logic ---
+    fetchResource();
 
-  // TYPE A: IMAGE / VIDEO THUMBNAIL
-  // Renders a simple rounded square with the image content
-  if (isImage && url) {
-    return (
-      <>
-        <div
-          onClick={() => setShowModal(true)}
-          className="group relative h-24 w-24 sm:h-32 sm:w-32 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl border border-white/20 bg-black/20"
-        >
+    return () => {
+      isMounted = false;
+      if (blobUrl) URL.revokeObjectURL(blobUrl); // cleanup
+    };
+  }, [id]);
+
+  // Determine file type from MIME type
+  const fileType = useMemo(() => {
+    if (!mimeType) return "file";
+    if (mimeType.startsWith("image/")) return "image";
+    if (mimeType.startsWith("video/")) return "video";
+    if (mimeType.startsWith("audio/")) return "audio";
+    return "file";
+  }, [mimeType]);
+
+  const icon = useMemo(() => {
+    switch (fileType) {
+      case "image":
+        return (
           <img
-            src={url}
-            alt={name}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+            src={blobUrl || ""}
+            alt="attachment"
+            className="object-cover w-full h-full"
           />
-          {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/20" />
-        </div>
+        );
+      case "video":
+        return <Video className="w-6 h-6 text-gray-500" />;
+      case "audio":
+        return <Music className="w-6 h-6 text-gray-500" />;
+      default:
+        return <FileText className="w-6 h-6 text-gray-500" />;
+    }
+  }, [fileType, blobUrl]);
 
-        {showModal && (
-          <FilePreviewModal file={file} onClose={() => setShowModal(false)} />
-        )}
-      </>
+  const handleClick = () => setShowModal(true);
+  const handleCloseModal = () => setShowModal(false);
+
+  if (loading) {
+    return (
+      <div className="w-20 h-20 flex items-center justify-center border rounded bg-gray-50 text-gray-400">
+        Loading...
+      </div>
     );
   }
-
-  // TYPE B: GENERIC FILE CHIP
-  // Renders a compact horizontal bar (Icon + Name + Size)
-  const Icon = isVideo ? Video : isAudio ? Music : FileText;
 
   return (
     <>
       <div
-        onClick={() => setShowModal(true)}
-        className="group flex w-full max-w-[240px] cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-2 pr-4 hover:bg-white/10 transition-colors"
+        onClick={handleClick}
+        className="w-20 h-20 flex items-center justify-center border rounded cursor-pointer overflow-hidden bg-gray-50 hover:bg-gray-100"
       >
-        {/* Icon Box */}
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400">
-          <Icon className="h-5 w-5" />
-        </div>
-
-        {/* Text Info */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span
-            className="truncate text-sm font-medium text-white/90"
-            title={name}
-          >
-            {name}
-          </span>
-          <span className="text-xs text-white/50">{sizeLabel}</span>
-        </div>
+        {icon}
       </div>
 
-      {showModal && (
-        <FilePreviewModal file={file} onClose={() => setShowModal(false)} />
+      {/* Optionally include modal preview if needed */}
+      {showModal && blobUrl && (
+        <FilePreviewModal
+          resourceId={id}
+          url={blobUrl}
+          type={
+            fileType === "file" && mimeType?.includes("pdf") ? "pdf" : fileType
+          }
+          onClose={handleCloseModal}
+        />
       )}
     </>
   );

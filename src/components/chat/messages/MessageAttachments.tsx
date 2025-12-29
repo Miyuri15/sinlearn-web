@@ -1,18 +1,20 @@
 import { InlineAttachment } from "./InlineAttachment";
 
 interface MessageAttachmentsProps {
-  files?: any[]; // Replace 'any' with your specific File type if available
+  resourceIds?: string[];
 }
 
-export function MessageAttachments({ files }: MessageAttachmentsProps) {
-  if (!files || !Array.isArray(files) || files.length === 0) {
+export function MessageAttachments({
+  resourceIds,
+}: Readonly<MessageAttachmentsProps>) {
+  if (!resourceIds || resourceIds.length === 0) {
     return null;
   }
 
   return (
     <div className="flex flex-wrap gap-2 mb-3">
-      {files.map((file, index) => (
-        <InlineAttachment key={file.id || index} file={file} />
+      {resourceIds?.map((id) => (
+        <InlineAttachment key={id} resourceId={id} />
       ))}
     </div>
   );
