@@ -501,7 +501,7 @@ export default function ChatPage({
 
     if (mode === "learning") {
       return (
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 w-full max-w-[320px] min-[350]:max-w-[380] min-[425]:max-w-[425] sm:max-w-full bg-gray-100 dark:bg-[#0C0C0C] custom-scrollbar">
           {learningMessages.length === 0 ? (
             <EmptyState
               title={t("start_conversation")}
@@ -520,7 +520,7 @@ export default function ChatPage({
 
     // evaluation mode
     return (
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C]">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C] custom-scrollbar">
         {evaluationMessages.length === 0 ? (
           <EmptyState
             title={t("start_conversation")}
@@ -653,7 +653,7 @@ export default function ChatPage({
 
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-screen transition-[margin,width] duration-300 ${
+        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${
           isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
         }`}
       >

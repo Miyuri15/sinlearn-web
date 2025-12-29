@@ -176,7 +176,7 @@ export default function Sidebar({
         </div>
 
         {/* CHAT LIST (Scrollable) */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-3 py-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800">
           {filteredChats.length > 0
             ? filteredChats.map((chat) => {
                 const isLoading = loadingChatId === chat.id;
