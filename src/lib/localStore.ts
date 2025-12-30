@@ -163,11 +163,9 @@ export const logout = () => {
 export type StoredRubric = {
   id: string;
   title: string;
-  title_si: string;
   type: "standard" | "custom";
   categories: Array<{
     name: string;
-    name_si: string;
     percentage: number;
   }>;
   total: number;

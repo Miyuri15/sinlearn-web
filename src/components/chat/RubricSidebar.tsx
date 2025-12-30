@@ -6,11 +6,14 @@ import { useTranslation } from "react-i18next";
 import {
   setSelectedRubric,
   getSelectedRubric,
-  getCustomRubrics,
-  addCustomRubric,
   type StoredRubric,
 } from "@/lib/localStore";
-import { useToast } from "@/components/ui/Toast"; // Import the toast hook
+import { useToast } from "@/components/ui/Toast";
+import {
+  listRubricsWithCriteria,
+  createCustomRubric,
+  type Rubric as BackendRubric,
+} from "@/lib/api/rubric";
 
 type RubricSidebarProps = Readonly<{
   isOpen: boolean;
@@ -23,11 +26,9 @@ type RubricSidebarProps = Readonly<{
 type Rubric = {
   id: string;
   title: string;
-  title_si: string;
   type: "standard" | "custom";
   categories: Array<{
     name: string;
-    name_si: string;
     percentage: number;
   }>;
   total: number;
@@ -35,10 +36,8 @@ type Rubric = {
 
 type CustomRubricData = {
   title: string;
-  title_si: string;
   categories: Array<{
     name: string;
-    name_si: string;
     percentage: number;
   }>;
   total: number;
@@ -52,20 +51,78 @@ export default function RubricSidebar({
   onUpload,
 }: RubricSidebarProps) {
   const { t, i18n } = useTranslation("common");
-  const { showToast } = useToast(); // Get the toast function
+  const { showToast } = useToast();
   const currentLang = i18n.language || "en";
   const [selectedRubric, setSelectedRubricState] = useState<string>("");
   const [showCustomizationPopup, setShowCustomizationPopup] = useState(false);
+  const [isLoadingRubrics, setIsLoadingRubrics] = useState(false);
+  const [systemRubrics, setSystemRubrics] = useState<Rubric[]>([]);
+  const [userRubrics, setUserRubrics] = useState<Rubric[]>([]);
   const [customRubricData, setCustomRubricData] = useState<CustomRubricData>({
     title: t("rubric.balanced_evaluation", "Balanced Evaluation"),
-    title_si: t("rubric.balanced_evaluation", "Balanced Evaluation"),
     categories: [
-      { name: "Semantic", name_si: "අර්ථ පදනම්", percentage: 40 },
-      { name: "Coverage", name_si: "විෂය ආවරණය", percentage: 30 },
-      { name: "Relevance", name_si: "අදාළත්වය", percentage: 30 },
+      { name: t("rubric.name_semantic", "Semantic"), percentage: 40 },
+      { name: t("rubric.name_coverage", "Coverage"), percentage: 30 },
+      { name: t("rubric.name_relevance", "Relevance"), percentage: 30 },
     ],
     total: 100,
   });
+
+  // Map criterion names to translation keys
+  const getCriterionName = (criterion: string): string => {
+    const criterionMap: Record<string, string> = {
+      Semantic: t("rubric.name_semantic", "Semantic"),
+      Coverage: t("rubric.name_coverage", "Coverage"),
+      Relevance: t("rubric.name_relevance", "Relevance"),
+    };
+    return criterionMap[criterion] || criterion;
+  };
+
+  // Convert backend rubric to component rubric format
+  const convertBackendRubric = (rubric: BackendRubric): Rubric => ({
+    id: rubric.id,
+    title: rubric.name,
+    type: rubric.rubric_type === "system" ? "standard" : "custom",
+    categories: rubric.criteria.map((c) => ({
+      name: getCriterionName(c.criterion),
+      percentage: c.weight_percentage,
+    })),
+    total: rubric.criteria.reduce((sum, c) => sum + c.weight_percentage, 0),
+  });
+
+  // Load rubrics from backend
+  useEffect(() => {
+    const loadRubrics = async () => {
+      setIsLoadingRubrics(true);
+      try {
+        const backendRubrics = await listRubricsWithCriteria();
+
+        const system = backendRubrics
+          .filter((r) => r.rubric_type === "system")
+          .map(convertBackendRubric);
+
+        const user = backendRubrics
+          .filter((r) => r.rubric_type === "user")
+          .map(convertBackendRubric);
+
+        setSystemRubrics(system);
+        setUserRubrics(user);
+      } catch (error) {
+        console.error("Failed to load rubrics", error);
+        showToast(
+          t("rubric.error"),
+          "Failed to load rubrics from server",
+          "error"
+        );
+      } finally {
+        setIsLoadingRubrics(false);
+      }
+    };
+
+    if (isOpen) {
+      loadRubrics();
+    }
+  }, [isOpen, t, showToast]);
 
   // Load previously selected rubric on component mount
   useEffect(() => {
@@ -73,85 +130,8 @@ export default function RubricSidebar({
     if (storedRubric) {
       setSelectedRubricState(storedRubric.id);
     }
-
-    // Load saved custom rubrics from localStorage
-    const savedCustomRubrics = getCustomRubrics();
-    // You might want to update the savedRubrics state with these
-    console.log("Loaded custom rubrics:", savedCustomRubrics);
   }, []);
 
-  // Get localized text
-  const getText = (en: string, si: string) => (currentLang === "si" ? si : en);
-
-  // Sample rubrics data
-  const standardRubrics: Rubric[] = [
-    {
-      id: "balanced",
-      title: t("rubric.balanced_evaluation", "Balanced Evaluation"),
-      title_si: t("rubric.balanced_evaluation", "Balanced Evaluation"),
-      type: "standard",
-      categories: [
-        { name: "Semantic", name_si: "අර්ථ පදනම්", percentage: 40 },
-        { name: "Coverage", name_si: "විෂය ආවරණය", percentage: 30 },
-        { name: "Relevance", name_si: "අදාළත්වය", percentage: 30 },
-      ],
-      total: 100,
-    },
-    {
-      id: "understanding_focused",
-      title: t("rubric.understanding_focused", "Understanding Focused"),
-      title_si: t("rubric.understanding_focused", "Understanding Focused"),
-      type: "standard",
-      categories: [
-        { name: "Semantic", name_si: "අර්ථ පදනම්", percentage: 60 },
-        { name: "Coverage", name_si: "විෂය ආවරණය", percentage: 20 },
-        { name: "Relevance", name_si: "අදාළත්වය", percentage: 20 },
-      ],
-      total: 100,
-    },
-    {
-      id: "content_focused",
-      title: t("rubric.content_focused", "Content Focused"),
-      title_si: t("rubric.content_focused", "Content Focused"),
-      type: "standard",
-      categories: [
-        { name: "Semantic", name_si: "අර්ථ පදනම්", percentage: 30 },
-        { name: "Coverage", name_si: "විෂය ආවරණය", percentage: 50 },
-        { name: "Relevance", name_si: "අදාළත්වය", percentage: 20 },
-      ],
-      total: 100,
-    },
-    {
-      id: "advanced",
-      title: t("rubric.advanced_evaluation", "Advanced Evaluation"),
-      title_si: t("rubric.advanced_evaluation", "Advanced Evaluation"),
-      type: "standard",
-      categories: [
-        { name: "Semantic", name_si: "අර්ථ පදනම්", percentage: 45 },
-        { name: "Coverage", name_si: "විෂය ආවරණය", percentage: 35 },
-        { name: "Relevance", name_si: "අදාළත්වය", percentage: 20 },
-      ],
-      total: 100,
-    },
-  ];
-
-  // Initialize saved rubrics with data from localStorage
-  const [savedRubrics, setSavedRubrics] = useState<Rubric[]>([
-    {
-      id: "custom-1",
-      title: t("rubric.custom_rubric", "Custom Rubric"),
-      title_si: t("rubric.custom_rubric", "Custom Rubric"),
-      type: "custom",
-      categories: [
-        { name: "Semantic", name_si: "අර්ථ පදනම්", percentage: 40 },
-        { name: "Coverage", name_si: "විෂය ආවරණය", percentage: 30 },
-        { name: "Relevance", name_si: "අදාළත්වය", percentage: 30 },
-      ],
-      total: 100,
-    },
-  ]);
-
-  // Translation keys for sidebar
   const sidebarText = {
     selectRubric: t("rubric.select_rubric", "Select Rubric"),
     savedRubrics: t("rubric.saved_rubrics", "Saved Rubrics"),
@@ -263,59 +243,50 @@ export default function RubricSidebar({
     }
   };
 
-  const handleCreateCustomRubric = () => {
-    // Generate a unique ID for the custom rubric
-    const customRubricId = `custom-${Date.now()}`;
+  const handleCreateCustomRubric = async () => {
+    try {
+      // Prepare payload for backend
+      const payload = {
+        name: customRubricData.title,
+        description: `Custom rubric created by user`,
+        criteria: customRubricData.categories.map((cat) => ({
+          criterion: cat.name,
+          weight_percentage: cat.percentage,
+        })),
+      };
 
-    // Create the rubric object
-    const newCustomRubric: Omit<StoredRubric, "selectedAt"> = {
-      id: customRubricId,
-      title: customRubricData.title,
-      title_si: customRubricData.title_si,
-      type: "custom",
-      categories: customRubricData.categories,
-      total: customRubricData.total,
-    };
+      // Call backend API
+      const newRubric = await createCustomRubric(payload);
 
-    // Save to localStorage
-    const savedRubric = addCustomRubric(newCustomRubric);
+      // Convert to component format and add to userRubrics
+      const rubricForState = convertBackendRubric(newRubric);
+      setUserRubrics((prev) => [...prev, rubricForState]);
 
-    // Update the saved rubrics list in state
-    const rubricForState: Rubric = {
-      id: savedRubric.id,
-      title: savedRubric.title,
-      title_si: savedRubric.title_si,
-      type: savedRubric.type,
-      categories: savedRubric.categories,
-      total: savedRubric.total,
-    };
+      // Call the onUpload callback if provided
+      onUpload?.(customRubricData);
 
-    setSavedRubrics((prev) => [...prev, rubricForState]);
+      // Show success toast
+      showToast(
+        t("rubric.success"),
+        t("rubric.custom_rubric_created"),
+        "success"
+      );
 
-    // Call the onUpload callback if provided
-    onUpload?.(customRubricData);
-
-    // Show success toast
-    showToast(
-      currentLang === "si" ? "සාර්ථකයි" : "Success",
-      currentLang === "si"
-        ? "අභිරුචි මාපකය සාර්ථකව සෑදිණි"
-        : "Custom rubric created successfully",
-      "success"
-    );
-
-    setTimeout(() => onClose(), 300);
-    setShowCustomizationPopup(false);
+      setTimeout(() => onClose(), 300);
+      setShowCustomizationPopup(false);
+    } catch (error) {
+      console.error("Failed to create custom rubric", error);
+      showToast(t("rubric.error"), t("rubric.custom_rubric_failed"), "error");
+    }
   };
 
   const resetCustomRubricData = () => {
     setCustomRubricData({
       title: t("rubric.balanced_evaluation", "Balanced Evaluation"),
-      title_si: t("rubric.balanced_evaluation", "Balanced Evaluation"),
       categories: [
-        { name: "Semantic", name_si: "අර්ථ පදනම්", percentage: 40 },
-        { name: "Coverage", name_si: "විෂය ආවරණය", percentage: 30 },
-        { name: "Relevance", name_si: "අදාළත්වය", percentage: 30 },
+        { name: t("rubric.name_semantic", "Semantic"), percentage: 40 },
+        { name: t("rubric.name_coverage", "Coverage"), percentage: 30 },
+        { name: t("rubric.name_relevance", "Relevance"), percentage: 30 },
       ],
       total: 100,
     });
@@ -324,18 +295,12 @@ export default function RubricSidebar({
   const handleApplySelectedRubric = () => {
     if (!selectedRubric) {
       // Show error toast if no rubric selected
-      showToast(
-        currentLang === "si" ? "වැරදීම" : "Error",
-        currentLang === "si"
-          ? "කරුණාකර මාපකයක් තෝරන්න"
-          : "Please select a rubric first",
-        "error"
-      );
+      showToast(t("rubric.error"), t("rubric.select_a_rubric_first"), "error");
       return;
     }
 
     // Find the selected rubric from all available rubrics
-    const allRubrics = [...standardRubrics, ...savedRubrics];
+    const allRubrics = [...systemRubrics, ...userRubrics];
     const selectedRubricData = allRubrics.find((r) => r.id === selectedRubric);
 
     if (selectedRubricData) {
@@ -343,7 +308,6 @@ export default function RubricSidebar({
       const rubricToStore: Omit<StoredRubric, "selectedAt"> = {
         id: selectedRubricData.id,
         title: selectedRubricData.title,
-        title_si: selectedRubricData.title_si,
         type: selectedRubricData.type,
         categories: selectedRubricData.categories,
         total: selectedRubricData.total,
@@ -357,21 +321,15 @@ export default function RubricSidebar({
 
       // Show success toast
       showToast(
-        currentLang === "si" ? "සාර්ථකයි" : "Success",
-        currentLang === "si"
-          ? `"${selectedRubricData.title_si}" මාපකය යොදාගන්නා ලදී`
-          : `"${selectedRubricData.title}" rubric applied successfully`,
+        t("rubric.success"),
+        t("rubric.rubric_applied_successfully"),
         "success"
       );
 
       console.log("Rubric saved to localStorage:", rubricToStore);
     } else {
       // Show error toast if rubric not found
-      showToast(
-        currentLang === "si" ? "වැරදීම" : "Error",
-        currentLang === "si" ? "මාපකය සොයාගත නොහැක" : "Rubric not found",
-        "error"
-      );
+      showToast(t("rubric.error"), t("rubric.rubric_not_found"), "error");
     }
 
     // Close the sidebar
@@ -412,23 +370,12 @@ export default function RubricSidebar({
               </label>
               <input
                 type="text"
-                value={
-                  currentLang === "si"
-                    ? customRubricData.title_si
-                    : customRubricData.title
-                }
+                value={customRubricData.title}
                 onChange={(e) => {
-                  if (currentLang === "si") {
-                    setCustomRubricData({
-                      ...customRubricData,
-                      title_si: e.target.value,
-                    });
-                  } else {
-                    setCustomRubricData({
-                      ...customRubricData,
-                      title: e.target.value,
-                    });
-                  }
+                  setCustomRubricData({
+                    ...customRubricData,
+                    title: e.target.value,
+                  });
                 }}
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
                 placeholder={sidebarText.titlePlaceholder}
@@ -446,7 +393,7 @@ export default function RubricSidebar({
                   <div key={index} className="flex items-center gap-3">
                     {/* Category Name - Read-only */}
                     <div className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#2A2A2A] text-gray-900 dark:text-gray-200 text-sm flex items-center">
-                      {currentLang === "si" ? category.name_si : category.name}
+                      {category.name}
                     </div>
 
                     {/* Percentage Input */}
@@ -540,7 +487,7 @@ export default function RubricSidebar({
     </div>
   );
 
-  if (loading) {
+  if (loading || isLoadingRubrics) {
     return (
       <div className="fixed right-0 top-0 h-full w-80 bg-white dark:bg-[#111111] border-l dark:border-[#2a2a2a] p-6 z-50">
         <div className="w-32 h-6 bg-gray-200 dark:bg-gray-700 mb-6 rounded animate-pulse"></div>
@@ -618,7 +565,7 @@ export default function RubricSidebar({
             </div>
 
             {/* Saved Rubrics List */}
-            {savedRubrics.map((rubric) => (
+            {userRubrics.map((rubric) => (
               <div
                 key={rubric.id}
                 onClick={() => handleRubricSelect(rubric.id)}
@@ -645,7 +592,7 @@ export default function RubricSidebar({
                     </div>
                     <div>
                       <h5 className="font-medium text-gray-800 dark:text-gray-200">
-                        {currentLang === "si" ? rubric.title_si : rubric.title}
+                        {rubric.title}
                       </h5>
                       <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded">
                         {sidebarText.customLabel}
@@ -663,9 +610,7 @@ export default function RubricSidebar({
                       className="flex justify-between items-center"
                     >
                       <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {currentLang === "si"
-                          ? category.name_si
-                          : category.name}
+                        {category.name}
                       </span>
                       <span className="text-sm font-medium text-gray-800 dark:text-gray-300">
                         {category.percentage}%
@@ -697,7 +642,7 @@ export default function RubricSidebar({
             </h4>
 
             <div className="space-y-4">
-              {standardRubrics.map((rubric) => (
+              {systemRubrics.map((rubric) => (
                 <div
                   key={rubric.id}
                   onClick={() => handleRubricSelect(rubric.id)}
@@ -723,7 +668,7 @@ export default function RubricSidebar({
                         </div>
                       </div>
                       <h5 className="font-medium text-gray-800 dark:text-gray-200">
-                        {currentLang === "si" ? rubric.title_si : rubric.title}
+                        {rubric.title}
                       </h5>
                     </div>
                     <BookOpen className="w-4 h-4 text-gray-500 dark:text-gray-400" />
@@ -737,9 +682,7 @@ export default function RubricSidebar({
                         className="flex justify-between items-center"
                       >
                         <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {currentLang === "si"
-                            ? category.name_si
-                            : category.name}
+                          {category.name}
                         </span>
                         <span className="text-sm font-medium text-gray-800 dark:text-gray-300">
                           {category.percentage}%

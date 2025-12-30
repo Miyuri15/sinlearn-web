@@ -123,7 +123,18 @@
     "understanding_focused": "Understanding Focused",
     "content_focused": "Content Focused",
     "advanced_evaluation": "Advanced Evaluation",
-    "custom_rubric": "Custom Rubric"
+    "custom_rubric": "Custom Rubric",
+    "custom_rubric_created": "Custom rubric created successfully",
+    "success": "Success",
+    "name_semantic": "Semantic",
+    "name_coverage": "Coverage",
+    "name_relevance": "Relevance",
+    "rubric_applied_successfully": "Rubric applied successfully",
+    "error": "Error",
+    "rubric_not_found": "Rubric not found",
+    "select_a_rubric_first": "Please select a rubric first",
+    "custom_rubric_failed": "Failed to create custom rubric"
+
 }, 
 "syllabus": {
   "teachers_syllabus": "Teachers Syllabus",

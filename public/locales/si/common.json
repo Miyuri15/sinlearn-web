@@ -123,7 +123,17 @@
     "understanding_focused": "තේරුම මත දී ඇති අවධානය",
     "content_focused": "අන්තර්ගතය මත දී ඇති අවධානය",
     "advanced_evaluation": "දියුණු ඇගයීම",
-    "custom_rubric": "අභිරුචි මාපකය"
+    "custom_rubric": "අභිරුචි මාපකය",
+    "custom_rubric_created": "අභිරුචි මාපකය සාර්ථකව සාදන ලදි",
+    "success": "සාර්ථකයි",
+    "name_semantic": "අර්ථ පදනම්",
+    "name_coverage": "විෂය ආවරණය",
+    "name_relevance": "අදාළත්වය",
+    "rubric_applied_successfully": "මාපකය යොදාගන්නා ලදී",
+    "error": "වැරදීම",
+    "rubric_not_found": "මාපකය සොයාගත නොහැක",
+    "select_a_rubric_first": "කරුණාකර පළමුව මාපකයක් තෝරන්න",
+    "custom_rubric_failed": "අභිරුචි මාපකය සෑදීම අසාර්ථක විය"
   }, 
 "syllabus": {
   "teachers_syllabus": "ගුරුවරුන්ගේ පාඨමාලාව",
