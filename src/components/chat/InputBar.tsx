@@ -18,6 +18,7 @@ type InputBarProps = Readonly<{
   onRemoveFile?: (index: number) => void;
   onClearFiles?: () => void;
   isUploading?: boolean;
+  isFirstMessage?: boolean;
 }>;
 
 export default function InputBar({
@@ -32,6 +33,7 @@ export default function InputBar({
   onRemoveFile,
   onClearFiles,
   isUploading = false,
+  isFirstMessage = false,
 }: InputBarProps) {
   const { t } = useTranslation("chat");
   const [isDragging, setIsDragging] = useState(false);
@@ -81,7 +83,9 @@ export default function InputBar({
   };
 
   const isDisableSend =
-    (message.trim().length === 0 && pendingFiles.length === 0) || isUploading;
+    (message.trim().length === 0 && pendingFiles.length === 0) ||
+    isUploading ||
+    (isFirstMessage && pendingFiles.length === 0);
 
   return (
     <div

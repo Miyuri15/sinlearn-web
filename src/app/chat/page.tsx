@@ -339,6 +339,13 @@ export default function ChatPage({
             await processMessageAttachments(createdMessageId);
           } catch (err) {
             console.error("Failed to process attachments", err);
+            setToastMessage(
+              (err instanceof Error ? err.message : null) || "Failed to process attachments."
+            );
+            setToastType("error");
+            setIsToastVisible(true);
+          } finally {
+            setIsAutoProcessing(false);
           }
         }
 
@@ -361,7 +368,6 @@ export default function ChatPage({
             console.error("Failed to refresh messages", err);
           } finally {
             setIsLoadingMessages(false);
-            setIsAutoProcessing(false);
           }
         }
       } catch (error) {
@@ -850,6 +856,7 @@ export default function ChatPage({
                 onRemoveFile={handleRemovePendingFile}
                 onClearFiles={clearPendingFiles}
                 isUploading={isUploading}
+                isFirstMessage={learningMessages.length === 0}
               />
             </>
           )}
