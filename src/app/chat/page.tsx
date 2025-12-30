@@ -30,7 +30,11 @@ import {
   ResourceUploadResponse,
 } from "@/lib/api/chat";
 import { formatDistanceToNow } from "date-fns";
-import { getSelectedChatType } from "@/lib/localStore";
+import {
+  getSelectedChatType,
+  getSelectedRubric,
+  type StoredRubric,
+} from "@/lib/localStore";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
@@ -115,6 +119,15 @@ export default function ChatPage({
     useState(0);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [appliedRubric, setAppliedRubric] = useState<StoredRubric | null>(null);
+
+  // Load rubric selection persisted for the session
+  useEffect(() => {
+    const storedRubric = getSelectedRubric();
+    if (storedRubric) {
+      setAppliedRubric(storedRubric);
+    }
+  }, []);
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
@@ -384,6 +397,10 @@ export default function ChatPage({
     console.log("Selected rubric:", rubricId);
     // You can implement rubric selection logic here
     // For example: setSelectedRubric(rubricId);
+  };
+
+  const handleRubricApplied = (rubric: StoredRubric) => {
+    setAppliedRubric(rubric);
   };
 
   const handleRubricUpload = () => {
@@ -686,6 +703,7 @@ export default function ChatPage({
               onUpload={handleFileUpload}
               onOpenMarks={() => setIsEvaluationModalOpen(true)}
               uploadedFilesCount={evaluationUploadedFilesCount}
+              selectedRubricTitle={appliedRubric?.title}
             />
           )}
 
@@ -769,6 +787,7 @@ export default function ChatPage({
         onClose={() => setIsRubricOpen(false)}
         onSelectRubric={handleRubricSelect}
         onUpload={handleRubricUpload}
+        onRubricApplied={handleRubricApplied}
       />
 
       {/* RIGHT SLIDE SIDEBARS */}

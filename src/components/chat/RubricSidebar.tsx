@@ -21,6 +21,7 @@ type RubricSidebarProps = Readonly<{
   onClose: () => void;
   onSelectRubric?: (rubricId: string) => void;
   onUpload?: (customRubric?: CustomRubricData) => void;
+  onRubricApplied?: (rubric: StoredRubric) => void;
 }>;
 
 type Rubric = {
@@ -49,10 +50,10 @@ export default function RubricSidebar({
   onClose,
   onSelectRubric,
   onUpload,
+  onRubricApplied,
 }: RubricSidebarProps) {
-  const { t, i18n } = useTranslation("common");
+  const { t } = useTranslation("common");
   const { showToast } = useToast();
-  const currentLang = i18n.language || "en";
   const [selectedRubric, setSelectedRubricState] = useState<string>("");
   const [showCustomizationPopup, setShowCustomizationPopup] = useState(false);
   const [isLoadingRubrics, setIsLoadingRubrics] = useState(false);
@@ -76,6 +77,29 @@ export default function RubricSidebar({
       Relevance: t("rubric.name_relevance", "Relevance"),
     };
     return criterionMap[criterion] || criterion;
+  };
+
+  // Reverse map: translated names back to English criterion names
+  const getEnglishCriterionName = (translatedName: string): string => {
+    const englishNames = [
+      {
+        translated: t("rubric.name_semantic", "Semantic"),
+        english: "Semantic",
+      },
+      {
+        translated: t("rubric.name_coverage", "Coverage"),
+        english: "Coverage",
+      },
+      {
+        translated: t("rubric.name_relevance", "Relevance"),
+        english: "Relevance",
+      },
+    ];
+
+    const found = englishNames.find(
+      (item) => item.translated === translatedName
+    );
+    return found ? found.english : translatedName;
   };
 
   // Convert backend rubric to component rubric format
@@ -102,7 +126,7 @@ export default function RubricSidebar({
           .map(convertBackendRubric);
 
         const user = backendRubrics
-          .filter((r) => r.rubric_type === "user")
+          .filter((r) => r.rubric_type === "custom")
           .map(convertBackendRubric);
 
         setSystemRubrics(system);
@@ -245,12 +269,12 @@ export default function RubricSidebar({
 
   const handleCreateCustomRubric = async () => {
     try {
-      // Prepare payload for backend
+      // Prepare payload for backend - convert translated names to English
       const payload = {
         name: customRubricData.title,
         description: `Custom rubric created by user`,
         criteria: customRubricData.categories.map((cat) => ({
-          criterion: cat.name,
+          criterion: getEnglishCriterionName(cat.name),
           weight_percentage: cat.percentage,
         })),
       };
@@ -272,8 +296,8 @@ export default function RubricSidebar({
         "success"
       );
 
-      setTimeout(() => onClose(), 300);
       setShowCustomizationPopup(false);
+      resetCustomRubricData();
     } catch (error) {
       console.error("Failed to create custom rubric", error);
       showToast(t("rubric.error"), t("rubric.custom_rubric_failed"), "error");
@@ -313,11 +337,14 @@ export default function RubricSidebar({
         total: selectedRubricData.total,
       };
 
-      // Save to localStorage
-      setSelectedRubric({
+      // Save to localStorage and notify parent
+      const storedRubric: StoredRubric = {
         ...rubricToStore,
         selectedAt: new Date().toISOString(),
-      });
+      };
+
+      setSelectedRubric(storedRubric);
+      onRubricApplied?.(storedRubric);
 
       // Show success toast
       showToast(

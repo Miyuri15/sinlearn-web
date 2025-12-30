@@ -13,7 +13,7 @@ export type Rubric = {
   id: string;
   name: string;
   description: string;
-  rubric_type: "system" | "user";
+  rubric_type: "system" | "custom";
   created_by: string | null;
   created_at: string;
   criteria: RubricCriterion[];
@@ -33,7 +33,7 @@ export const listRubricsWithCriteria = () => {
 };
 
 export const createCustomRubric = (payload: CreateRubricPayload) => {
-  return apiFetch<Rubric>(`${API_BASE_URL}/api/v1/rubrics`, {
+  return apiFetch<Rubric>(`${API_BASE_URL}/api/v1/rubrics/`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
