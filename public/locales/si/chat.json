@@ -24,5 +24,8 @@
     "sub_question": "උප ප්‍රශ්නය",
     "next": "මීළඟ",
     "previous": "පෙර",
-    "add_sub_question": "උප ප්‍රශ්නයක් එක් කරන්න"
+    "add_sub_question": "උප ප්‍රශ්නයක් එක් කරන්න",
+    "delete_chat_confirm": "\"{{title}}\" මකා දැමීමට ඔබට විශ්වාසද? මෙම ක්‍රියාව ආපසු හැරිය නොහැක.",
+    "delete": "මකන්න",
+    "delete_chat": "චැට් මකන්න"
 }

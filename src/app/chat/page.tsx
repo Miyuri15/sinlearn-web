@@ -832,10 +832,14 @@ export default function ChatPage({
       {/* DELETE CHAT MODAL */}
       <DeleteModal
         isOpen={isDeleteModalOpen}
-        title="Delete Chat"
-        message={`Are you sure you want to delete "${deletingChat?.title}"? This action cannot be undone.`}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
+        title={t("delete_chat")}
+        message={t("delete_chat_confirm", {
+          title: deletingChat?.title || "",
+          defaultValue:
+            'Are you sure you want to delete "{{title}}"? This action cannot be undone.',
+        })}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
         isLoading={isDeletingChat}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}

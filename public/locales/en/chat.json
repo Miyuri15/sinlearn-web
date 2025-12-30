@@ -23,5 +23,8 @@
     "sub_question": "Sub-question",
     "next": "Next",
     "previous": "Previous",
-    "add_sub_question": "Add Sub-question"
+    "add_sub_question": "Add Sub-question",
+    "delete_chat_confirm": "Are you sure you want to delete \"{{title}}\"? This action cannot be undone.",
+    "delete": "Delete",
+    "delete_chat": "Delete Chat"
 }
