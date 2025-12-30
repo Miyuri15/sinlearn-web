@@ -20,6 +20,7 @@ import UpdatedToast from "@/components/ui/updatedtoast";
 import EditModal from "@/components/ui/EditModal";
 import DeleteModal from "@/components/ui/DeleteModal";
 import useChatInit from "@/hooks/useChatInit";
+import { postVoiceQA } from "@/lib/api/chat";
 import {
   postMessage,
   listChatSessions,
@@ -336,6 +337,52 @@ export default function ChatPage({
     void run();
   };
 
+  const handleVoiceSend = async (audioBlob: Blob) => {
+    if (!activeSessionId) {
+      setToastMessage("Session not ready. Please send a message first.");
+      setToastType("warning");
+      setIsToastVisible(true);
+      return;
+    }
+
+    try {
+      setCreating(true);
+
+      // 1️⃣ Upload resources first
+      let uploadedResources: ResourceUploadResponse[] = [];
+      if (pendingFiles.length > 0) {
+        uploadedResources = await uploadResources(pendingFiles);
+      }
+
+      // 2️⃣ Call Voice QA API
+      const data = await postVoiceQA({
+        audio: audioBlob,
+        session_id: activeSessionId,
+        resource_ids: uploadedResources.map(r => r.resource_id),
+        top_k: 3,
+      });
+
+      // 3️⃣ Append assistant message
+      setLearningMessages(prev => [
+        ...prev,
+        {
+          role: "assistant",
+          modality: "text",
+          content: data.answer,
+        },
+      ]);
+    } catch (error) {
+      console.error(error);
+      setToastMessage("Voice processing failed");
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setCreating(false);
+      clearPendingFiles();
+    }
+  };
+
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [learningMessages, evaluationMessages]);
@@ -390,13 +437,6 @@ export default function ChatPage({
     console.log("Upload rubric");
     // Implement file upload logic here
   };
-
-  // Auto-fill transcript simulation
-  useEffect(() => {
-    if (isRecording) {
-      setTranscript("student asking about solar systems…");
-    }
-  }, [isRecording]);
 
   // Handle sub question modal logic
   useEffect(() => {
@@ -653,9 +693,8 @@ export default function ChatPage({
 
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${
-          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
-        }`}
+        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+          }`}
       >
         {/* HEADER COMPONENT */}
         <Header
@@ -714,8 +753,13 @@ export default function ChatPage({
 
           {isRecording && (
             <RecordBar
-              onCancelRecording={handleCancelRecording}
-              onStopRecording={handleStopRecording}
+              onCancelRecording={() => {
+                setIsRecording(false);
+              }}
+              onStopRecording={(audioBlob) => {
+                setIsRecording(false);
+                handleVoiceSend(audioBlob); // 🔥 calls /voice/qa
+              }}
             />
           )}
 
@@ -774,18 +818,16 @@ export default function ChatPage({
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <SyllabusPanelpage onClose={toggleSyllabus} />
       </div>
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <QuestionsPanelpage onClose={toggleQuestions} />
       </div>
