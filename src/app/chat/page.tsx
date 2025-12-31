@@ -394,6 +394,23 @@ export default function ChatPage({
         uploadedResources = await uploadResources(pendingFiles);
       }
 
+      if (uploadedResources.length > 0) {
+        setIsAutoProcessing(true);
+        try {
+          await processResourcesBatch(
+            uploadedResources.map((r) => r.resource_id)
+          );
+        } catch (err) {
+          console.error("Failed to process resources batch", err);
+          setToastMessage("Failed to process uploaded resources.");
+          setToastType("error");
+          setIsToastVisible(true);
+          return;
+        } finally {
+          setIsAutoProcessing(false);
+        }
+      }
+
       const data = await postVoiceQA({
         audio: audioBlob,
         session_id: activeSessionId ?? "undefined", // ✅ KEY FIX
