@@ -386,47 +386,27 @@ export default function ChatPage({
   };
 
   const handleVoiceSend = async (audioBlob: Blob) => {
-    if (!activeSessionId) {
-      setToastMessage("Session not ready. Please send a message first.");
-      setToastType("warning");
-      setIsToastVisible(true);
-      return;
-    }
-
     try {
       setCreating(true);
 
-      // 1️⃣ Upload resources first
       let uploadedResources: ResourceUploadResponse[] = [];
       if (pendingFiles.length > 0) {
         uploadedResources = await uploadResources(pendingFiles);
       }
-      if (uploadedResources.length > 0) {
-        setIsAutoProcessing(true);
-        try {
-          await processResourcesBatch(
-            uploadedResources.map((r) => r.resource_id)
-          );
-        } catch (err) {
-          console.error("Failed to process resources batch", err);
-          setToastMessage("Failed to process uploaded resources.");
-          setToastType("error");
-          setIsToastVisible(true);
-          return;
-        } finally {
-          setIsAutoProcessing(false);
-        }
-      }
 
-      // 2️⃣ Call Voice QA API
       const data = await postVoiceQA({
         audio: audioBlob,
-        session_id: activeSessionId,
+        session_id: activeSessionId ?? "undefined", // ✅ KEY FIX
         resource_ids: uploadedResources.map((r) => r.resource_id),
         top_k: 3,
       });
 
-      // 3️⃣ Append assistant message
+      // ✅ Sync session if voice-first
+      if (data.session_id && !activeSessionId) {
+        setActiveSessionId(data.session_id);
+        router.replace(`/chat/${data.session_id}`);
+      }
+
       setLearningMessages((prev) => [
         ...prev,
         {
@@ -445,6 +425,7 @@ export default function ChatPage({
       clearPendingFiles();
     }
   };
+
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -757,9 +738,8 @@ export default function ChatPage({
 
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${
-          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
-        }`}
+        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+          }`}
       >
         {/* HEADER COMPONENT */}
         <Header
@@ -884,18 +864,16 @@ export default function ChatPage({
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <SyllabusPanelpage onClose={toggleSyllabus} />
       </div>
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <QuestionsPanelpage onClose={toggleQuestions} />
       </div>

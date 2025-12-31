@@ -113,6 +113,7 @@ export const deleteChatSession = (sessionId: string) => {
 };
 
 export type VoiceQAResponse = {
+  session_id: string;
   question: string;
   answer: string;
   retrieved_chunks?: any[];
