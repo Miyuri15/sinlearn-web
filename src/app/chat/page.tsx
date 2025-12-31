@@ -413,12 +413,12 @@ export default function ChatPage({
 
       const data = await postVoiceQA({
         audio: audioBlob,
-        session_id: activeSessionId ?? "undefined", // ✅ KEY FIX
+        session_id: activeSessionId ?? "undefined",
         resource_ids: uploadedResources.map((r) => r.resource_id),
         top_k: 3,
       });
 
-      // ✅ Sync session if voice-first
+      // Sync session if voice-first
       if (data.session_id && !activeSessionId) {
         setActiveSessionId(data.session_id);
         router.replace(`/chat/${data.session_id}`);
@@ -426,6 +426,12 @@ export default function ChatPage({
 
       setLearningMessages((prev) => [
         ...prev,
+        {
+          role: "user",
+          modality: "voice",
+          content: data.question,
+          resource_ids: uploadedResources.map((r) => r.resource_id),
+        },
         {
           role: "assistant",
           modality: "text",
