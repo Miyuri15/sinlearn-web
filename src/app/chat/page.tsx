@@ -80,6 +80,7 @@ export default function ChatPage({
   );
   const [isDeletingChat, setIsDeletingChat] = useState(false);
   const [isAutoProcessing, setIsAutoProcessing] = useState(false);
+  const [pendingVoice, setPendingVoice] = useState<Blob | null>(null);
 
   type SidebarChatItem = {
     id: string;
@@ -194,6 +195,11 @@ export default function ChatPage({
     const run = async () => {
       if (mode === "learning" && !message.trim()) return;
 
+      if (pendingVoice) {
+        await handleVoiceSend(pendingVoice);
+        setPendingVoice(null);
+        return;
+      }
       /**
        * CHANGE 1️⃣
        * We no longer treat "existing chat" differently.
@@ -447,6 +453,18 @@ export default function ChatPage({
       setCreating(false);
       clearPendingFiles();
     }
+  };
+
+  const handleUnifiedSend = () => {
+    // 🎙️ Voice has priority
+    if (pendingVoice) {
+      handleVoiceSend(pendingVoice);
+      setPendingVoice(null);
+      return;
+    }
+
+    // ✍️ Otherwise, text
+    handleSend();
   };
 
 
@@ -815,7 +833,7 @@ export default function ChatPage({
             }}
             onSubmit={() => {
               setIsEvaluationModalOpen(false);
-              handleSend();
+              handleUnifiedSend();
             }}
           />
 
@@ -826,7 +844,7 @@ export default function ChatPage({
               }}
               onStopRecording={(audioBlob) => {
                 setIsRecording(false);
-                handleVoiceSend(audioBlob); // 🔥 calls /voice/qa
+                setPendingVoice(audioBlob);
               }}
             />
           )}
@@ -847,20 +865,36 @@ export default function ChatPage({
                 </select>
               </div>
 
+              {pendingVoice && (
+                <div className="mb-3 flex items-center gap-3 p-3 rounded-lg bg-gray-200 dark:bg-[#1a1a1a]">
+                  <audio controls src={URL.createObjectURL(pendingVoice)} />
+
+                  <button
+                    className="text-red-500 text-sm"
+                    onClick={() => setPendingVoice(null)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               <InputBar
                 isRecording={isRecording}
                 setIsRecording={setIsRecording}
                 transcript={transcript}
                 message={message}
                 handleInputChange={handleInputChange}
-                onSend={handleSend}
-                onFilesSelected={handlePendingFilesAdd} // Previously onUpload
+                onSend={handleUnifiedSend}
+                onFilesSelected={handlePendingFilesAdd}
                 pendingFiles={pendingFiles}
                 onRemoveFile={handleRemovePendingFile}
                 onClearFiles={clearPendingFiles}
+                pendingVoice={pendingVoice}
+                onClearPendingVoice={() => setPendingVoice(null)}
                 isUploading={isUploading}
                 isFirstMessage={learningMessages.length === 0}
               />
+
             </>
           )}
         </div>
