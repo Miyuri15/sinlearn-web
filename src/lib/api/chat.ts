@@ -111,3 +111,42 @@ export const deleteChatSession = (sessionId: string) => {
     method: "DELETE",
   });
 };
+
+export type VoiceQAResponse = {
+  session_id: string;
+  question: string;
+  answer: string;
+  retrieved_chunks?: any[];
+};
+
+export async function postVoiceQA(
+  params: {
+    audio: Blob;
+    session_id: string;
+    resource_ids?: string[];
+    top_k?: number;
+  }
+): Promise<VoiceQAResponse> {
+  const {
+    audio,
+    session_id,
+    resource_ids = [],
+    top_k = 3,
+  } = params;
+
+  const formData = new FormData();
+  formData.append("audio", audio, "voice.wav");
+  formData.append("session_id", session_id);
+
+  if (resource_ids.length > 0) {
+    formData.append("resource_ids", resource_ids.join(","));
+  }
+
+  return apiFetch<VoiceQAResponse>(
+    `${API_BASE_URL}/api/v1/voice/qa?top_k=${top_k}`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+}

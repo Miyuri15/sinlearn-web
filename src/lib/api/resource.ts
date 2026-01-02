@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "../config";
 import { getAccessToken } from "../localStore";
+import { apiFetch } from "./client";
 
 // Fetch resource as blob for inline display (PDF, images, audio, video)
 export const viewResource = async (resourceId: string): Promise<Blob> => {
@@ -62,4 +63,32 @@ export const downloadResource = async (
   a.remove();
 
   URL.revokeObjectURL(downloadUrl);
+};
+
+export const processMessageAttachments = (messageId: string) => {
+  return apiFetch<void>(
+    `${API_BASE_URL}/api/v1/messages/${messageId}/attachments/process`,
+    {
+      method: "POST",
+    }
+  );
+};
+
+export type ResourceBatchProcessResponse = {
+  resource_id: string;
+  status: string;
+  chunks_created?: number;
+  message?: string;
+}[];
+
+export const processResourcesBatch = (resourceIds: string[]) => {
+  return apiFetch<ResourceBatchProcessResponse>(
+    `${API_BASE_URL}/api/v1/resources/process/batch`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        resource_ids: resourceIds,
+      }),
+    }
+  );
 };

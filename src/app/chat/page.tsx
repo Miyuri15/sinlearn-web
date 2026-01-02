@@ -28,7 +28,12 @@ import {
   deleteChatSession,
   uploadResources,
   ResourceUploadResponse,
+  postVoiceQA,
 } from "@/lib/api/chat";
+import {
+  processMessageAttachments,
+  processResourcesBatch,
+} from "@/lib/api/resource";
 import { formatDistanceToNow } from "date-fns";
 import { getSelectedChatType } from "@/lib/localStore";
 
@@ -74,6 +79,8 @@ export default function ChatPage({
     null
   );
   const [isDeletingChat, setIsDeletingChat] = useState(false);
+  const [isAutoProcessing, setIsAutoProcessing] = useState(false);
+  const [pendingVoice, setPendingVoice] = useState<Blob | null>(null);
 
   type SidebarChatItem = {
     id: string;
@@ -188,6 +195,11 @@ export default function ChatPage({
     const run = async () => {
       if (mode === "learning" && !message.trim()) return;
 
+      if (pendingVoice) {
+        await handleVoiceSend(pendingVoice);
+        setPendingVoice(null);
+        return;
+      }
       /**
        * CHANGE 1️⃣
        * We no longer treat "existing chat" differently.
@@ -294,12 +306,11 @@ export default function ChatPage({
          */
         const resp = await postMessage(activeSessionId ?? undefined, payload);
 
-        /**
-         * CHANGE 5️⃣
-         * Extract session id safely from backend response.
-         */
+        // Extract identifiers from the backend response for follow-up actions
         const newSessionId =
           resp?.session_id || resp?.session?.id || resp?.chat_id || resp?.id;
+        const createdMessageId =
+          resp?.message_id || resp?.message?.id || resp?.id || null;
 
         if (newSessionId) {
           setActiveSessionId(newSessionId);
@@ -321,6 +332,50 @@ export default function ChatPage({
             setEvaluationMessages((prev) => [...prev, resp.assistant_message]);
           }
         }
+
+        /**
+         * NEW: process message attachments, then refresh to pick up the AI response
+         * emitted by the backend after attachments are processed.
+         */
+        const sessionToRefresh = newSessionId ?? activeSessionId;
+
+        if (createdMessageId) {
+          setIsAutoProcessing(true);
+          try {
+            await processMessageAttachments(createdMessageId);
+          } catch (err) {
+            console.error("Failed to process attachments", err);
+            setToastMessage(
+              (err instanceof Error ? err.message : null) || "Failed to process attachments."
+            );
+            setToastType("error");
+            setIsToastVisible(true);
+          } finally {
+            setIsAutoProcessing(false);
+          }
+        }
+
+        if (sessionToRefresh) {
+          try {
+            setIsLoadingMessages(true);
+            const messages = await listSessionMessages(sessionToRefresh);
+            const sorted = messages.sort(
+              (a, b) =>
+                new Date(a.created_at).getTime() -
+                new Date(b.created_at).getTime()
+            );
+
+            if (mode === "learning") {
+              setLearningMessages(sorted);
+            } else {
+              setEvaluationMessages(sorted);
+            }
+          } catch (err) {
+            console.error("Failed to refresh messages", err);
+          } finally {
+            setIsLoadingMessages(false);
+          }
+        }
       } catch (error) {
         console.error("Failed to send message", error);
         setToastMessage("Failed to send message. Please try again.");
@@ -335,6 +390,83 @@ export default function ChatPage({
 
     void run();
   };
+
+  const handleVoiceSend = async (audioBlob: Blob) => {
+    try {
+      setCreating(true);
+
+      let uploadedResources: ResourceUploadResponse[] = [];
+      if (pendingFiles.length > 0) {
+        uploadedResources = await uploadResources(pendingFiles);
+      }
+
+      if (uploadedResources.length > 0) {
+        setIsAutoProcessing(true);
+        try {
+          await processResourcesBatch(
+            uploadedResources.map((r) => r.resource_id)
+          );
+        } catch (err) {
+          console.error("Failed to process resources batch", err);
+          setToastMessage("Failed to process uploaded resources.");
+          setToastType("error");
+          setIsToastVisible(true);
+          return;
+        } finally {
+          setIsAutoProcessing(false);
+        }
+      }
+
+      const data = await postVoiceQA({
+        audio: audioBlob,
+        session_id: activeSessionId ?? "undefined",
+        resource_ids: uploadedResources.map((r) => r.resource_id),
+        top_k: 3,
+      });
+
+      // Sync session if voice-first
+      if (data.session_id && !activeSessionId) {
+        setActiveSessionId(data.session_id);
+        router.replace(`/chat/${data.session_id}`);
+      }
+
+      setLearningMessages((prev) => [
+        ...prev,
+        {
+          role: "user",
+          modality: "voice",
+          content: data.question,
+          resource_ids: uploadedResources.map((r) => r.resource_id),
+        },
+        {
+          role: "assistant",
+          modality: "text",
+          content: data.answer,
+        },
+      ]);
+    } catch (error) {
+      console.error(error);
+      setToastMessage("Voice processing failed");
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setCreating(false);
+      clearPendingFiles();
+    }
+  };
+
+  const handleUnifiedSend = () => {
+    // 🎙️ Voice has priority
+    if (pendingVoice) {
+      handleVoiceSend(pendingVoice);
+      setPendingVoice(null);
+      return;
+    }
+
+    // ✍️ Otherwise, text
+    handleSend();
+  };
+
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -390,13 +522,6 @@ export default function ChatPage({
     console.log("Upload rubric");
     // Implement file upload logic here
   };
-
-  // Auto-fill transcript simulation
-  useEffect(() => {
-    if (isRecording) {
-      setTranscript("student asking about solar systems…");
-    }
-  }, [isRecording]);
 
   // Handle sub question modal logic
   useEffect(() => {
@@ -512,6 +637,7 @@ export default function ChatPage({
               messages={learningMessages}
               mode="learning"
               endRef={endRef}
+              isProcessing={isAutoProcessing}
             />
           )}
         </div>
@@ -653,9 +779,8 @@ export default function ChatPage({
 
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${
-          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
-        }`}
+        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+          }`}
       >
         {/* HEADER COMPONENT */}
         <Header
@@ -708,14 +833,19 @@ export default function ChatPage({
             }}
             onSubmit={() => {
               setIsEvaluationModalOpen(false);
-              handleSend();
+              handleUnifiedSend();
             }}
           />
 
           {isRecording && (
             <RecordBar
-              onCancelRecording={handleCancelRecording}
-              onStopRecording={handleStopRecording}
+              onCancelRecording={() => {
+                setIsRecording(false);
+              }}
+              onStopRecording={(audioBlob) => {
+                setIsRecording(false);
+                setPendingVoice(audioBlob);
+              }}
             />
           )}
 
@@ -735,19 +865,36 @@ export default function ChatPage({
                 </select>
               </div>
 
+              {pendingVoice && (
+                <div className="mb-3 flex items-center gap-3 p-3 rounded-lg bg-gray-200 dark:bg-[#1a1a1a]">
+                  <audio controls src={URL.createObjectURL(pendingVoice)} />
+
+                  <button
+                    className="text-red-500 text-sm"
+                    onClick={() => setPendingVoice(null)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               <InputBar
                 isRecording={isRecording}
                 setIsRecording={setIsRecording}
                 transcript={transcript}
                 message={message}
                 handleInputChange={handleInputChange}
-                onSend={handleSend}
-                onFilesSelected={handlePendingFilesAdd} // Previously onUpload
+                onSend={handleUnifiedSend}
+                onFilesSelected={handlePendingFilesAdd}
                 pendingFiles={pendingFiles}
                 onRemoveFile={handleRemovePendingFile}
                 onClearFiles={clearPendingFiles}
+                pendingVoice={pendingVoice}
+                onClearPendingVoice={() => setPendingVoice(null)}
                 isUploading={isUploading}
+                isFirstMessage={learningMessages.length === 0}
               />
+
             </>
           )}
         </div>
@@ -774,18 +921,16 @@ export default function ChatPage({
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <SyllabusPanelpage onClose={toggleSyllabus} />
       </div>
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <QuestionsPanelpage onClose={toggleQuestions} />
       </div>
