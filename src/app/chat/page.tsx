@@ -394,6 +394,7 @@ export default function ChatPage({
   const handleVoiceSend = async (audioBlob: Blob) => {
     try {
       setCreating(true);
+      setIsAutoProcessing(true);
 
       let uploadedResources: ResourceUploadResponse[] = [];
       if (pendingFiles.length > 0) {
@@ -451,6 +452,7 @@ export default function ChatPage({
       setIsToastVisible(true);
     } finally {
       setCreating(false);
+      setIsAutoProcessing(false);
       clearPendingFiles();
     }
   };
@@ -865,7 +867,7 @@ export default function ChatPage({
                 </select>
               </div>
 
-              {pendingVoice && (
+              {/* {pendingVoice && (
                 <div className="mb-3 flex items-center gap-3 p-3 rounded-lg bg-gray-200 dark:bg-[#1a1a1a]">
                   <audio controls src={URL.createObjectURL(pendingVoice)} />
 
@@ -876,7 +878,7 @@ export default function ChatPage({
                     ✕
                   </button>
                 </div>
-              )}
+              )} */}
 
               <InputBar
                 isRecording={isRecording}
