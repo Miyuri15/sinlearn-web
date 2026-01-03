@@ -29,6 +29,7 @@ import {
   uploadResources,
   ResourceUploadResponse,
   postVoiceQA,
+  generateMessageResponse,
 } from "@/lib/api/chat";
 import {
   processMessageAttachments,
@@ -81,6 +82,7 @@ export default function ChatPage({
   const [isDeletingChat, setIsDeletingChat] = useState(false);
   const [isAutoProcessing, setIsAutoProcessing] = useState(false);
   const [pendingVoice, setPendingVoice] = useState<Blob | null>(null);
+  const [isMessageGenerating, setIsMessageGenerating] = useState(false);
 
   type SidebarChatItem = {
     id: string;
@@ -346,12 +348,45 @@ export default function ChatPage({
           } catch (err) {
             console.error("Failed to process attachments", err);
             setToastMessage(
-              (err instanceof Error ? err.message : null) || "Failed to process attachments."
+              (err instanceof Error ? err.message : null) ||
+                "Failed to process attachments."
             );
             setToastType("error");
             setIsToastVisible(true);
           } finally {
             setIsAutoProcessing(false);
+          }
+        }
+
+        if (createdMessageId) {
+          setIsMessageGenerating(true);
+          try {
+            const generated = await generateMessageResponse(createdMessageId);
+            const generatedMessage = generated?.message;
+
+            if (generatedMessage) {
+              const messageToRender: ChatMessage = {
+                id: generatedMessage.id,
+                role: (generatedMessage.role ?? "assistant") as
+                  | "user"
+                  | "assistant",
+                content: generatedMessage.content ?? "",
+                grade_level: generatedMessage.grade_level,
+              };
+
+              if (mode === "learning") {
+                setLearningMessages((prev) => [...prev, messageToRender]);
+              } else {
+                setEvaluationMessages((prev) => [...prev, messageToRender]);
+              }
+            }
+          } catch (err) {
+            console.error("Failed to generate assistant reply", err);
+            setToastMessage("Failed to generate assistant reply.");
+            setToastType("error");
+            setIsToastVisible(true);
+          } finally {
+            setIsMessageGenerating(false);
           }
         }
 
@@ -468,7 +503,6 @@ export default function ChatPage({
     // ✍️ Otherwise, text
     handleSend();
   };
-
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -640,6 +674,7 @@ export default function ChatPage({
               mode="learning"
               endRef={endRef}
               isProcessing={isAutoProcessing}
+              isMessageGenerating={isMessageGenerating}
             />
           )}
         </div>
@@ -781,8 +816,9 @@ export default function ChatPage({
 
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
-          }`}
+        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${
+          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+        }`}
       >
         {/* HEADER COMPONENT */}
         <Header
@@ -896,7 +932,6 @@ export default function ChatPage({
                 isUploading={isUploading}
                 isFirstMessage={learningMessages.length === 0}
               />
-
             </>
           )}
         </div>
@@ -923,16 +958,18 @@ export default function ChatPage({
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isSyllabusOpen ? "translate-x-0" : "translate-x-full"
-          }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+        }`}
       >
         <SyllabusPanelpage onClose={toggleSyllabus} />
       </div>
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isQuestionsOpen ? "translate-x-0" : "translate-x-full"
-          }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+        }`}
       >
         <QuestionsPanelpage onClose={toggleQuestions} />
       </div>

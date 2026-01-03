@@ -13,11 +13,13 @@ export default function MessagesList({
   mode,
   endRef,
   isProcessing = false,
+  isMessageGenerating = false,
 }: Readonly<{
   messages: ChatMessage[];
   mode: "learning" | "evaluation";
   endRef?: React.RefObject<HTMLDivElement | null>;
   isProcessing?: boolean;
+  isMessageGenerating?: boolean;
 }>) {
   const renderMessage = (message: ChatMessage) => {
     if (mode === "learning") {
@@ -58,6 +60,17 @@ export default function MessagesList({
           <span>Processing attachments and generating a response…</span>
         </div>
       )}
+
+      {isMessageGenerating && (
+        <div className="flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-300 px-3 py-2">
+          <span
+            className="inline-block h-3 w-3 sm:h-4 sm:w-4 border-2 border-gray-400 border-t-transparent rounded-4xl sm:rounded-full animate-spin"
+            aria-label="Generating"
+          />
+          <span>Generating a response…</span>
+        </div>
+      )}
+
       <div ref={endRef} />
     </>
   );
