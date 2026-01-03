@@ -2,6 +2,7 @@ import type { ChatMessage } from "@/lib/models/chat";
 import { MESSAGE_STYLES } from "./styles";
 import { TruncatedMessage } from "./TruncatedMessage";
 import { GradeLabel } from "./GradeLabel";
+import { isTextMessage } from "@/lib/models/chat";
 import { RegenerateButton } from "./RegenerateButton";
 
 /**
@@ -19,6 +20,9 @@ export function LearningModeAssistantMessage({
   const m = message as any;
   const contentStr =
     typeof m.content === "string" ? m.content : String(m.content);
+  const parentMessageId = isTextMessage(message)
+    ? message.parent_msg_id ?? message.id
+    : undefined;
 
   return (
     <div className={MESSAGE_STYLES.assistantMessage}>
@@ -31,7 +35,7 @@ export function LearningModeAssistantMessage({
           <div className="pt-2">
             {onRegenerate && (
               <RegenerateButton
-                messageId={message.parent_msg_id}
+                messageId={parentMessageId}
                 onRegenerate={onRegenerate}
                 isLoading={isRegenerating}
               />
