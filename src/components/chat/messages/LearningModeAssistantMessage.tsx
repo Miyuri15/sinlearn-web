@@ -28,19 +28,15 @@ export function LearningModeAssistantMessage({
     <div className={MESSAGE_STYLES.assistantMessage}>
       <TruncatedMessage content={contentStr} />
       {(m.grade_level || onRegenerate) && (
-        <div className="pt-2">
-          <div className="flex items-center gap-2">
-            {m.grade_level && <GradeLabel gradeLevel={m.grade_level} />}
-          </div>
-          <div className="pt-2">
-            {onRegenerate && (
-              <RegenerateButton
-                messageId={parentMessageId}
-                onRegenerate={onRegenerate}
-                isLoading={isRegenerating}
-              />
-            )}
-          </div>
+        <div className="pt-2 mt-1 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-4">
+          {m.grade_level ? <GradeLabel gradeLevel={m.grade_level} /> : <div />}
+          {onRegenerate && (
+            <RegenerateButton
+              messageId={parentMessageId}
+              onRegenerate={onRegenerate}
+              isLoading={isRegenerating}
+            />
+          )}
         </div>
       )}
     </div>

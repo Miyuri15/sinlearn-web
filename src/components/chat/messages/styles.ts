@@ -16,8 +16,7 @@ export const MESSAGE_STYLES = {
   evaluationMessage: "w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl",
 
   // Grade label
-  gradeLabel:
-    "pt-2 mt-1 border-t border-black/10 dark:border-white/10 flex items-center gap-2",
+  gradeLabel: "pt-2 flex items-center gap-2",
   gradeLabelText:
     "text-[10px] uppercase tracking-wider font-semibold opacity-60",
   gradeLabelBadge:
@@ -25,7 +24,7 @@ export const MESSAGE_STYLES = {
   gradeInfo: "mt-2 text-xs text-gray-500 dark:text-gray-400",
 
   // Regenerate button
-  regenerateButton: "pt-2 mt-1 border-t border-black/10 dark:border-white/10",
+  regenerateButton: "",
   regenerateButtonText:
     "text-xs font-medium bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
 
