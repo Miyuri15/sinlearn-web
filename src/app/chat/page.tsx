@@ -210,6 +210,7 @@ export default function ChatPage({
       setCreating(true);
 
       let uploadedResources: ResourceUploadResponse[] = [];
+      let pendingNavigateSessionId: string | null = null;
 
       // Upload pending files before sending the message so backend receives resource ids
       if (mode === "learning" && pendingFiles.length > 0) {
@@ -318,7 +319,7 @@ export default function ChatPage({
           setActiveSessionId(newSessionId);
 
           if (chatId?.startsWith("local-")) {
-            router.replace(`/chat/${newSessionId}`);
+            pendingNavigateSessionId = newSessionId;
           }
         }
 
@@ -410,6 +411,10 @@ export default function ChatPage({
           } finally {
             setIsLoadingMessages(false);
           }
+        }
+
+        if (pendingNavigateSessionId) {
+          router.replace(`/chat/${pendingNavigateSessionId}`);
         }
       } catch (error) {
         console.error("Failed to send message", error);
