@@ -547,7 +547,12 @@ export default function ChatPage({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [learningMessages, evaluationMessages]);
+  }, [
+    learningMessages,
+    evaluationMessages,
+    isAutoProcessing,
+    isMessageGenerating,
+  ]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
