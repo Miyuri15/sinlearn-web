@@ -58,7 +58,7 @@ export const uploadResources = (files: File[]) => {
   });
 
   return apiFetch<ResourceUploadResponse[]>(
-    `${API_BASE_URL}/api/v1/resources/upload/batch`,
+    `${API_BASE_URL}/api/v1/resources/upload-only/batch`,
     {
       method: "POST",
       body: formData,
@@ -119,20 +119,27 @@ export type VoiceQAResponse = {
   retrieved_chunks?: any[];
 };
 
-export async function postVoiceQA(
-  params: {
-    audio: Blob;
-    session_id: string;
-    resource_ids?: string[];
-    top_k?: number;
-  }
-): Promise<VoiceQAResponse> {
-  const {
-    audio,
-    session_id,
-    resource_ids = [],
-    top_k = 3,
-  } = params;
+export type GeneratedMessageResponse = {
+  id: string;
+  session_id: string;
+  role: string;
+  modality: string;
+  content?: string;
+  grade_level?: string;
+  audio_url?: string;
+  transcript?: string;
+  audio_duration_sec?: number;
+  created_at: string;
+  resource_ids: string[];
+};
+
+export async function postVoiceQA(params: {
+  audio: Blob;
+  session_id: string;
+  resource_ids?: string[];
+  top_k?: number;
+}): Promise<VoiceQAResponse> {
+  const { audio, session_id, resource_ids = [], top_k = 3 } = params;
 
   const formData = new FormData();
   formData.append("audio", audio, "voice.wav");
@@ -150,3 +157,19 @@ export async function postVoiceQA(
     }
   );
 }
+
+export const generateMessageResponse = async (messageId: string) => {
+  const message = await apiFetch<GeneratedMessageResponse>(
+    `${API_BASE_URL}/api/v1/messages/${messageId}/generate`,
+    {
+      method: "POST",
+    }
+  );
+
+  return {
+    role: message.role,
+    content: message.content,
+    grade_level: message.grade_level,
+    message,
+  };
+};
