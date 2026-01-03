@@ -14,12 +14,14 @@ export default function MessagesList({
   endRef,
   isProcessing = false,
   isMessageGenerating = false,
+  onRegenerateAssistant,
 }: Readonly<{
   messages: ChatMessage[];
   mode: "learning" | "evaluation";
   endRef?: React.RefObject<HTMLDivElement | null>;
   isProcessing?: boolean;
   isMessageGenerating?: boolean;
+  onRegenerateAssistant?: (messageId?: string) => void;
 }>) {
   const renderMessage = (message: ChatMessage) => {
     if (mode === "learning") {
@@ -27,7 +29,12 @@ export default function MessagesList({
         return <LearningModeUserMessage message={message} />;
       }
       if (message.role === "assistant") {
-        return <LearningModeAssistantMessage message={message} />;
+        return (
+          <LearningModeAssistantMessage
+            message={message}
+            onRegenerate={onRegenerateAssistant}
+          />
+        );
       }
       return null;
     }

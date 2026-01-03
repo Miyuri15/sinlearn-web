@@ -504,6 +504,42 @@ export default function ChatPage({
     handleSend();
   };
 
+  const handleRegenerateAssistant = async (messageId?: string) => {
+    if (!messageId) {
+      setToastMessage("Cannot regenerate this message right now.");
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    setIsMessageGenerating(true);
+
+    try {
+      const generated = await generateMessageResponse(messageId);
+      const generatedMessage = generated?.message;
+
+      if (generatedMessage) {
+        const nextMessage: ChatMessage = {
+          id: generatedMessage.id ?? messageId,
+          role: (generatedMessage.role ?? "assistant") as "assistant" | "user",
+          content: generatedMessage.content ?? "",
+          grade_level: generatedMessage.grade_level,
+        };
+
+        setLearningMessages((prev) =>
+          prev.map((msg) => (msg.id === messageId ? nextMessage : msg))
+        );
+      }
+    } catch (error) {
+      console.error("Failed to regenerate assistant reply", error);
+      setToastMessage("Failed to regenerate assistant reply.");
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setIsMessageGenerating(false);
+    }
+  };
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [learningMessages, evaluationMessages]);
@@ -675,6 +711,7 @@ export default function ChatPage({
               endRef={endRef}
               isProcessing={isAutoProcessing}
               isMessageGenerating={isMessageGenerating}
+              onRegenerateAssistant={handleRegenerateAssistant}
             />
           )}
         </div>
