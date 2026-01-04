@@ -58,7 +58,7 @@ export const uploadResources = (files: File[]) => {
   });
 
   return apiFetch<ResourceUploadResponse[]>(
-    `${API_BASE_URL}/api/v1/resources/upload/batch`,
+    `${API_BASE_URL}/api/v1/resources/upload-only/batch`,
     {
       method: "POST",
       body: formData,
@@ -110,4 +110,66 @@ export const deleteChatSession = (sessionId: string) => {
   return apiFetch<void>(`${API_BASE_URL}/api/v1/chat/sessions/${sessionId}`, {
     method: "DELETE",
   });
+};
+
+export type VoiceQAResponse = {
+  session_id: string;
+  question: string;
+  answer: string;
+  retrieved_chunks?: any[];
+};
+
+export type GeneratedMessageResponse = {
+  id: string;
+  session_id: string;
+  role: string;
+  modality: string;
+  content?: string;
+  grade_level?: string;
+  audio_url?: string;
+  transcript?: string;
+  audio_duration_sec?: number;
+  created_at: string;
+  resource_ids: string[];
+};
+
+export async function postVoiceQA(params: {
+  audio: Blob;
+  session_id: string;
+  resource_ids?: string[];
+  top_k?: number;
+}): Promise<VoiceQAResponse> {
+  const { audio, session_id, resource_ids = [], top_k = 3 } = params;
+
+  const formData = new FormData();
+  formData.append("audio", audio, "voice.wav");
+  formData.append("session_id", session_id);
+
+  if (resource_ids.length > 0) {
+    formData.append("resource_ids", resource_ids.join(","));
+  }
+
+  return apiFetch<VoiceQAResponse>(
+    `${API_BASE_URL}/api/v1/voice/qa?top_k=${top_k}`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+}
+
+export const generateMessageResponse = async (messageId: string) => {
+  const message = await apiFetch<GeneratedMessageResponse>(
+    `${API_BASE_URL}/api/v1/messages/${messageId}/generate`,
+    {
+      method: "POST",
+    }
+  );
+
+  return {
+    role: message.role,
+    content: message.content,
+    grade_level: message.grade_level,
+    message,
+  };
 };
