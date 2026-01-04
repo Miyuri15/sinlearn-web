@@ -1,5 +1,6 @@
 import { apiFetch } from "./client";
 import { API_BASE_URL } from "../config";
+import type { SafetySummary } from "../models/chat";
 
 export type CreateChatPayload = {
   mode: "learning" | "evaluation";
@@ -131,6 +132,7 @@ export type GeneratedMessageResponse = {
   audio_duration_sec?: number;
   created_at: string;
   resource_ids: string[];
+  safety_summary?: SafetySummary;
 };
 
 export async function postVoiceQA(params: {

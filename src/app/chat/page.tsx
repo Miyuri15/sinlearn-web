@@ -83,6 +83,7 @@ export default function ChatPage({
   const [isAutoProcessing, setIsAutoProcessing] = useState(false);
   const [pendingVoice, setPendingVoice] = useState<Blob | null>(null);
   const [isMessageGenerating, setIsMessageGenerating] = useState(false);
+  const [isSyncingMessages, setIsSyncingMessages] = useState(false);
 
   type SidebarChatItem = {
     id: string;
@@ -373,6 +374,7 @@ export default function ChatPage({
                   | "assistant",
                 content: generatedMessage.content ?? "",
                 grade_level: generatedMessage.grade_level,
+                safety_summary: generatedMessage.safety_summary,
               };
 
               if (mode === "learning") {
@@ -392,8 +394,8 @@ export default function ChatPage({
         }
 
         if (sessionToRefresh) {
+          setIsSyncingMessages(true);
           try {
-            setIsLoadingMessages(true);
             const messages = await listSessionMessages(sessionToRefresh);
             const sorted = messages.sort(
               (a, b) =>
@@ -409,7 +411,7 @@ export default function ChatPage({
           } catch (err) {
             console.error("Failed to refresh messages", err);
           } finally {
-            setIsLoadingMessages(false);
+            setIsSyncingMessages(false);
           }
         }
 
@@ -529,6 +531,7 @@ export default function ChatPage({
           role: (generatedMessage.role ?? "assistant") as "assistant" | "user",
           content: generatedMessage.content ?? "",
           grade_level: generatedMessage.grade_level,
+          safety_summary: generatedMessage.safety_summary,
         };
 
         setLearningMessages((prev) =>
@@ -855,6 +858,7 @@ export default function ChatPage({
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         chats={chats}
+        activeChatId={chatId ?? activeSessionId}
         onNewLearningChat={() => handleNewChat("learning")}
         onNewEvaluationChat={() => handleNewChat("evaluation")}
         onEditChat={handleEditChat}
@@ -873,6 +877,7 @@ export default function ChatPage({
           isRubricOpen={isRubricOpen}
           isSyllabusOpen={isSyllabusOpen}
           isQuestionsOpen={isQuestionsOpen}
+          isSyncingMessages={isSyncingMessages}
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           toggleRubric={toggleRubric}
           toggleSyllabus={toggleSyllabus}
