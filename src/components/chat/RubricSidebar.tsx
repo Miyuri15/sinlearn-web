@@ -259,7 +259,8 @@ export default function RubricSidebar({
               .filter((r) => r.rubric_type === "custom")
               .map(processRubric),
           });
-        } catch {
+        } catch (error) {
+          console.error("Failed to load rubrics:", error);
           showToast(t("rubric.error"), "Failed to load rubrics", "error");
         } finally {
           setIsLoading(false);
@@ -275,7 +276,10 @@ export default function RubricSidebar({
     weights: Record<string, number>
   ) => {
     try {
-      if (!title.trim()) return;
+      if (!title.trim()) {
+        showToast(t("rubric.error"), "Title is required", "error");
+        return;
+      }
 
       // TRANSLATION FIX: We send English IDs to backend
       const payload = {
@@ -309,6 +313,7 @@ export default function RubricSidebar({
       );
       setShowPopup(false);
     } catch (error) {
+      console.error("Failed to create custom rubric:", error);
       showToast(t("rubric.error"), t("rubric.custom_rubric_failed"), "error");
     }
   };
