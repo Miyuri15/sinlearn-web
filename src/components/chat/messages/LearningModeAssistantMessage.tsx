@@ -1,9 +1,12 @@
 import type { ChatMessage } from "@/lib/models/chat";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TruncatedMessage } from "./TruncatedMessage";
 import { GradeLabel } from "./GradeLabel";
 import { isTextMessage } from "@/lib/models/chat";
 import { RegenerateButton } from "./RegenerateButton";
 import { SafetySummary } from "./SafetySummary";
+import { CopyIcon } from "lucide-react";
+import Tooltip from "@mui/material/Tooltip";
 
 /**
  * LearningModeAssistantMessage: Assistant message in learning mode
@@ -25,10 +28,44 @@ export function LearningModeAssistantMessage({
     : undefined;
   const safetySummary = m.safety_summary;
 
+  const [copied, setCopied] = useState(false);
+  const resetTimerRef = useRef<number | null>(null);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(contentStr);
+      setCopied(true);
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+      }
+      resetTimerRef.current = window.setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error("Failed to copy message", err);
+    }
+  }, [contentStr]);
+
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, []);
+
   const shouldShowFooter = Boolean(m.grade_level || onRegenerate);
 
   return (
-    <div className="p-4 rounded-lg w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#1F2937] break-words shadow-sm">
+    <div className="p-4 relative rounded-lg w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#1F2937] break-words shadow-sm">
+      <Tooltip title={copied ? "Copied" : "Copy message"} arrow>
+        <button
+          type="button"
+          aria-label="Copy message"
+          onClick={handleCopy}
+          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+        >
+          <CopyIcon size={14} />
+        </button>
+      </Tooltip>
       <TruncatedMessage content={contentStr} />
 
       {/* Footer Section */}
