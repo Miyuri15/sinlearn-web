@@ -175,15 +175,3 @@ export const generateMessageResponse = async (messageId: string) => {
     message,
   };
 };
-
-// /safety-summary GET
-// /api/v1/messages/{message_id}/safety-summary
-// Get Message Safety Summary
-export const getMessageSafetySummary = (messageId: string) => {
-  return apiFetch<any>(
-    `${API_BASE_URL}/api/v1/messages/${messageId}/safety-summary`,
-    {
-      method: "GET",
-    }
-  );
-};

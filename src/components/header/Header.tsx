@@ -14,6 +14,7 @@ interface HeaderProps {
   isRubricOpen: boolean;
   isSyllabusOpen: boolean;
   isQuestionsOpen: boolean;
+  isSyncingMessages?: boolean;
   toggleRubric: () => void;
   toggleSyllabus: () => void;
   toggleQuestions: () => void;
@@ -25,6 +26,7 @@ export default function Header({
   isRubricOpen,
   isSyllabusOpen,
   isQuestionsOpen,
+  isSyncingMessages = false,
   toggleRubric,
   toggleSyllabus,
   toggleQuestions,
@@ -69,16 +71,29 @@ export default function Header({
             </button>
           )}
 
-          <div
-            className={`flex items-center gap-1 px-1 sm:px-2 py-1 rounded-lg border ${modeDetails.bgColor} ${modeDetails.borderColor}`}
-          >
-            <div className={`${modeDetails.textColor}`}>{modeDetails.icon}</div>
-            {/* show label if having sufficient space */}
-            <span
-              className={`sm:inline hidden font-semibold text-sm ${modeDetails.textColor}`}
+          <div className="flex items-center gap-2">
+            <div
+              className={`flex items-center gap-1 px-1 sm:px-2 py-1 rounded-lg border ${modeDetails.bgColor} ${modeDetails.borderColor}`}
             >
-              {modeDetails.label}
-            </span>
+              <div className={`${modeDetails.textColor}`}>
+                {modeDetails.icon}
+              </div>
+              {/* show label if having sufficient space */}
+              <span
+                className={`sm:inline hidden font-semibold text-sm ${modeDetails.textColor}`}
+              >
+                {modeDetails.label}
+              </span>
+            </div>
+
+            {isSyncingMessages && (
+              <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full border border-gray-200 dark:border-[#2a2a2a] bg-white/70 dark:bg-[#1a1a1a]/70">
+                <span
+                  className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"
+                  aria-label="Syncing"
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -177,24 +192,36 @@ export default function Header({
       {/* TABLET/DESKTOP - Single Row */}
       <div className="hidden md:flex items-center justify-between w-full p-3 md:p-4">
         {/* CURRENT MODE DISPLAY (Static Badge) */}
-        <div
-          className={`
-            flex items-center gap-3 px-5 py-2.5 rounded-full border
-            ${modeDetails.bgColor} 
-            ${modeDetails.borderColor}
-            transition-colors min-w-0 shrink ${
-              mode === "evaluation" ? "mr-2" : "mr-0"
-            }
-          `}
-        >
-          <div className={modeDetails.textColor}>{modeDetails.icon}</div>
-          <span
-            className={`font-semibold text-sm ${
-              mode === "evaluation" ? "truncate max-w-20 lg:max-w-none" : ""
-            } ${modeDetails.textColor}`}
+        <div className="flex items-center gap-3">
+          <div
+            className={`
+              flex items-center gap-3 px-5 py-2.5 rounded-full border
+              ${modeDetails.bgColor} 
+              ${modeDetails.borderColor}
+              transition-colors min-w-0 shrink ${
+                mode === "evaluation" ? "mr-2" : "mr-0"
+              }
+            `}
           >
-            {modeDetails.label}
-          </span>
+            <div className={modeDetails.textColor}>{modeDetails.icon}</div>
+            <span
+              className={`font-semibold text-sm ${
+                mode === "evaluation" ? "truncate max-w-20 lg:max-w-none" : ""
+              } ${modeDetails.textColor}`}
+            >
+              {modeDetails.label}
+            </span>
+          </div>
+
+          {isSyncingMessages && (
+            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-full border border-gray-200 dark:border-[#2a2a2a] bg-white/70 dark:bg-[#1a1a1a]/70">
+              <span
+                className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"
+                aria-label="Syncing"
+              />
+              <span>Syncing…</span>
+            </div>
+          )}
         </div>
 
         {/* RIGHT TOOLS */}
