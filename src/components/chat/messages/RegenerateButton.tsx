@@ -1,3 +1,5 @@
+import { RefreshCw } from "lucide-react";
+import Tooltip from "@mui/material/Tooltip";
 import { MESSAGE_STYLES } from "./styles";
 
 /**
@@ -19,15 +21,16 @@ export function RegenerateButton({
   };
 
   return (
-    <div className={MESSAGE_STYLES.regenerateButton}>
+    <Tooltip title="Regenerate response" arrow>
       <button
         type="button"
         onClick={handleClick}
         disabled={!messageId || isLoading}
-        className={MESSAGE_STYLES.regenerateButtonText}
+        aria-label="Regenerate response"
+        className="text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
       >
-        {isLoading ? "Regenerating..." : "Regenerate"}
+        <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
       </button>
-    </div>
+    </Tooltip>
   );
 }

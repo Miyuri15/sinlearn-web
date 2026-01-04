@@ -19,11 +19,15 @@ export function TruncatedMessage({
   const buttonStyle = expandStyle || MESSAGE_STYLES.expandButton;
 
   if (!shouldTruncate) {
-    return <>{content}</>;
+    return (
+      <div className="whitespace-pre-line break-words leading-relaxed">
+        {content}
+      </div>
+    );
   }
 
   return (
-    <>
+    <div className="whitespace-pre-line break-words leading-relaxed">
       {isExpanded ? content : `${content.slice(0, maxLength)}...`}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
@@ -31,6 +35,6 @@ export function TruncatedMessage({
       >
         {isExpanded ? "Read less" : "Read more"}
       </button>
-    </>
+    </div>
   );
 }

@@ -32,6 +32,7 @@ interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   chats: ChatItem[];
+  activeChatId?: string | null;
   onNewLearningChat: () => void;
   onNewEvaluationChat: () => void;
   onEditChat?: (chat: ChatItem) => void;
@@ -42,6 +43,7 @@ export default function Sidebar({
   chats = [],
   isOpen,
   onToggle,
+  activeChatId,
   onEditChat,
   onDeleteChat,
 }: Readonly<SidebarProps>) {
@@ -180,6 +182,7 @@ export default function Sidebar({
           {filteredChats.length > 0
             ? filteredChats.map((chat) => {
                 const isLoading = loadingChatId === chat.id;
+                const isActive = activeChatId === chat.id;
                 return (
                   <Link
                     key={chat.id}
@@ -191,6 +194,11 @@ export default function Sidebar({
                     transition-all duration-200
                     ${!isOpen && "justify-center"}
                     ${isLoading ? "opacity-50 cursor-wait" : ""}
+                    ${
+                      isActive
+                        ? "bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200 dark:ring-blue-800"
+                        : ""
+                    }
                   `}
                   >
                     {/* Icon */}
@@ -213,7 +221,13 @@ export default function Sidebar({
                     {/* Content (Title + Date) */}
                     {isOpen && (
                       <div className="flex-1 min-w-0 flex flex-col">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
+                        <span
+                          className={`text-sm font-medium truncate group-hover:text-gray-900 dark:group-hover:text-white transition-colors ${
+                            isActive
+                              ? "text-gray-900 dark:text-white"
+                              : "text-gray-700 dark:text-gray-200"
+                          }`}
+                        >
                           {chat.title}
                         </span>
                         <span className="text-[10px] text-gray-400 dark:text-gray-500">

@@ -5,6 +5,12 @@
 
 export type Role = "user" | "assistant" | "evaluation";
 
+export type SafetySummary = {
+  overall_severity: "low" | "medium" | "high";
+  confidence_score: number;
+  reliability: "fully_supported" | "partially_supported" | "likely_unsupported";
+};
+
 // Lightweight file representation for messages that include files
 export type FileMeta = {
   name: string;
@@ -22,6 +28,7 @@ export type TextMessage = {
   timestamp?: string;
   grade_level?: string;
   parent_msg_id?: string;
+  safety_summary?: SafetySummary;
 };
 
 export type EvaluationInputContent = {
@@ -37,6 +44,7 @@ export type EvaluationInputMessage = {
   role: "user";
   content: EvaluationInputContent;
   timestamp?: string;
+  safety_summary?: SafetySummary;
 };
 
 export type EvaluationResultContent = {
@@ -55,6 +63,7 @@ export type EvaluationResultMessage = {
   role: "evaluation";
   content: EvaluationResultContent;
   timestamp?: string;
+  safety_summary?: SafetySummary;
 };
 
 export type ChatMessage =
