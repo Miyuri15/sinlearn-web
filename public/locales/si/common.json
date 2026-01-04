@@ -133,7 +133,8 @@
     "error": "වැරදීම",
     "rubric_not_found": "මාපකය සොයාගත නොහැක",
     "select_a_rubric_first": "කරුණාකර පළමුව මාපකයක් තෝරන්න",
-    "custom_rubric_failed": "අභිරුචි මාපකය සෑදීම අසාර්ථක විය"
+    "custom_rubric_failed": "අභිරුචි මාපකය සෑදීම අසාර්ථක විය",
+    "title_required": "මාතෘකාව අවශ්‍යයි"
   }, 
 "syllabus": {
   "teachers_syllabus": "ගුරුවරුන්ගේ පාඨමාලාව",

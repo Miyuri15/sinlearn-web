@@ -133,7 +133,8 @@
     "error": "Error",
     "rubric_not_found": "Rubric not found",
     "select_a_rubric_first": "Please select a rubric first",
-    "custom_rubric_failed": "Failed to create custom rubric"
+    "custom_rubric_failed": "Failed to create custom rubric",
+    "title_required": "Rubric title is required"
 
 }, 
 "syllabus": {
