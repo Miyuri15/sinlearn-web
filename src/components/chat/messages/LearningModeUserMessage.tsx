@@ -30,11 +30,13 @@ export function LearningModeUserMessage({ message }: { message: ChatMessage }) {
               />
             </div>
 
-            {m.grade_level && (
-              <div className="pt-2">
+            <div className="border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-4">
+              {m.grade_level ? (
                 <GradeLabel gradeLevel={m.grade_level} />
-              </div>
-            )}
+              ) : (
+                <div />
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { apiFetch } from "./client";
 import { API_BASE_URL } from "../config";
+import type { SafetySummary } from "../models/chat";
 
 export type CreateChatPayload = {
   mode: "learning" | "evaluation";
@@ -131,6 +132,7 @@ export type GeneratedMessageResponse = {
   audio_duration_sec?: number;
   created_at: string;
   resource_ids: string[];
+  safety_summary?: SafetySummary;
 };
 
 export async function postVoiceQA(params: {
@@ -172,4 +174,16 @@ export const generateMessageResponse = async (messageId: string) => {
     grade_level: message.grade_level,
     message,
   };
+};
+
+// /safety-summary GET
+// /api/v1/messages/{message_id}/safety-summary
+// Get Message Safety Summary
+export const getMessageSafetySummary = (messageId: string) => {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/messages/${messageId}/safety-summary`,
+    {
+      method: "GET",
+    }
+  );
 };

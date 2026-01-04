@@ -373,6 +373,7 @@ export default function ChatPage({
                   | "assistant",
                 content: generatedMessage.content ?? "",
                 grade_level: generatedMessage.grade_level,
+                safety_summary: generatedMessage.safety_summary,
               };
 
               if (mode === "learning") {
@@ -529,6 +530,7 @@ export default function ChatPage({
           role: (generatedMessage.role ?? "assistant") as "assistant" | "user",
           content: generatedMessage.content ?? "",
           grade_level: generatedMessage.grade_level,
+          safety_summary: generatedMessage.safety_summary,
         };
 
         setLearningMessages((prev) =>
