@@ -1,6 +1,6 @@
 "use client";
 
-import { Send, Paperclip, Plus } from "lucide-react";
+import { Send, Paperclip, Plus, CheckCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 type EvaluationInputsProps = Readonly<{
@@ -17,6 +17,7 @@ type EvaluationInputsProps = Readonly<{
   onSend: () => void;
   onOpenMarks: () => void;
   uploadedFilesCount?: number; // Track uploaded files count
+  selectedRubricTitle?: string;
 }>;
 
 export default function EvaluationInputs({
@@ -24,6 +25,7 @@ export default function EvaluationInputs({
   onUpload,
   onOpenMarks,
   uploadedFilesCount = 0,
+  selectedRubricTitle,
 }: EvaluationInputsProps) {
   const { t } = useTranslation("chat");
   const remainingSlots = 10 - uploadedFilesCount;
@@ -31,6 +33,15 @@ export default function EvaluationInputs({
 
   return (
     <div className="flex flex-wrap sm:flex-nowrap items-center justify-center sm:justify-start gap-2 sm:gap-3 w-full">
+      {selectedRubricTitle && (
+        <div className="w-full sm:w-auto flex items-center gap-2 px-4 py-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-200 border border-green-200 dark:border-green-800">
+          <CheckCircle className="w-4 h-4" />
+          <span className="text-sm">
+            {t("rubric.rubric_selected", "Rubric selected")}:
+          </span>
+          <span className="text-sm font-semibold">{selectedRubricTitle}</span>
+        </div>
+      )}
       {/* ATTACH BUTTON */}
       <div className="w-full sm:w-auto">
         <input
@@ -60,7 +71,11 @@ export default function EvaluationInputs({
             text-sm sm:text-base
             whitespace-nowrap
           "
-          title={isUploadDisabled ? "Maximum 10 files reached" : `${remainingSlots} file(s) remaining`}
+          title={
+            isUploadDisabled
+              ? "Maximum 10 files reached"
+              : `${remainingSlots} file(s) remaining`
+          }
         >
           <Paperclip className="w-5 h-5" />
           {t("attach")} ({uploadedFilesCount}/10)

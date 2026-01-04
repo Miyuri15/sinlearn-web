@@ -36,7 +36,11 @@ import {
   processResourcesBatch,
 } from "@/lib/api/resource";
 import { formatDistanceToNow } from "date-fns";
-import { getSelectedChatType } from "@/lib/localStore";
+import {
+  getSelectedChatType,
+  getSelectedRubric,
+  type StoredRubric,
+} from "@/lib/localStore";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
@@ -125,6 +129,15 @@ export default function ChatPage({
     useState(0);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [appliedRubric, setAppliedRubric] = useState<StoredRubric | null>(null);
+
+  // Load rubric selection persisted for the session
+  useEffect(() => {
+    const storedRubric = getSelectedRubric();
+    if (storedRubric) {
+      setAppliedRubric(storedRubric);
+    }
+  }, []);
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
@@ -603,6 +616,10 @@ export default function ChatPage({
     // For example: setSelectedRubric(rubricId);
   };
 
+  const handleRubricApplied = (rubric: StoredRubric) => {
+    setAppliedRubric(rubric);
+  };
+
   const handleRubricUpload = () => {
     console.log("Upload rubric");
     // Implement file upload logic here
@@ -901,6 +918,7 @@ export default function ChatPage({
               onUpload={handleFileUpload}
               onOpenMarks={() => setIsEvaluationModalOpen(true)}
               uploadedFilesCount={evaluationUploadedFilesCount}
+              selectedRubricTitle={appliedRubric?.title}
             />
           )}
 
@@ -1005,6 +1023,7 @@ export default function ChatPage({
         onClose={() => setIsRubricOpen(false)}
         onSelectRubric={handleRubricSelect}
         onUpload={handleRubricUpload}
+        onRubricApplied={handleRubricApplied}
       />
 
       {/* RIGHT SLIDE SIDEBARS */}
@@ -1049,10 +1068,14 @@ export default function ChatPage({
       {/* DELETE CHAT MODAL */}
       <DeleteModal
         isOpen={isDeleteModalOpen}
-        title="Delete Chat"
-        message={`Are you sure you want to delete "${deletingChat?.title}"? This action cannot be undone.`}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
+        title={t("delete_chat")}
+        message={t("delete_chat_confirm", {
+          title: deletingChat?.title || "",
+          defaultValue:
+            'Are you sure you want to delete "{{title}}"? This action cannot be undone.',
+        })}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
         isLoading={isDeletingChat}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
