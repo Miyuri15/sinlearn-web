@@ -28,7 +28,6 @@ type InputBarProps = Readonly<{
   isFirstMessage?: boolean;
 }>;
 
-
 export default function InputBar({
   isRecording,
   setIsRecording,
@@ -62,7 +61,9 @@ export default function InputBar({
     if (e.key === "Enter" && e.shiftKey) return;
     if (e.key === "Enter") {
       e.preventDefault();
-      onSend();
+      if (!isDisableSend) {
+        onSend();
+      }
     }
   };
 
@@ -93,12 +94,11 @@ export default function InputBar({
   };
 
   const isDisableSend =
-    !pendingVoice &&
-    message.trim().length === 0 &&
-    pendingFiles.length === 0 ||
+    (!pendingVoice &&
+      message.trim().length === 0 &&
+      pendingFiles.length === 0) ||
     isUploading ||
     (isFirstMessage && !pendingVoice && pendingFiles.length === 0);
-
 
   return (
     <div
@@ -107,9 +107,10 @@ export default function InputBar({
       onDrop={handleDrop}
       className={`
         flex flex-col rounded-xl border min-w-0 transition-colors duration-200
-        ${isDragging
-          ? "bg-blue-50 border-blue-400 dark:bg-blue-900/20 dark:border-blue-500"
-          : "bg-gray-100 border-gray-300 dark:bg-[#111111] dark:border-[#2a2a2a]"
+        ${
+          isDragging
+            ? "bg-blue-50 border-blue-400 dark:bg-blue-900/20 dark:border-blue-500"
+            : "bg-gray-100 border-gray-300 dark:bg-[#111111] dark:border-[#2a2a2a]"
         }
       `}
     >
@@ -120,8 +121,9 @@ export default function InputBar({
             {pendingFiles.map((file, index) => (
               <div
                 key={index}
-                className={`relative group flex-shrink-0 w-16 h-16 bg-white dark:bg-[#1A1A1A] rounded-md border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer ${isUploading ? "animate-pulse" : ""
-                  }`}
+                className={`relative group flex-shrink-0 w-16 h-16 bg-white dark:bg-[#1A1A1A] rounded-md border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer ${
+                  isUploading ? "animate-pulse" : ""
+                }`}
                 onClick={() => {
                   if (!isUploading) {
                     setPreviewFile(file);
@@ -134,13 +136,15 @@ export default function InputBar({
                   <img
                     src={URL.createObjectURL(file)}
                     alt="preview"
-                    className={`w-full h-full object-cover ${isUploading ? "opacity-50" : "opacity-80"
-                      }`}
+                    className={`w-full h-full object-cover ${
+                      isUploading ? "opacity-50" : "opacity-80"
+                    }`}
                   />
                 ) : (
                   <FileText
-                    className={`w-8 h-8 text-blue-700 ${isUploading ? "opacity-50" : ""
-                      }`}
+                    className={`w-8 h-8 text-blue-700 ${
+                      isUploading ? "opacity-50" : ""
+                    }`}
                   />
                 )}
 
@@ -241,23 +245,24 @@ export default function InputBar({
               disabled={isRecording}
               className={`chat-input w-full bg-transparent outline-none resize-none
         overflow-y-auto hidden-scrollbar leading-relaxed max-h-40 py-2
-        ${isRecording
-                  ? "text-gray-700 dark:text-gray-100 italic"
-                  : "text-gray-800 dark:text-gray-200"
-                }`}
+        ${
+          isRecording
+            ? "text-gray-700 dark:text-gray-100 italic"
+            : "text-gray-800 dark:text-gray-200"
+        }`}
             />
           )}
         </div>
-
 
         {/* MIC BUTTON */}
         <button
           onClick={toggleRecording}
           className={`
             transition-all duration-300 p-1 rounded-lg
-            ${isRecording
-              ? "text-red-600 dark:text-red-500 scale-110"
-              : "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
+            ${
+              isRecording
+                ? "text-red-600 dark:text-red-500 scale-110"
+                : "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
             }
           `}
         >
@@ -270,9 +275,10 @@ export default function InputBar({
           disabled={isDisableSend}
           className={`
             px-3 sm:px-4 py-2 rounded-lg transition text-white
-            ${isDisableSend
-              ? "bg-gray-400 dark:bg-gray-700 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700 dark:bg-indigo-600 dark:hover:bg-indigo-700"
+            ${
+              isDisableSend
+                ? "bg-gray-400 dark:bg-gray-700 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 dark:bg-indigo-600 dark:hover:bg-indigo-700"
             }
           `}
         >
