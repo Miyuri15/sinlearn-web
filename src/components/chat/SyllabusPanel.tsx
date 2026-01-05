@@ -14,6 +14,7 @@ type ToastState = {
 
 type SyllabusPanelProps = Readonly<{
   onClose: () => void;
+  onSyllabusChange?: (hasSyllabus: boolean) => void;
 }>;
 
 type SyllabusItemType = {
@@ -81,7 +82,7 @@ const SyllabusItem = ({
   </div>
 );
 
-const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
+const SyllabusPanelpage = ({ onClose, onSyllabusChange }: SyllabusPanelProps) => {
   const { t } = useTranslation("syllabus");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -107,6 +108,12 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
   ];
 
   const [uploadedSyllabi, setUploadedSyllabi] = useState(initialSyllabi);
+
+  // Notify parent about syllabus status on mount and changes
+  React.useEffect(() => {
+    onSyllabusChange?.(uploadedSyllabi.length > 0);
+  }, [uploadedSyllabi, onSyllabusChange]);
+
   const [toast, setToast] = useState<ToastState>({
     message: "",
     isVisible: false,

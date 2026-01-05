@@ -98,7 +98,7 @@ export default function Sidebar({
       {/* SIDEBAR CONTAINER */}
       <aside
         className={`
-          fixed sm:static left-0 top-0 h-[100dvh] z-50
+          fixed sm:static left-0 top-0 h-dvh z-50
           flex flex-col 
           bg-white dark:bg-gray-950 
           border-r border-gray-200 dark:border-gray-800
@@ -172,7 +172,7 @@ export default function Sidebar({
               label={t("new_evaluation_chat")}
               isOpen={isOpen}
               chatType="evaluation"
-              colorClass="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800"
+              colorClass="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800"
             />
           </div>
         </div>
@@ -206,7 +206,7 @@ export default function Sidebar({
                       className={`shrink-0 ${
                         chat.type === "learning"
                           ? "text-blue-500"
-                          : "text-emerald-500"
+                          : "text-blue-500"
                       }`}
                     >
                       {isLoading ? (

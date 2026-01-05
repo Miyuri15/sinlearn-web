@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import InputBar from "@/components/chat/InputBar";
 import EvaluationInputs from "@/components/chat/EvaluationInputs";
 import EvaluationMarksModal from "@/components/chat/EvaluationMarksModal";
+import EvaluationStartScreen from "@/components/chat/EvaluationStartScreen";
 import Sidebar from "@/components/layout/Sidebar";
 import RubricSidebar from "@/components/chat/RubricSidebar";
 import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
 import QuestionsPanelpage from "@/components/chat/QuestionsPanelpage";
 import Header from "@/components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
-import { ChatMessage } from "@/lib/models/chat";
+import { ChatMessage, PaperPart } from "@/lib/models/chat";
 import MessagesList from "@/components/chat/MessagesList";
 import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
@@ -84,6 +85,13 @@ export default function ChatPage({
   const [pendingVoice, setPendingVoice] = useState<Blob | null>(null);
   const [isMessageGenerating, setIsMessageGenerating] = useState(false);
   const [isSyncingMessages, setIsSyncingMessages] = useState(false);
+  
+  // Evaluation specific states
+  const [isEvaluationStarted, setIsEvaluationStarted] = useState(false);
+  const [rubricSet, setRubricSet] = useState(false);
+  const [syllabusSet, setSyllabusSet] = useState(false);
+  const [questionsSet, setQuestionsSet] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<"idle" | "processing" | "completed" | "needs_reprocessing">("idle");
 
   type SidebarChatItem = {
     id: string;
@@ -111,6 +119,7 @@ export default function ChatPage({
   const [responseLevel, setResponseLevel] = useState("grade_9_11");
 
   // Evaluation inputs state
+  const [paperConfig, setPaperConfig] = useState<PaperPart[]>([]);
   const [totalMarks, setTotalMarks] = useState<number>(0);
   const [mainQuestions, setMainQuestions] = useState<number>(0);
   const [requiredQuestions, setRequiredQuestions] = useState<number>(0);
@@ -146,6 +155,9 @@ export default function ChatPage({
           setLearningMessages(sorted);
         } else {
           setEvaluationMessages(sorted);
+          if (sorted.length > 0) {
+            setIsEvaluationStarted(true);
+          }
         }
       } catch {
         router.replace("/chat");
@@ -194,7 +206,7 @@ export default function ChatPage({
     }
   }, [chatId]);
 
-  const handleSend = () => {
+  const handleSend = (configOverride?: PaperPart[]) => {
     const run = async () => {
       if (mode === "learning" && !message.trim()) return;
 
@@ -214,10 +226,11 @@ export default function ChatPage({
       let pendingNavigateSessionId: string | null = null;
 
       // Upload pending files before sending the message so backend receives resource ids
-      if (mode === "learning" && pendingFiles.length > 0) {
+      const filesToUpload = mode === "learning" ? pendingFiles : selectedFiles;
+      if (filesToUpload.length > 0) {
         setIsUploading(true);
         try {
-          uploadedResources = await uploadResources(pendingFiles);
+          uploadedResources = await uploadResources(filesToUpload);
         } catch (error) {
           console.error("Failed to upload files", error);
           let message = "Failed to upload files. Please try again.";
@@ -252,19 +265,39 @@ export default function ChatPage({
             },
           ]);
         } else {
-          setEvaluationMessages((prev) => [
-            ...prev,
-            {
-              role: "user",
-              content: {
+          const evalContent = configOverride
+            ? { paperConfig: configOverride }
+            : paperConfig.length > 0
+            ? { paperConfig }
+            : {
                 totalMarks,
                 mainQuestions,
                 requiredQuestions,
                 subQuestions,
                 subQuestionMarks,
-              },
+              };
+
+          // If we are starting evaluation, add the files to the message
+          const fileMessages = selectedFiles.map((file) => ({
+            role: "user" as const,
+            content: `📎 Uploaded file: ${file.name}`,
+            file,
+          }));
+
+          // If we haven't started yet, we need to show the files as messages now
+          if (!isEvaluationStarted && fileMessages.length > 0) {
+             setEvaluationMessages((prev) => [...prev, ...fileMessages]);
+          }
+
+          setEvaluationMessages((prev) => [
+            ...prev,
+            {
+              role: "user",
+              content: evalContent,
             },
           ]);
+          
+          setIsEvaluationStarted(true);
         }
 
         /**
@@ -292,15 +325,32 @@ export default function ChatPage({
               : {}),
           };
         } else {
+          const evalContent = configOverride
+            ? { paperConfig: configOverride }
+            : paperConfig.length > 0
+            ? { paperConfig }
+            : {
+                totalMarks,
+                mainQuestions,
+                requiredQuestions,
+                subQuestions,
+                subQuestionMarks,
+              };
+
+          const resourceAttachments = uploadedResources.map((item, index) => ({
+            resource_id: item.resource_id,
+            display_name: selectedFiles[index]?.name ?? "Attachment",
+            attachment_type: selectedFiles[index]?.type?.startsWith("image/")
+              ? "image"
+              : "file",
+          }));
+
           payload = {
-            content: {
-              totalMarks,
-              mainQuestions,
-              requiredQuestions,
-              subQuestions,
-              subQuestionMarks,
-            },
+            content: evalContent,
             modality: "text",
+            ...(resourceAttachments.length
+              ? { attachments: resourceAttachments }
+              : {}),
           };
         }
         /**
@@ -499,7 +549,7 @@ export default function ChatPage({
     }
   };
 
-  const handleUnifiedSend = () => {
+  const handleUnifiedSend = (configOverride?: PaperPart[]) => {
     // 🎙️ Voice has priority
     if (pendingVoice) {
       handleVoiceSend(pendingVoice);
@@ -508,7 +558,7 @@ export default function ChatPage({
     }
 
     // ✍️ Otherwise, text
-    handleSend();
+    handleSend(configOverride);
   };
 
   const handleRegenerateAssistant = async (messageId?: string) => {
@@ -599,13 +649,18 @@ export default function ChatPage({
 
   const handleRubricSelect = (rubricId: string) => {
     console.log("Selected rubric:", rubricId);
-    // You can implement rubric selection logic here
-    // For example: setSelectedRubric(rubricId);
+    setRubricSet(true);
+    if (processingStatus === "completed") {
+      setProcessingStatus("needs_reprocessing");
+    }
   };
 
   const handleRubricUpload = () => {
     console.log("Upload rubric");
-    // Implement file upload logic here
+    setRubricSet(true);
+    if (processingStatus === "completed") {
+      setProcessingStatus("needs_reprocessing");
+    }
   };
 
   // Handle sub question modal logic
@@ -637,6 +692,9 @@ export default function ChatPage({
 
   const handleFileUpload = (files: File[]) => {
     if (mode === "evaluation") {
+      if (processingStatus === "completed") {
+        setProcessingStatus("needs_reprocessing");
+      }
       // Check if adding these files would exceed the 10-file limit
       const remainingSlots = 10 - evaluationUploadedFilesCount;
 
@@ -660,18 +718,57 @@ export default function ChatPage({
         setIsToastVisible(true);
       }
 
-      setSelectedFiles(filesToUpload);
-      setEvaluationUploadedFilesCount((prev) => prev + filesToUpload.length);
+      if (!isEvaluationStarted) {
+        setSelectedFiles((prev) => [...prev, ...filesToUpload]);
+        setEvaluationUploadedFilesCount((prev) => prev + filesToUpload.length);
+      } else {
+        setSelectedFiles(filesToUpload);
+        setEvaluationUploadedFilesCount((prev) => prev + filesToUpload.length);
 
-      setEvaluationMessages((prev) => [
-        ...prev,
-        ...filesToUpload.map((file) => ({
-          role: "user" as const,
-          content: `📎 Uploaded file: ${file.name}`,
-          file,
-        })),
-      ]);
+        setEvaluationMessages((prev) => [
+          ...prev,
+          ...filesToUpload.map((file) => ({
+            role: "user" as const,
+            content: `📎 Uploaded file: ${file.name}`,
+            file,
+          })),
+        ]);
+      }
     }
+  };
+
+  const handleRemoveEvaluationFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setEvaluationUploadedFilesCount((prev) => prev - 1);
+    if (processingStatus === "completed") {
+      setProcessingStatus("needs_reprocessing");
+    }
+  };
+
+  const handleReplaceEvaluationFile = (index: number, file: File) => {
+    setSelectedFiles((prev) => {
+      const newFiles = [...prev];
+      newFiles[index] = file;
+      return newFiles;
+    });
+    if (processingStatus === "completed") {
+      setProcessingStatus("needs_reprocessing");
+    }
+  };
+
+  const handleProcessEvaluation = async () => {
+    setProcessingStatus("processing");
+    
+    // Simulate processing steps
+    // In a real app, this would be connected to backend events or polling
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Answer sheets
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Question paper
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Syllabus
+    
+    setProcessingStatus("completed");
+    
+    // After processing is complete, we can enable the "Marks" button
+    // The user will then click "Marks" to open the modal, and then "Send" to start the chat
   };
 
   // Handle adding files to pending queue in learning mode
@@ -734,10 +831,23 @@ export default function ChatPage({
     // evaluation mode
     return (
       <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C] custom-scrollbar">
-        {evaluationMessages.length === 0 ? (
-          <EmptyState
-            title={t("start_conversation")}
-            subtitle={t("start_evaluation_conversation_sub")}
+        {!isEvaluationStarted ? (
+          <EvaluationStartScreen
+            onOpenRubric={() => setIsRubricOpen(true)}
+            onOpenSyllabus={() => setIsSyllabusOpen(true)}
+            onOpenQuestions={() => setIsQuestionsOpen(true)}
+            onOpenMarks={() => setIsEvaluationModalOpen(true)}
+            onUploadAnswers={handleFileUpload}
+            onProcess={handleProcessEvaluation}
+            uploadedFiles={selectedFiles}
+            onRemoveFile={handleRemoveEvaluationFile}
+            onReplaceFile={handleReplaceEvaluationFile}
+            isProcessing={isAutoProcessing}
+            hasMarks={paperConfig.length > 0 || totalMarks > 0}
+            rubricSet={rubricSet}
+            syllabusSet={syllabusSet}
+            questionsSet={questionsSet}
+            processingStatus={processingStatus}
           />
         ) : (
           <MessagesList
@@ -907,24 +1017,12 @@ export default function ChatPage({
           <EvaluationMarksModal
             open={isEvaluationModalOpen}
             onClose={() => setIsEvaluationModalOpen(false)}
-            totalMarks={totalMarks}
-            setTotalMarks={setTotalMarks}
-            mainQuestions={mainQuestions}
-            setMainQuestions={setMainQuestions}
-            requiredQuestions={requiredQuestions}
-            setRequiredQuestions={setRequiredQuestions}
-            onAllocateMarks={() => {
-              // Existing logic for sub-questions
-              setIsSubMarksModalOpen(true);
-            }}
-            onViewMarks={() => {
-              // For now, toggle the sub marks modal to view
-              setIsSubMarksModalOpen(true);
-            }}
-            onSubmit={() => {
+            onSubmit={(config) => {
+              setPaperConfig(config);
               setIsEvaluationModalOpen(false);
-              handleUnifiedSend();
+              handleUnifiedSend(config);
             }}
+            initialConfig={paperConfig}
           />
 
           {isRecording && (
@@ -1014,7 +1112,15 @@ export default function ChatPage({
           isSyllabusOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <SyllabusPanelpage onClose={toggleSyllabus} />
+        <SyllabusPanelpage 
+          onClose={toggleSyllabus} 
+          onSyllabusChange={(hasSyllabus) => {
+            setSyllabusSet(hasSyllabus);
+            if (processingStatus === "completed") {
+              setProcessingStatus("needs_reprocessing");
+            }
+          }}
+        />
       </div>
 
       {/* QUESTIONS PANEL */}
@@ -1023,7 +1129,15 @@ export default function ChatPage({
           isQuestionsOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <QuestionsPanelpage onClose={toggleQuestions} />
+        <QuestionsPanelpage 
+          onClose={toggleQuestions} 
+          onQuestionsChange={(hasQuestions) => {
+            setQuestionsSet(hasQuestions);
+            if (processingStatus === "completed") {
+              setProcessingStatus("needs_reprocessing");
+            }
+          }}
+        />
       </div>
 
       <UpdatedToast

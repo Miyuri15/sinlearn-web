@@ -14,6 +14,7 @@ type ToastState = {
 
 type QuestionsPanelProps = Readonly<{
   onClose: () => void;
+  onQuestionsChange?: (hasQuestions: boolean) => void;
 }>;
 
 type QuestionItemType = {
@@ -83,11 +84,17 @@ const QuestionItem = ({
   </div>
 );
 
-const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
+const QuestionsPanelpage = ({ onClose, onQuestionsChange }: QuestionsPanelProps) => {
   const { t } = useTranslation("questions");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedQuestion, setUploadedQuestion] =
     useState<QuestionItemType | null>(null);
+
+  // Notify parent about questions status on mount and changes
+  React.useEffect(() => {
+    onQuestionsChange?.(!!uploadedQuestion);
+  }, [uploadedQuestion, onQuestionsChange]);
+
   const [toast, setToast] = useState<ToastState>({
     message: "",
     isVisible: false,
