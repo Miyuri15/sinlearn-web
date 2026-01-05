@@ -485,6 +485,7 @@ export default function ChatPage({
           role: "assistant",
           modality: "text",
           content: data.answer,
+          safety_summary: data.safety_summary,
         },
       ]);
     } catch (error) {

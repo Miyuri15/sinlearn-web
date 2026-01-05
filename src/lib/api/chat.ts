@@ -118,6 +118,7 @@ export type VoiceQAResponse = {
   question: string;
   answer: string;
   retrieved_chunks?: any[];
+  safety_summary?: SafetySummary;
 };
 
 export type GeneratedMessageResponse = {
