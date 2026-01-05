@@ -236,26 +236,18 @@ export default function Sidebar({
                       </div>
                     )}
 
-                    {/* Action Buttons (Visible only on Group Hover when Open) */}
+                    {/* Action Buttons (Visible when Open) */}
                     {isOpen && !isLoading && (
-                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 gap-1">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={(e) => {
                             e.preventDefault();
                             onEditChat?.(chat);
                           }}
-                          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
+                          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                          title={t("rename_chat")}
                         >
                           <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            onDeleteChat?.(chat);
-                          }}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     )}

@@ -26,6 +26,8 @@
   "chat_history": "සංවාද ඉතිහාසය",
   "new_learning_chat": "නව අධ්‍යයන සංවාදය",
   "new_evaluation_chat": "නව ඇගයීම් සංවාදය",
+  "rename_chat": "නම වෙනස් කරන්න",
+  "delete_chat": "මකන්න",
   "settings_text": "සැකසුම්",
   "logout": "පිටවීම",
   "logout_confirm_message": "ඔබට Log out වීමට අවශ්‍යද?",

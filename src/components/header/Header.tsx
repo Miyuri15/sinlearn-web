@@ -18,6 +18,7 @@ interface HeaderProps {
   toggleSyllabus: () => void;
   toggleQuestions: () => void;
   toggleSidebar?: () => void;
+  activeStep?: string; // Add this prop to track active step
 }
 
 export default function Header({
@@ -30,6 +31,7 @@ export default function Header({
   toggleSyllabus,
   toggleQuestions,
   toggleSidebar,
+  activeStep,
 }: Readonly<HeaderProps>) {
   const { t } = useTranslation("chat");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -113,36 +115,51 @@ export default function Header({
             <div className="flex items-center gap-1 ml-1">
               <button
                 onClick={toggleRubric}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`p-2 rounded-lg transition-all duration-300 relative ${
                   isRubricOpen
                     ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-                    : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
+                    : activeStep === 'rubric'
+                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
+                      : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
                 }`}
                 title="Rubric"
               >
                 <FileText className="w-5 h-5" />
+                {activeStep === 'rubric' && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
+                )}
               </button>
               <button
                 onClick={toggleSyllabus}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`p-2 rounded-lg transition-all duration-300 relative ${
                   isSyllabusOpen
                     ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-                    : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
+                    : activeStep === 'syllabus'
+                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
+                      : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
                 }`}
                 title="Syllabus"
               >
                 <Book className="w-5 h-5" />
+                {activeStep === 'syllabus' && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
+                )}
               </button>
               <button
                 onClick={toggleQuestions}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`p-2 rounded-lg transition-all duration-300 relative ${
                   isQuestionsOpen
                     ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-                    : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
+                    : activeStep === 'questions'
+                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
+                      : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
                 }`}
                 title="Questions"
               >
                 <HelpCircle className="w-5 h-5" />
+                {activeStep === 'questions' && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
+                )}
               </button>
             </div>
           )}

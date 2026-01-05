@@ -12,7 +12,8 @@ import {
   X, 
   Sparkles, 
   History,
-  File
+  File,
+  Upload
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 
@@ -26,6 +27,8 @@ interface EvaluationStartScreenProps {
   uploadedFiles: File[];
   onRemoveFile: (index: number) => void;
   onReplaceFile: (index: number, file: File) => void;
+  onStartEvaluation: () => void;
+  onViewHistory: () => void;
   isProcessing?: boolean;
   hasMarks?: boolean;
   rubricSet?: boolean;
@@ -41,6 +44,8 @@ export default function EvaluationStartScreen({
   onOpenMarks,
   onUploadAnswers,
   onProcess,
+  onStartEvaluation,
+  onViewHistory,
   uploadedFiles,
   onRemoveFile,
   onReplaceFile,
@@ -94,7 +99,7 @@ export default function EvaluationStartScreen({
     { label: "Answers", icon: FileInput, action: triggerFileUpload, status: uploadedFiles.length > 0 ? "completed" : "pending" },
     { label: "Process", icon: Settings, action: isReadyToProcess ? onProcess : () => {}, status: isProcessingCompleted ? "completed" : "pending", disabled: !isReadyToProcess },
     { label: "Marks", icon: Edit3, action: isProcessingCompleted ? onOpenMarks : () => {}, status: hasMarks ? "completed" : "pending", disabled: !isProcessingCompleted },
-    { label: "Send", icon: Send, action: () => {}, status: "pending", disabled: !isProcessingCompleted || !hasMarks },
+    { label: "Send", icon: Send, action: onStartEvaluation, status: "pending", disabled: !isProcessingCompleted || !hasMarks },
   ];
 
   return (
@@ -133,35 +138,52 @@ export default function EvaluationStartScreen({
       {/* Stepper */}
 
       {/* Stepper */}
-      <div className="w-full flex items-center justify-between relative px-4">
-        {/* Connecting Line */}
-        <div className="absolute left-0 top-1/2 w-full h-0.5 bg-gray-200 dark:bg-gray-700 -z-10" />
-        
-        {steps.map((step, index) => (
-          <div key={index} className="flex flex-col items-center bg-gray-100 dark:bg-[#0C0C0C] px-2">
-            <button 
-              onClick={step.action}
-              disabled={step.disabled}
-              className={`
-                w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors
-                ${step.status === 'completed' 
-                  ? 'bg-blue-600 border-blue-600 text-white' 
-                  : step.disabled
-                    ? 'bg-gray-200 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 hover:border-blue-400 hover:text-blue-400'}
-              `}
-            >
-              {step.status === 'completed' ? (
-                <Check size={20} />
-              ) : (
-                <step.icon size={20} />
+      <div className="w-full flex items-center px-2 mb-6">
+        {steps.map((step, index) => {
+          const isNext = !step.disabled && step.status !== 'completed' && (index === 0 || steps[index-1].status === 'completed');
+          
+          return (
+            <React.Fragment key={index}>
+              {/* Connecting Line */}
+              {index > 0 && (
+                <div className={`flex-1 h-0.5 mx-2 transition-all duration-500 ${
+                  steps[index - 1].status === 'completed' 
+                    ? 'bg-blue-600' 
+                    : 'bg-gray-200 dark:bg-gray-700'
+                }`} />
               )}
-            </button>
-            <span className={`mt-2 text-xs font-medium ${step.disabled ? 'text-gray-300 dark:text-gray-600' : 'text-gray-500 dark:text-gray-400'}`}>
-              {step.label}
-            </span>
-          </div>
-        ))}
+              
+              <div className="flex flex-col items-center relative group">
+                <button 
+                  onClick={step.action}
+                  disabled={step.disabled}
+                  className={`
+                    w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 z-10 active:scale-95
+                    ${step.status === 'completed' 
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-blue-900/20 scale-105' 
+                      : step.disabled
+                        ? 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                        : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 hover:border-blue-400 hover:text-blue-400 hover:shadow-md'}
+                    ${isNext ? 'ring-4 ring-blue-100 dark:ring-blue-900/30 border-blue-500 text-blue-500 animate-pulse' : ''}
+                  `}
+                >
+                  {step.status === 'completed' ? (
+                    <Check size={22} />
+                  ) : (
+                    <step.icon size={22} />
+                  )}
+                </button>
+                <span className={`absolute -bottom-8 text-xs font-medium whitespace-nowrap transition-colors duration-300 ${
+                  step.status === 'completed' ? 'text-blue-600 dark:text-blue-400' :
+                  isNext ? 'text-blue-500 dark:text-blue-400 font-bold' :
+                  'text-gray-400 dark:text-gray-500'
+                }`}>
+                  {step.label}
+                </span>
+              </div>
+            </React.Fragment>
+          );
+        })}
       </div>
 
       {/* Uploaded Answer Sheets Card */}
@@ -200,6 +222,15 @@ export default function EvaluationStartScreen({
                 </div>
               </div>
             ))}
+            {uploadedFiles.length < 10 && (
+              <button
+                onClick={triggerFileUpload}
+                className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:border-blue-500 hover:text-blue-500 dark:hover:border-blue-400 dark:hover:text-blue-400 transition-colors flex items-center justify-center gap-2"
+              >
+                <Upload size={18} />
+                <span>Upload more answer sheets ({10 - uploadedFiles.length} remaining)</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
@@ -228,6 +259,7 @@ export default function EvaluationStartScreen({
         
         <Button 
           variant="ghost"
+          onClick={onViewHistory}
           className="w-full h-12 rounded-full text-lg font-medium flex items-center justify-center gap-2 border-gray-300 dark:border-gray-600"
         >
           <History size={20} />

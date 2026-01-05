@@ -1,11 +1,15 @@
 "use client";
 import { useTranslation } from "react-i18next";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import InputBar from "@/components/chat/InputBar";
 import EvaluationInputs from "@/components/chat/EvaluationInputs";
 import EvaluationMarksModal from "@/components/chat/EvaluationMarksModal";
 import EvaluationStartScreen from "@/components/chat/EvaluationStartScreen";
+import EvaluationProgressScreen from "@/components/chat/EvaluationProgressScreen";
+import EvaluationResultsScreen, { generateMockResult } from "@/components/chat/EvaluationResultsScreen";
+import EvaluationAnalyticsScreen from "@/components/chat/EvaluationAnalyticsScreen";
+import EvaluationHistoryScreen, { EvaluationSession } from "@/components/chat/EvaluationHistoryScreen";
 import Sidebar from "@/components/layout/Sidebar";
 import RubricSidebar from "@/components/chat/RubricSidebar";
 import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
@@ -88,10 +92,20 @@ export default function ChatPage({
   
   // Evaluation specific states
   const [isEvaluationStarted, setIsEvaluationStarted] = useState(false);
+  const [evaluationStatus, setEvaluationStatus] = useState<"setup" | "in_progress" | "results" | "analytics" | "history">("setup");
+  const [evaluationHistory, setEvaluationHistory] = useState<EvaluationSession[]>([]);
+  const [currentEvaluationResult, setCurrentEvaluationResult] = useState<any[] | undefined>(undefined);
   const [rubricSet, setRubricSet] = useState(false);
   const [syllabusSet, setSyllabusSet] = useState(false);
+  const [syllabusCount, setSyllabusCount] = useState(0);
   const [questionsSet, setQuestionsSet] = useState(false);
+  const [questionPaperName, setQuestionPaperName] = useState<string | undefined>(undefined);
   const [processingStatus, setProcessingStatus] = useState<"idle" | "processing" | "completed" | "needs_reprocessing">("idle");
+  const processingStatusRef = useRef(processingStatus);
+
+  useEffect(() => {
+    processingStatusRef.current = processingStatus;
+  }, [processingStatus]);
 
   type SidebarChatItem = {
     id: string;
@@ -549,6 +563,23 @@ export default function ChatPage({
     }
   };
 
+  const handleStartEvaluationProcess = async () => {
+    // 1. Set status to in_progress
+    setEvaluationStatus("in_progress");
+    setIsEvaluationStarted(true);
+
+    // 2. Trigger endpoint (mock for now)
+    try {
+      // await api.startEvaluation(...)
+      console.log("Starting evaluation process...");
+    } catch (error) {
+      console.error("Failed to start evaluation", error);
+      setToastMessage("Failed to start evaluation");
+      setToastType("error");
+      setIsToastVisible(true);
+    }
+  };
+
   const handleUnifiedSend = (configOverride?: PaperPart[]) => {
     // 🎙️ Voice has priority
     if (pendingVoice) {
@@ -831,7 +862,7 @@ export default function ChatPage({
     // evaluation mode
     return (
       <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C] custom-scrollbar">
-        {!isEvaluationStarted ? (
+        {evaluationStatus === "setup" && (
           <EvaluationStartScreen
             onOpenRubric={() => setIsRubricOpen(true)}
             onOpenSyllabus={() => setIsSyllabusOpen(true)}
@@ -839,6 +870,8 @@ export default function ChatPage({
             onOpenMarks={() => setIsEvaluationModalOpen(true)}
             onUploadAnswers={handleFileUpload}
             onProcess={handleProcessEvaluation}
+            onStartEvaluation={handleStartEvaluationProcess}
+            onViewHistory={() => setEvaluationStatus("history")}
             uploadedFiles={selectedFiles}
             onRemoveFile={handleRemoveEvaluationFile}
             onReplaceFile={handleReplaceEvaluationFile}
@@ -849,11 +882,59 @@ export default function ChatPage({
             questionsSet={questionsSet}
             processingStatus={processingStatus}
           />
-        ) : (
-          <MessagesList
-            messages={evaluationMessages}
-            mode="evaluation"
-            endRef={endRef}
+        )}
+
+        {evaluationStatus === "in_progress" && (
+          <EvaluationProgressScreen
+            answerSheets={selectedFiles}
+            questionPaperName={questionPaperName}
+            syllabusCount={syllabusCount}
+            hasRubric={rubricSet}
+            onViewResults={() => {
+              // Generate results and save to history
+              const results = selectedFiles.map(f => generateMockResult(f.name));
+              const avgScore = Math.round(results.reduce((acc, curr) => acc + curr.overallScore, 0) / results.length);
+              
+              const newSession: EvaluationSession = {
+                id: Date.now().toString(),
+                timestamp: Date.now(),
+                files: [...selectedFiles],
+                results: results,
+                averageScore: avgScore
+              };
+              
+              setEvaluationHistory(prev => [newSession, ...prev]);
+              setCurrentEvaluationResult(results);
+              setEvaluationStatus("results");
+            }}
+          />
+        )}
+
+        {evaluationStatus === "results" && (
+          <EvaluationResultsScreen
+            answerSheets={selectedFiles}
+            results={currentEvaluationResult}
+            onAnalysisClick={() => setEvaluationStatus("analytics")}
+            onViewHistory={() => setEvaluationStatus("history")}
+          />
+        )}
+
+        {evaluationStatus === "analytics" && (
+          <EvaluationAnalyticsScreen
+            answerSheets={selectedFiles}
+            onBack={() => setEvaluationStatus("results")}
+          />
+        )}
+
+        {evaluationStatus === "history" && (
+          <EvaluationHistoryScreen
+            history={evaluationHistory}
+            onSelectSession={(session) => {
+              setSelectedFiles(session.files);
+              setCurrentEvaluationResult(session.results);
+              setEvaluationStatus("results");
+            }}
+            onBack={() => setEvaluationStatus("setup")}
           />
         )}
       </div>
@@ -962,6 +1043,15 @@ export default function ChatPage({
     setIsDeletingChat(false);
   };
 
+  // Determine active step for header pulsing
+  const getActiveStep = () => {
+    if (evaluationStatus !== "setup") return undefined;
+    if (!rubricSet) return "rubric";
+    if (!syllabusSet) return "syllabus";
+    if (!questionsSet) return "questions";
+    return undefined;
+  };
+
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
       <Sidebar
@@ -992,99 +1082,69 @@ export default function ChatPage({
           toggleRubric={toggleRubric}
           toggleSyllabus={toggleSyllabus}
           toggleQuestions={toggleQuestions}
+          activeStep={getActiveStep()}
         />
 
         {/* MESSAGE AREA */}
         {renderMessageArea()}
 
         {/* INPUT AREA */}
-        <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
-          {mode === "evaluation" && (
-            <EvaluationInputs
-              totalMarks={totalMarks}
-              setTotalMarks={setTotalMarks}
-              mainQuestions={mainQuestions}
-              setMainQuestions={setMainQuestions}
-              requiredQuestions={requiredQuestions}
-              setRequiredQuestions={setRequiredQuestions}
-              onSend={handleSend}
-              onUpload={handleFileUpload}
-              onOpenMarks={() => setIsEvaluationModalOpen(true)}
-              uploadedFilesCount={evaluationUploadedFilesCount}
-            />
-          )}
-
-          <EvaluationMarksModal
-            open={isEvaluationModalOpen}
-            onClose={() => setIsEvaluationModalOpen(false)}
-            onSubmit={(config) => {
-              setPaperConfig(config);
-              setIsEvaluationModalOpen(false);
-              handleUnifiedSend(config);
-            }}
-            initialConfig={paperConfig}
-          />
-
-          {isRecording && (
-            <RecordBar
-              onCancelRecording={() => {
-                setIsRecording(false);
+        {mode === "learning" && (
+          <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
+            <EvaluationMarksModal
+              open={isEvaluationModalOpen}
+              onClose={() => setIsEvaluationModalOpen(false)}
+              onSubmit={(config) => {
+                setPaperConfig(config);
+                setIsEvaluationModalOpen(false);
               }}
-              onStopRecording={(audioBlob) => {
-                setIsRecording(false);
-                setPendingVoice(audioBlob);
-              }}
+              initialConfig={paperConfig}
             />
-          )}
 
-          {mode === "learning" && (
-            <>
-              <div className="mb-3">
-                <label className="mr-2 text-sm">{t("response_level")}:</label>
-                <select
-                  value={responseLevel}
-                  onChange={(e) => setResponseLevel(e.target.value)}
-                  className="border rounded-lg px-3 py-1 bg-white dark:bg-[#1A1A1A]"
-                >
-                  <option value="grade_6_8">Grades 6–8</option>
-                  <option value="grade_9_11">Grades 9–11</option>
-                  <option value="grade_12_13">Grades 12–13</option>
-                  <option value="university">University Level</option>
-                </select>
-              </div>
-
-              {/* {pendingVoice && (
-                <div className="mb-3 flex items-center gap-3 p-3 rounded-lg bg-gray-200 dark:bg-[#1a1a1a]">
-                  <audio controls src={URL.createObjectURL(pendingVoice)} />
-
-                  <button
-                    className="text-red-500 text-sm"
-                    onClick={() => setPendingVoice(null)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              )} */}
-
-              <InputBar
-                isRecording={isRecording}
-                setIsRecording={setIsRecording}
-                transcript={transcript}
-                message={message}
-                handleInputChange={handleInputChange}
-                onSend={handleUnifiedSend}
-                onFilesSelected={handlePendingFilesAdd}
-                pendingFiles={pendingFiles}
-                onRemoveFile={handleRemovePendingFile}
-                onClearFiles={clearPendingFiles}
-                pendingVoice={pendingVoice}
-                onClearPendingVoice={() => setPendingVoice(null)}
-                isUploading={isUploading}
-                isFirstMessage={learningMessages.length === 0}
+            {isRecording && (
+              <RecordBar
+                onCancelRecording={() => {
+                  setIsRecording(false);
+                }}
+                onStopRecording={(audioBlob) => {
+                  setIsRecording(false);
+                  setPendingVoice(audioBlob);
+                }}
               />
-            </>
-          )}
-        </div>
+            )}
+
+            <div className="mb-3">
+              <label className="mr-2 text-sm">{t("response_level")}:</label>
+              <select
+                value={responseLevel}
+                onChange={(e) => setResponseLevel(e.target.value)}
+                className="border rounded-lg px-3 py-1 bg-white dark:bg-[#1A1A1A]"
+              >
+                <option value="grade_6_8">Grades 6–8</option>
+                <option value="grade_9_11">Grades 9–11</option>
+                <option value="grade_12_13">Grades 12–13</option>
+                <option value="university">University Level</option>
+              </select>
+            </div>
+
+            <InputBar
+              isRecording={isRecording}
+              setIsRecording={setIsRecording}
+              transcript={transcript}
+              message={message}
+              handleInputChange={handleInputChange}
+              onSend={handleUnifiedSend}
+              onFilesSelected={handlePendingFilesAdd}
+              pendingFiles={pendingFiles}
+              onRemoveFile={handleRemovePendingFile}
+              onClearFiles={clearPendingFiles}
+              pendingVoice={pendingVoice}
+              onClearPendingVoice={() => setPendingVoice(null)}
+              isUploading={isUploading}
+              isFirstMessage={learningMessages.length === 0}
+            />
+          </div>
+        )}
       </div>
 
       <SubMarksModal
@@ -1114,12 +1174,13 @@ export default function ChatPage({
       >
         <SyllabusPanelpage 
           onClose={toggleSyllabus} 
-          onSyllabusChange={(hasSyllabus) => {
+          onSyllabusChange={useCallback((hasSyllabus: boolean, count: number) => {
             setSyllabusSet(hasSyllabus);
-            if (processingStatus === "completed") {
+            setSyllabusCount(count);
+            if (processingStatusRef.current === "completed") {
               setProcessingStatus("needs_reprocessing");
             }
-          }}
+          }, [])}
         />
       </div>
 
@@ -1131,12 +1192,13 @@ export default function ChatPage({
       >
         <QuestionsPanelpage 
           onClose={toggleQuestions} 
-          onQuestionsChange={(hasQuestions) => {
+          onQuestionsChange={useCallback((hasQuestions: boolean, questionName?: string) => {
             setQuestionsSet(hasQuestions);
-            if (processingStatus === "completed") {
+            setQuestionPaperName(questionName);
+            if (processingStatusRef.current === "completed") {
               setProcessingStatus("needs_reprocessing");
             }
-          }}
+          }, [])}
         />
       </div>
 

@@ -14,7 +14,7 @@ type ToastState = {
 
 type SyllabusPanelProps = Readonly<{
   onClose: () => void;
-  onSyllabusChange?: (hasSyllabus: boolean) => void;
+  onSyllabusChange?: (hasSyllabus: boolean, count: number) => void;
 }>;
 
 type SyllabusItemType = {
@@ -86,32 +86,11 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange }: SyllabusPanelProps) =>
   const { t } = useTranslation("syllabus");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const initialSyllabi: SyllabusItemType[] = [
-    {
-      id: 1,
-      title: "Grade 10 Science Syllabus",
-      subject: "Science",
-      grade: "Grade 10",
-      uploaded: "1/15/2024",
-      topics: "Physics, Chemistry, Biology",
-      fileType: "pdf",
-    },
-    {
-      id: 2,
-      title: "Grade 11 Mathematics Syllabus",
-      subject: "Mathematics",
-      grade: "Grade 11",
-      uploaded: "2/20/2024",
-      topics: "Algebra, Geometry, Trigonometry",
-      fileType: "pdf",
-    },
-  ];
-
-  const [uploadedSyllabi, setUploadedSyllabi] = useState(initialSyllabi);
+  const [uploadedSyllabi, setUploadedSyllabi] = useState<SyllabusItemType[]>([]);
 
   // Notify parent about syllabus status on mount and changes
   React.useEffect(() => {
-    onSyllabusChange?.(uploadedSyllabi.length > 0);
+    onSyllabusChange?.(uploadedSyllabi.length > 0, uploadedSyllabi.length);
   }, [uploadedSyllabi, onSyllabusChange]);
 
   const [toast, setToast] = useState<ToastState>({
@@ -161,6 +140,11 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange }: SyllabusPanelProps) =>
 
         setUploadedSyllabi((prev) => [...prev, newSyllabus]);
         showToast(t("upload_success", { title: newSyllabus.title }), "success");
+        
+        // Auto-close panel after successful upload
+        setTimeout(() => {
+          onClose();
+        }, 1500);
       } else {
         showToast(t("invalid_file_type"), "error");
       }

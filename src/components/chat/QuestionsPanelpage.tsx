@@ -14,7 +14,7 @@ type ToastState = {
 
 type QuestionsPanelProps = Readonly<{
   onClose: () => void;
-  onQuestionsChange?: (hasQuestions: boolean) => void;
+  onQuestionsChange?: (hasQuestions: boolean, questionName?: string) => void;
 }>;
 
 type QuestionItemType = {
@@ -92,7 +92,7 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange }: QuestionsPanelProps)
 
   // Notify parent about questions status on mount and changes
   React.useEffect(() => {
-    onQuestionsChange?.(!!uploadedQuestion);
+    onQuestionsChange?.(!!uploadedQuestion, uploadedQuestion?.title);
   }, [uploadedQuestion, onQuestionsChange]);
 
   const [toast, setToast] = useState<ToastState>({
@@ -140,6 +140,11 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange }: QuestionsPanelProps)
 
         setUploadedQuestion(newQuestion);
         showToast(t("upload_success", { title: newQuestion.title }), "success");
+        
+        // Auto-close panel after successful upload
+        setTimeout(() => {
+          onClose();
+        }, 1500);
       } else {
         showToast(t("invalid_file_type"), "error");
       }
