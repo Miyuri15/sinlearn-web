@@ -3,10 +3,10 @@
  * Centralized types for chat messages and chat objects used across the app.
  */
 
-export type Role = "user" | "assistant" | "evaluation";
+export type Role = "user" | "assistant" | "evaluation" ;
 
 export type SafetySummary = {
-  overall_severity: "low" | "medium" | "high";
+  overall_severity: "low" | "medium" | "high" ;
   confidence_score: number;
   reliability: "fully_supported" | "partially_supported" | "likely_unsupported";
 };

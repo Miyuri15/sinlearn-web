@@ -52,7 +52,10 @@ export function LearningModeAssistantMessage({
     };
   }, []);
 
-  const shouldShowFooter = Boolean(m.grade_level || safetySummary);
+const shouldShowFooter =
+  Boolean(m.grade_level) ||
+  (typeof safetySummary?.confidence_score === "number" &&
+    safetySummary.confidence_score < 1);
 
   return (
     <div className="p-4 relative rounded-lg w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#1F2937] break-words shadow-sm">
