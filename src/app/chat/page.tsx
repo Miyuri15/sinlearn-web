@@ -1071,12 +1071,6 @@ export default function ChatPage({
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setMessage(value);
-    if (value.trim() === "") {
-      e.target.style.height = "auto";
-      return;
-    }
-    e.target.style.height = "auto";
-    e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
   const handleStopRecording = () => {
