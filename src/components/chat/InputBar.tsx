@@ -218,7 +218,7 @@ export default function InputBar({
         </button>
 
         {/* TEXT INPUT OR VOICE PREVIEW */}
-        <div className="flex-1 min-w-0 px-2 relative">
+        <div className="flex-1 min-w-0 px-2 relative z-10">
           {pendingVoice ? (
             // 🎙️ VOICE PREVIEW
             <div className="flex items-center gap-3 bg-white dark:bg-[#1A1A1A] rounded-lg px-3 py-2">
@@ -238,49 +238,72 @@ export default function InputBar({
             </div>
           ) : (
             // ✏️ MAIN TEXT INPUT WITH TRANSLITERATION
-            <ReactTransliterate
-              value={isRecording ? transcript : message}
-              onChangeText={(text) => {
-                const mockEvent = {
-                  target: { value: text },
-                } as React.ChangeEvent<HTMLTextAreaElement>;
-                handleInputChange(mockEvent);
-              }}
-              lang="si"
-              renderComponent={(props) => (
-                <textarea
-                  {...props}
-                  ref={(element) => {
-                    if (props.ref) {
-                      if (typeof props.ref === "function") {
-                        props.ref(element);
-                      } else {
-                        (
-                          props.ref as React.MutableRefObject<HTMLTextAreaElement | null>
-                        ).current = element;
+            <div
+              className="
+                relative w-full
+                /* Suggestion list positioning overrides */
+                [&_ul]:!bottom-full
+                [&_ul]:!top-auto
+                [&_ul]:!mb-2
+                [&_ul]:!z-50
+                [&_ul]:shadow-lg
+                [&_ul]:rounded-lg
+                [&_ul]:!border-gray-200
+                dark:[&_ul]:!bg-[#1F1F1F]
+                dark:[&_ul]:!border-[#333]
+                dark:[&_ul]:!text-gray-200
+              "
+            >
+              <ReactTransliterate
+                value={isRecording ? transcript : message}
+                onChangeText={(text) => {
+                  const mockEvent = {
+                    target: { value: text },
+                  } as React.ChangeEvent<HTMLTextAreaElement>;
+                  handleInputChange(mockEvent);
+                }}
+                lang="si"
+                renderComponent={(props) => (
+                  <textarea
+                    {...props}
+                    ref={(element) => {
+                      if (props.ref) {
+                        if (typeof props.ref === "function") {
+                          props.ref(element);
+                        } else {
+                          (
+                            props.ref as React.MutableRefObject<HTMLTextAreaElement | null>
+                          ).current = element;
+                        }
                       }
-                    }
-                    textareaRef.current = element;
-                  }}
-                  placeholder={t("typing_placeholder")}
-                  onKeyDown={(e) => {
-                    props.onKeyDown?.(e);
-                    handleKeyDown(e);
-                  }}
-                  rows={1}
-                  disabled={isRecording}
-                  className={`chat-input w-full bg-transparent outline-none resize-none
+                      textareaRef.current = element;
+                    }}
+                    placeholder={t("typing_placeholder")}
+                    onKeyDown={(e) => {
+                      // 1. Let the library handle navigation/selection first
+                      props.onKeyDown?.(e);
+
+                      // 2. Check if the library used the event (selected a word).
+                      // If it did, it usually calls preventDefault().
+                      // We ONLY call our send handler if default was NOT prevented.
+                      if (!e.defaultPrevented) {
+                        handleKeyDown(e);
+                      }
+                    }}
+                    rows={1}
+                    disabled={isRecording}
+                    className={`chat-input w-full bg-transparent outline-none resize-none
                     overflow-y-auto hidden-scrollbar leading-relaxed max-h-40 py-2
                     ${
                       isRecording
                         ? "text-gray-700 dark:text-gray-100 italic"
                         : "text-gray-800 dark:text-gray-200"
                     }`}
-                />
-              )}
-              // Container styles to ensure suggestion dropdown is positioned correctly
-              containerStyles={{ width: "100%", position: "relative" }}
-            />
+                  />
+                )}
+                containerStyles={{ width: "100%", position: "relative" }}
+              />
+            </div>
           )}
         </div>
 
