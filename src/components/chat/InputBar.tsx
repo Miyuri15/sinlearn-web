@@ -50,15 +50,15 @@ export default function InputBar({
   const [isDragging, setIsDragging] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
-  const [sampleMessage, setSampleMessage] = useState("");
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (message === "" && textareaRef.current) {
+    if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
-  }, [message]);
+  }, [message, transcript]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && e.shiftKey) return;
@@ -218,7 +218,7 @@ export default function InputBar({
         </button>
 
         {/* TEXT INPUT OR VOICE PREVIEW */}
-        <div className="flex-1 min-w-0 px-2">
+        <div className="flex-1 min-w-0 px-2 relative">
           {pendingVoice ? (
             // 🎙️ VOICE PREVIEW
             <div className="flex items-center gap-3 bg-white dark:bg-[#1A1A1A] rounded-lg px-3 py-2">
@@ -237,40 +237,50 @@ export default function InputBar({
               </button>
             </div>
           ) : (
-            // ✏️ TEXT INPUT
-            <>
-              <textarea
-                ref={textareaRef}
-                placeholder={t("typing_placeholder")}
-                value={isRecording ? transcript : message}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                rows={1}
-                disabled={isRecording}
-                className={`chat-input w-full bg-transparent outline-none resize-none
-        overflow-y-auto hidden-scrollbar leading-relaxed max-h-40 py-2
-        ${
-          isRecording
-            ? "text-gray-700 dark:text-gray-100 italic"
-            : "text-gray-800 dark:text-gray-200"
-        }`}
-              />
-              <ReactTransliterate
-                renderComponent={(props) => (
-                  <textarea
-                    {...props}
-                    id="corrected-text"
-                    placeholder="Enter or correct the text from the image..."
-                    className="min-h-24 font-mono text-sm"
-                  />
-                )}
-                value={sampleMessage}
-                onChangeText={(text) => setSampleMessage(text)}
-                lang="si"
-                // Add custom styles for the suggestion dropdown if needed
-                containerStyles={{ position: "relative" }}
-              />
-            </>
+            // ✏️ MAIN TEXT INPUT WITH TRANSLITERATION
+            <ReactTransliterate
+              value={isRecording ? transcript : message}
+              onChangeText={(text) => {
+                const mockEvent = {
+                  target: { value: text },
+                } as React.ChangeEvent<HTMLTextAreaElement>;
+                handleInputChange(mockEvent);
+              }}
+              lang="si"
+              renderComponent={(props) => (
+                <textarea
+                  {...props}
+                  ref={(element) => {
+                    if (props.ref) {
+                      if (typeof props.ref === "function") {
+                        props.ref(element);
+                      } else {
+                        (
+                          props.ref as React.MutableRefObject<HTMLTextAreaElement | null>
+                        ).current = element;
+                      }
+                    }
+                    textareaRef.current = element;
+                  }}
+                  placeholder={t("typing_placeholder")}
+                  onKeyDown={(e) => {
+                    props.onKeyDown?.(e);
+                    handleKeyDown(e);
+                  }}
+                  rows={1}
+                  disabled={isRecording}
+                  className={`chat-input w-full bg-transparent outline-none resize-none
+                    overflow-y-auto hidden-scrollbar leading-relaxed max-h-40 py-2
+                    ${
+                      isRecording
+                        ? "text-gray-700 dark:text-gray-100 italic"
+                        : "text-gray-800 dark:text-gray-200"
+                    }`}
+                />
+              )}
+              // Container styles to ensure suggestion dropdown is positioned correctly
+              containerStyles={{ width: "100%", position: "relative" }}
+            />
           )}
         </div>
 
