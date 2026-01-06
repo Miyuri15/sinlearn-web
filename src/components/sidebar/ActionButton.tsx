@@ -11,6 +11,7 @@ interface ActionButtonProps {
   isOpen: boolean;
   chatType: "learning" | "evaluation";
   colorClass?: string;
+  onNewChat?: () => void | Promise<void>;
 }
 
 export default function ActionButton({
@@ -19,6 +20,7 @@ export default function ActionButton({
   isOpen,
   chatType,
   colorClass,
+  onNewChat,
 }: Readonly<ActionButtonProps>) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +30,18 @@ export default function ActionButton({
 
     setIsLoading(true);
     setSelectedChatType(chatType);
+
+    // If parent provided explicit handler, prefer it.
+    if (onNewChat) {
+      try {
+        await onNewChat();
+      } finally {
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 500);
+      }
+      return;
+    }
 
     // Evaluation mode: create a real session immediately (mobile parity)
     if (chatType === "evaluation") {

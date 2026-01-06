@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Check, FileText, Loader2, Eye, Clock } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { useTranslation } from "react-i18next";
 
 interface EvaluationProgressScreenProps {
   answerSheets: File[];
@@ -8,6 +9,7 @@ interface EvaluationProgressScreenProps {
   syllabusCount: number;
   hasRubric: boolean;
   onViewResults: () => void;
+  onStartNewAnswerEvaluation: () => void | Promise<void>;
 }
 
 type FileStatus = "pending" | "processing" | "completed" | "failed";
@@ -27,7 +29,9 @@ export default function EvaluationProgressScreen({
   syllabusCount,
   hasRubric,
   onViewResults,
+  onStartNewAnswerEvaluation,
 }: EvaluationProgressScreenProps) {
+  const { t } = useTranslation("chat");
   const [filesProgress, setFilesProgress] = useState<FileProgress[]>([]);
   const [overallStatus, setOverallStatus] = useState<"processing" | "completed">("processing");
 
@@ -51,7 +55,9 @@ export default function EvaluationProgressScreen({
           if (file.status === "completed") return file;
 
           allDone = false;
-          let { status, progress, step } = file;
+          let status: FileStatus = file.status;
+          let progress = file.progress;
+          let step: ProcessingStep = file.step;
 
           // Start logic: stagger start or random
           if (status === "pending") {
@@ -94,12 +100,18 @@ export default function EvaluationProgressScreen({
 
   const getStepLabel = (step: ProcessingStep) => {
     switch (step) {
-      case "analyzing": return "Analyzing content...";
-      case "marking": return "Calculating marks...";
-      case "feedback": return "Generating feedback...";
-      case "report": return "Finalizing report...";
-      case "done": return "Completed";
-      default: return "Pending";
+      case "analyzing":
+        return t("evaluation_progress_step_analyzing");
+      case "marking":
+        return t("evaluation_progress_step_marking");
+      case "feedback":
+        return t("evaluation_progress_step_feedback");
+      case "report":
+        return t("evaluation_progress_step_report");
+      case "done":
+        return t("evaluation_progress_step_done");
+      default:
+        return t("evaluation_progress_step_pending");
     }
   };
 
@@ -107,28 +119,32 @@ export default function EvaluationProgressScreen({
     <div className="flex flex-col items-center w-full max-w-5xl mx-auto p-4 space-y-8">
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-          Evaluation in Progress
+          {t("evaluation_progress_title")}
         </h1>
         <p className="text-gray-500 dark:text-gray-400">
-          Evaluating {answerSheets.length} answer sheet{answerSheets.length !== 1 ? "s" : ""} against the marking scheme
+          {t("evaluation_progress_subtitle", { count: answerSheets.length })}
         </p>
       </div>
 
       {/* Context Summary (Compact) */}
       <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-[#111111] px-6 py-3 rounded-full border border-gray-200 dark:border-[#2a2a2a]">
         <div className="flex items-center gap-2">
-           <span className="font-medium text-gray-900 dark:text-gray-200">Question Paper:</span> 
-           {questionPaperName || "Not set"}
+          <span className="font-medium text-gray-900 dark:text-gray-200">{t("evaluation_progress_label_question_paper")}:</span>
+          {questionPaperName || t("evaluation_progress_not_set")}
         </div>
         <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 hidden sm:block" />
         <div className="flex items-center gap-2">
-           <span className="font-medium text-gray-900 dark:text-gray-200">Syllabus:</span> 
-           {syllabusCount} file(s)
+            <span className="font-medium text-gray-900 dark:text-gray-200">{t("evaluation_progress_label_syllabus")}:</span>
+            {t("evaluation_progress_syllabus_files", { count: syllabusCount })}
         </div>
         <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 hidden sm:block" />
         <div className="flex items-center gap-2">
-           <span className="font-medium text-gray-900 dark:text-gray-200">Rubric:</span> 
-           {hasRubric ? <span className="text-green-600 dark:text-green-400">Applied</span> : "None"}
+           <span className="font-medium text-gray-900 dark:text-gray-200">{t("evaluation_progress_label_rubric")}:</span>
+           {hasRubric ? (
+             <span className="text-green-600 dark:text-green-400">{t("evaluation_progress_rubric_applied")}</span>
+           ) : (
+             t("evaluation_progress_rubric_none")
+           )}
         </div>
       </div>
 
@@ -168,7 +184,9 @@ export default function EvaluationProgressScreen({
                     {file.name}
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {file.status === 'pending' ? 'Waiting to start...' : getStepLabel(file.step)}
+                    {file.status === "pending"
+                      ? t("evaluation_progress_waiting_to_start")
+                      : getStepLabel(file.step)}
                   </p>
                 </div>
               </div>
@@ -194,7 +212,7 @@ export default function EvaluationProgressScreen({
             {/* Progress Bar */}
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-medium text-gray-500 dark:text-gray-400">
-                <span>Progress</span>
+                <span>{t("evaluation_progress_progress")}</span>
                 <span>{Math.round(file.progress)}%</span>
               </div>
               <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
@@ -211,25 +229,38 @@ export default function EvaluationProgressScreen({
       </div>
 
       {/* View Results Button */}
-      <div className="pt-4 w-full max-w-md">
+      <div className="pt-4 w-full max-w-2xl flex items-center justify-center gap-3">
+        <div>
         <Button
           onClick={onViewResults}
           disabled={overallStatus !== "completed"}
-          className="w-full flex items-center justify-center gap-2 py-6 text-lg"
+          className="flex-1 flex items-center justify-center gap-2 py-6 text-lg"
           variant={overallStatus === "completed" ? "primary" : "secondary"}
         >
           {overallStatus === "completed" ? (
             <>
               <Eye className="w-5 h-5" />
-              View All Results
+              {t("evaluation_progress_view_all_results")}
             </>
           ) : (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Processing...
+              {t("evaluation_progress_processing")}
             </>
           )}
         </Button>
+        </div>
+        <div>
+
+        <Button
+          onClick={onStartNewAnswerEvaluation}
+          disabled={overallStatus !== "completed"}
+          variant={overallStatus === "completed" ? "primary" : "secondary"}
+          className="whitespace-nowrap py-6"
+        >
+          {t("evaluation_start_new_answer_evaluation")}
+        </Button>
+        </div>
       </div>
     </div>
   );

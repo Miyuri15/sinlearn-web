@@ -16,20 +16,23 @@ import {
   Upload
 } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { useTranslation } from "react-i18next";
 
 interface EvaluationStartScreenProps {
   onOpenRubric: () => void;
   onOpenSyllabus: () => void;
   onOpenQuestions: () => void;
   onOpenMarks: () => void;
-  onUploadAnswers: (files: File[]) => void;
-  onProcess: () => void;
+  onClearAnswerSheets: () => void | Promise<void>;
+  onUploadAnswers: (files: File[]) => void | Promise<void>;
+  onProcess: () => void | Promise<void>;
   uploadedFiles: File[];
-  onRemoveFile: (index: number) => void;
-  onReplaceFile: (index: number, file: File) => void;
-  onStartEvaluation: () => void;
+  onRemoveFile: (index: number) => void | Promise<void>;
+  onReplaceFile: (index: number, file: File) => void | Promise<void>;
+  onStartEvaluation: () => void | Promise<void>;
   onViewHistory: () => void;
   isProcessing?: boolean;
+  isUploading?: boolean;
   hasMarks?: boolean;
   rubricSet?: boolean;
   syllabusSet?: boolean;
@@ -42,6 +45,7 @@ export default function EvaluationStartScreen({
   onOpenSyllabus,
   onOpenQuestions,
   onOpenMarks,
+  onClearAnswerSheets,
   onUploadAnswers,
   onProcess,
   onStartEvaluation,
@@ -50,12 +54,14 @@ export default function EvaluationStartScreen({
   onRemoveFile,
   onReplaceFile,
   isProcessing = false,
+  isUploading = false,
   hasMarks = false,
   rubricSet = false,
   syllabusSet = false,
   questionsSet = false,
   processingStatus = "idle"
 }: EvaluationStartScreenProps) {
+  const { t } = useTranslation("chat");
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const replaceInputRef = React.useRef<HTMLInputElement>(null);
   const [replacingIndex, setReplacingIndex] = React.useState<number | null>(null);
@@ -93,13 +99,13 @@ export default function EvaluationStartScreen({
   const needsReprocessing = processingStatus === "needs_reprocessing";
 
   const steps = [
-    { label: "Rubric", icon: FileText, action: onOpenRubric, status: rubricSet ? "completed" : "pending" },
-    { label: "Syllabus", icon: BookOpen, action: onOpenSyllabus, status: syllabusSet ? "completed" : "pending" },
-    { label: "Questions", icon: HelpCircle, action: onOpenQuestions, status: questionsSet ? "completed" : "pending" },
-    { label: "Answers", icon: FileInput, action: triggerFileUpload, status: uploadedFiles.length > 0 ? "completed" : "pending" },
-    { label: "Process", icon: Settings, action: isReadyToProcess ? onProcess : () => {}, status: isProcessingCompleted ? "completed" : "pending", disabled: !isReadyToProcess },
-    { label: "Marks", icon: Edit3, action: isProcessingCompleted ? onOpenMarks : () => {}, status: hasMarks ? "completed" : "pending", disabled: !isProcessingCompleted },
-    { label: "Send", icon: Send, action: onStartEvaluation, status: "pending", disabled: !isProcessingCompleted || !hasMarks },
+    { labelKey: "evaluation_start_step_rubric", icon: FileText, action: onOpenRubric, status: rubricSet ? "completed" : "pending", disabled: isUploading },
+    { labelKey: "evaluation_start_step_syllabus", icon: BookOpen, action: onOpenSyllabus, status: syllabusSet ? "completed" : "pending", disabled: isUploading },
+    { labelKey: "evaluation_start_step_questions", icon: HelpCircle, action: onOpenQuestions, status: questionsSet ? "completed" : "pending", disabled: isUploading },
+    { labelKey: "evaluation_start_step_answers", icon: FileInput, action: triggerFileUpload, status: uploadedFiles.length > 0 ? "completed" : "pending", disabled: isUploading },
+    { labelKey: "evaluation_start_step_process", icon: Settings, action: isReadyToProcess ? onProcess : () => {}, status: isProcessingCompleted ? "completed" : "pending", disabled: !isReadyToProcess || isUploading },
+    { labelKey: "evaluation_start_step_marks", icon: Edit3, action: isProcessingCompleted ? onOpenMarks : () => {}, status: hasMarks ? "completed" : "pending", disabled: !isProcessingCompleted || isUploading },
+    { labelKey: "evaluation_start_step_send", icon: Send, action: onStartEvaluation, status: "pending", disabled: !isProcessingCompleted || !hasMarks || isUploading },
   ];
 
   return (
@@ -120,8 +126,27 @@ export default function EvaluationStartScreen({
         accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
       />
       <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-        Start a new evaluation
+        {t("evaluation_start_title")}
       </h1>
+
+      {/* Uploading Banner */}
+      {isUploading && (
+        <div
+          className="w-full bg-gray-50 dark:bg-[#111111]/50 border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-4 flex items-center gap-3"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="p-2 bg-gray-100 dark:bg-[#1a1a1a] rounded-full">
+            <Upload size={16} className="animate-spin" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{t("evaluation_start_uploading")}</p>
+            <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div className="h-full w-1/2 bg-blue-600/70 animate-pulse" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reprocessing Banner */}
       {needsReprocessing && (
@@ -130,7 +155,7 @@ export default function EvaluationStartScreen({
             <RefreshCw size={16} />
           </div>
           <p className="text-sm font-medium">
-            Attachments have changed. You must re-process documents before proceeding to evaluation.
+            {t("evaluation_start_reprocess_banner")}
           </p>
         </div>
       )}
@@ -178,7 +203,7 @@ export default function EvaluationStartScreen({
                   isNext ? 'text-blue-500 dark:text-blue-400 font-bold' :
                   'text-gray-400 dark:text-gray-500'
                 }`}>
-                  {step.label}
+                  {t(step.labelKey)}
                 </span>
               </div>
             </React.Fragment>
@@ -187,10 +212,27 @@ export default function EvaluationStartScreen({
       </div>
 
       {/* Uploaded Answer Sheets Card */}
-      <div className="w-full bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-[#2a2a2a] p-6">
-        <h3 className="text-lg font-medium mb-4 text-gray-700 dark:text-gray-200">
-          Uploaded Answer Sheets
-        </h3>
+      <div className="w-full bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-[#2a2a2a] p-6 mt-20 mb-10">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-200">
+            {t("evaluation_start_uploaded_answer_sheets")}
+          </h3>
+          </div>
+          <div>
+          {uploadedFiles.length > 0 && (
+            <Button
+              variant="ghost"
+              onClick={onClearAnswerSheets}
+              disabled={isUploading}
+              className="flex items-center gap-2"
+            >
+              <X size={18} />
+              {t("evaluation_start_clear_answer_sheets")}
+            </Button>
+          )}
+          </div>
+        </div>
         
         {uploadedFiles.length > 0 ? (
           <div className="space-y-3">
@@ -207,17 +249,19 @@ export default function EvaluationStartScreen({
                 <div className="flex items-center gap-4">
                   <button 
                     onClick={() => triggerReplaceUpload(index)}
-                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    disabled={isUploading}
+                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <RefreshCw size={14} />
-                    Replace attachment
+                    {t("evaluation_start_replace_attachment")}
                   </button>
                   <button 
                     onClick={() => onRemoveFile(index)}
-                    className="flex items-center gap-1 text-sm text-red-500 hover:text-red-600 font-medium"
+                    disabled={isUploading}
+                    className="flex items-center gap-1 text-sm text-red-500 hover:text-red-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <X size={14} />
-                    Remove attachment
+                    {t("evaluation_start_remove_attachment")}
                   </button>
                 </div>
               </div>
@@ -225,18 +269,19 @@ export default function EvaluationStartScreen({
             {uploadedFiles.length < 10 && (
               <button
                 onClick={triggerFileUpload}
-                className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:border-blue-500 hover:text-blue-500 dark:hover:border-blue-400 dark:hover:text-blue-400 transition-colors flex items-center justify-center gap-2"
+                disabled={isUploading}
+                className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:border-blue-500 hover:text-blue-500 dark:hover:border-blue-400 dark:hover:text-blue-400 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Upload size={18} />
-                <span>Upload more answer sheets ({10 - uploadedFiles.length} remaining)</span>
+                <span>{t("evaluation_start_upload_more_answer_sheets", { remaining: 10 - uploadedFiles.length })}</span>
               </button>
             )}
           </div>
         ) : (
           <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-            <p className="text-gray-500 dark:text-gray-400 mb-4">No answer sheets uploaded yet</p>
-            <Button onClick={triggerFileUpload} variant="ghost">
-              Upload Answer Sheets
+            <p className="text-gray-500 dark:text-gray-400 mb-4">{t("evaluation_start_no_answer_sheets")}</p>
+            <Button onClick={triggerFileUpload} variant="ghost" disabled={isUploading}>
+              {isUploading ? t("evaluation_start_uploading") : t("evaluation_start_upload_answer_sheets")}
             </Button>
           </div>
         )}
@@ -246,7 +291,7 @@ export default function EvaluationStartScreen({
       <div className="w-full space-y-4">
         <Button 
           onClick={onProcess}
-          disabled={!isReadyToProcess || processingStatus === "processing"}
+          disabled={!isReadyToProcess || processingStatus === "processing" || isUploading}
           className={`w-full h-12 rounded-full text-lg font-medium flex items-center justify-center gap-2
             ${!isReadyToProcess || processingStatus === "processing"
               ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-500 dark:text-gray-400' 
@@ -254,7 +299,11 @@ export default function EvaluationStartScreen({
           `}
         >
           <Sparkles size={20} />
-          {processingStatus === "processing" ? "Processing..." : needsReprocessing ? "Re-process Documents" : "Process Documents"}
+          {processingStatus === "processing"
+            ? t("evaluation_start_processing")
+            : needsReprocessing
+              ? t("evaluation_start_reprocess_documents")
+              : t("evaluation_start_process_documents")}
         </Button>
         
         <Button 
@@ -263,27 +312,45 @@ export default function EvaluationStartScreen({
           className="w-full h-12 rounded-full text-lg font-medium flex items-center justify-center gap-2 border-gray-300 dark:border-gray-600"
         >
           <History size={20} />
-          View results history
+          {t("evaluation_start_view_results_history")}
         </Button>
       </div>
 
       {/* Status List */}
       <div className="w-full bg-gray-50 dark:bg-[#111111]/50 rounded-xl p-4 space-y-4">
         <StatusItem 
-          label="Answer sheets processing" 
-          status={processingStatus === "idle" ? "Pending" : processingStatus === "processing" ? "Processing" : "Completed"} 
+          label={t("evaluation_start_status_answer_sheets")}
+          status={
+            processingStatus === "idle"
+              ? t("evaluation_start_status_pending")
+              : processingStatus === "processing"
+                ? t("evaluation_start_status_processing")
+                : t("evaluation_start_status_completed")
+          }
           isActive={processingStatus === "processing"}
           isCompleted={processingStatus === "completed"}
         />
         <StatusItem 
-          label="Question paper processing" 
-          status={processingStatus === "idle" ? "Pending" : processingStatus === "processing" ? "Processing" : "Completed"} 
+          label={t("evaluation_start_status_question_paper")}
+          status={
+            processingStatus === "idle"
+              ? t("evaluation_start_status_pending")
+              : processingStatus === "processing"
+                ? t("evaluation_start_status_processing")
+                : t("evaluation_start_status_completed")
+          }
           isActive={processingStatus === "processing"}
           isCompleted={processingStatus === "completed"}
         />
         <StatusItem 
-          label="Syllabus processing" 
-          status={processingStatus === "idle" ? "Pending" : processingStatus === "processing" ? "Processing" : "Completed"} 
+          label={t("evaluation_start_status_syllabus")}
+          status={
+            processingStatus === "idle"
+              ? t("evaluation_start_status_pending")
+              : processingStatus === "processing"
+                ? t("evaluation_start_status_processing")
+                : t("evaluation_start_status_completed")
+          }
           isActive={processingStatus === "processing"}
           isCompleted={processingStatus === "completed"}
         />

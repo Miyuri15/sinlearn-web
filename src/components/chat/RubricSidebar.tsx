@@ -10,6 +10,7 @@ import {
   addCustomRubric,
   type StoredRubric,
 } from "@/lib/localStore";
+import { createRubric, attachRubricToSession } from "@/lib/api/evaluation";
 import { useToast } from "@/components/ui/Toast"; // Import the toast hook
 
 type RubricSidebarProps = Readonly<{
@@ -18,6 +19,8 @@ type RubricSidebarProps = Readonly<{
   onClose: () => void;
   onSelectRubric?: (rubricId: string) => void;
   onUpload?: (customRubric?: CustomRubricData) => void;
+  chatSessionId?: string | null;
+  onRequireSession?: () => Promise<string | null>;
 }>;
 
 type Rubric = {
@@ -50,6 +53,8 @@ export default function RubricSidebar({
   onClose,
   onSelectRubric,
   onUpload,
+  chatSessionId,
+  onRequireSession,
 }: RubricSidebarProps) {
   const { t, i18n } = useTranslation("common");
   const { showToast } = useToast(); // Get the toast function
@@ -213,11 +218,45 @@ export default function RubricSidebar({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose, showCustomizationPopup]);
 
-  const handleRubricSelect = (rubricId: string) => {
+  const handleRubricSelect = async (rubricId: string) => {
     // Toggle selection: if already selected, deselect it
     const newSelection = selectedRubric === rubricId ? "" : rubricId;
     setSelectedRubricState(newSelection);
     onSelectRubric?.(newSelection);
+
+    let targetSessionId = chatSessionId;
+    if (newSelection && !targetSessionId && onRequireSession) {
+        console.log("RubricSidebar: Requesting new session ID...");
+        targetSessionId = await onRequireSession();
+    }
+
+    if (newSelection && targetSessionId) {
+      console.log("RubricSidebar: Attaching system rubric", newSelection, "to session", targetSessionId);
+      const rubric = standardRubrics.find((r) => r.id === newSelection);
+      if (rubric) {
+        try {
+          const createdId = await createRubric({
+            chatSessionId: targetSessionId,
+            payload: {
+              name: rubric.title,
+              description: rubric.title,
+              rubric_type: "system",
+              criteria: rubric.categories.map((c) => ({
+                criterion: c.name.toLowerCase(),
+                weight_percentage: c.percentage / 100,
+              })),
+            },
+          });
+          await attachRubricToSession({ chatSessionId: targetSessionId, rubricId: createdId });
+          showToast("System rubric attached successfully", "success");
+        } catch (error) {
+          console.error("Failed to attach system rubric", error);
+          showToast("Failed to attach rubric", "error");
+        }
+      }
+    } else if (!targetSessionId) {
+        console.warn("RubricSidebar: No chatSessionId, cannot attach rubric");
+    }
   };
 
   const handlePercentageChange = (index: number, value: number) => {
@@ -294,6 +333,47 @@ export default function RubricSidebar({
 
     // Call the onUpload callback if provided
     onUpload?.(customRubricData);
+
+    let targetSessionId = chatSessionId;
+    if (!targetSessionId && onRequireSession) {
+        console.log("RubricSidebar: Requesting new session ID for custom rubric...");
+        // Note: onRequireSession is async, but we are in a sync function here (handleCreateCustomRubric)
+        // We need to handle this carefully.
+        // However, handleCreateCustomRubric is not async.
+        // We can make the inner run function handle the session creation.
+    }
+
+    const run = async () => {
+        if (!targetSessionId && onRequireSession) {
+            targetSessionId = await onRequireSession();
+        }
+
+        if (targetSessionId) {
+            console.log("RubricSidebar: Creating custom rubric for session", targetSessionId);
+            try {
+                const createdId = await createRubric({
+                    chatSessionId: targetSessionId,
+                    payload: {
+                    name: customRubricData.title,
+                    description: customRubricData.title,
+                    rubric_type: "custom",
+                    criteria: customRubricData.categories.map((c) => ({
+                        criterion: c.name.toLowerCase(),
+                        weight_percentage: c.percentage / 100,
+                    })),
+                    },
+                });
+                await attachRubricToSession({ chatSessionId: targetSessionId, rubricId: createdId });
+                showToast("Custom rubric attached successfully", "success");
+            } catch (error) {
+                console.error("Failed to attach custom rubric", error);
+                showToast("Failed to attach custom rubric", "error");
+            }
+        } else {
+            console.warn("RubricSidebar: No chatSessionId, cannot create custom rubric");
+        }
+    };
+    run();
 
     // Show success toast
     showToast(
