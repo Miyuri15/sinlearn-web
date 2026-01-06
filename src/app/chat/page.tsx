@@ -7,9 +7,13 @@ import EvaluationInputs from "@/components/chat/EvaluationInputs";
 import EvaluationMarksModal from "@/components/chat/EvaluationMarksModal";
 import EvaluationStartScreen from "@/components/chat/EvaluationStartScreen";
 import EvaluationProgressScreen from "@/components/chat/EvaluationProgressScreen";
-import EvaluationResultsScreen, { generateMockResult } from "@/components/chat/EvaluationResultsScreen";
+import EvaluationResultsScreen, {
+  generateMockResult,
+} from "@/components/chat/EvaluationResultsScreen";
 import EvaluationAnalyticsScreen from "@/components/chat/EvaluationAnalyticsScreen";
-import EvaluationHistoryScreen, { EvaluationSession } from "@/components/chat/EvaluationHistoryScreen";
+import EvaluationHistoryScreen, {
+  EvaluationSession,
+} from "@/components/chat/EvaluationHistoryScreen";
 import Sidebar from "@/components/layout/Sidebar";
 import RubricSidebar from "@/components/chat/RubricSidebar";
 import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
@@ -113,20 +117,23 @@ export default function ChatPage({
   const [pendingVoice, setPendingVoice] = useState<Blob | null>(null);
   const [isMessageGenerating, setIsMessageGenerating] = useState(false);
   const [isSyncingMessages, setIsSyncingMessages] = useState(false);
-  
+
   // Helper to ensure we have a session ID before uploading
   const ensureSessionId = useCallback(async (): Promise<string | null> => {
     if (activeSessionId) return activeSessionId;
-    
+
     // If no session, create one
     try {
       console.log("Creating new evaluation session on demand...");
-      const session = await createChatSession({ mode: "evaluation", title: "New Evaluation Chat" });
+      const session = await createChatSession({
+        mode: "evaluation",
+        title: "New Evaluation Chat",
+      });
       console.log("Created session:", session.id);
 
       // Keep UI in evaluation mode (this route may not remount when using pushState)
       setChatType("evaluation");
-      
+
       // Update state immediately
       setActiveSessionId(session.id);
 
@@ -143,10 +150,10 @@ export default function ChatPage({
           ...next,
         ];
       });
-      
+
       // Update URL without full reload to keep state
       window.history.pushState({}, "", `/chat/${session.id}`);
-      
+
       return session.id;
     } catch (error) {
       console.error("Failed to create session on demand", error);
@@ -159,16 +166,26 @@ export default function ChatPage({
 
   // Evaluation specific states
   const [isEvaluationStarted, setIsEvaluationStarted] = useState(false);
-  const [evaluationStatus, setEvaluationStatus] = useState<"setup" | "in_progress" | "results" | "analytics" | "history">("setup");
-  const [evaluationHistory, setEvaluationHistory] = useState<EvaluationSession[]>([]);
-  const [currentEvaluationResult, setCurrentEvaluationResult] = useState<any[] | undefined>(undefined);
+  const [evaluationStatus, setEvaluationStatus] = useState<
+    "setup" | "in_progress" | "results" | "analytics" | "history"
+  >("setup");
+  const [evaluationHistory, setEvaluationHistory] = useState<
+    EvaluationSession[]
+  >([]);
+  const [currentEvaluationResult, setCurrentEvaluationResult] = useState<
+    any[] | undefined
+  >(undefined);
   const [rubricSet, setRubricSet] = useState(false);
   const [attachedRubricId, setAttachedRubricId] = useState<string | null>(null);
   const [syllabusSet, setSyllabusSet] = useState(false);
   const [syllabusCount, setSyllabusCount] = useState(0);
   const [questionsSet, setQuestionsSet] = useState(false);
-  const [questionPaperName, setQuestionPaperName] = useState<string | undefined>(undefined);
-  const [processingStatus, setProcessingStatus] = useState<"idle" | "processing" | "completed" | "needs_reprocessing">("idle");
+  const [questionPaperName, setQuestionPaperName] = useState<
+    string | undefined
+  >(undefined);
+  const [processingStatus, setProcessingStatus] = useState<
+    "idle" | "processing" | "completed" | "needs_reprocessing"
+  >("idle");
   const processingStatusRef = useRef(processingStatus);
   const hydratedEvaluationSessionRef = useRef<string | null>(null);
 
@@ -213,7 +230,9 @@ export default function ChatPage({
 
         // Restore evaluation history for this chat session (client-side persistence)
         try {
-          const raw = localStorage.getItem(evaluationHistoryStorageKey(activeSessionId));
+          const raw = localStorage.getItem(
+            evaluationHistoryStorageKey(activeSessionId)
+          );
           if (raw) {
             const parsed = JSON.parse(raw) as Array<{
               id: string;
@@ -256,11 +275,17 @@ export default function ChatPage({
           ).toString();
         };
 
-        const classifyByFilename = (filename: string): "syllabus" | "question_paper" | "answer_sheet" => {
+        const classifyByFilename = (
+          filename: string
+        ): "syllabus" | "question_paper" | "answer_sheet" => {
           const f = filename.toLowerCase();
           if (/syllabus|syllabi/.test(f)) return "syllabus";
           // Common names: "model paper", "question paper", "qp"
-          if (/\bmodel\b|\bquestion\b|\bqp\b|\bquestion[_\s-]?paper\b|\bmodel[_\s-]?paper\b/.test(f)) {
+          if (
+            /\bmodel\b|\bquestion\b|\bqp\b|\bquestion[_\s-]?paper\b|\bmodel[_\s-]?paper\b/.test(
+              f
+            )
+          ) {
             return "question_paper";
           }
           return "answer_sheet";
@@ -273,10 +298,12 @@ export default function ChatPage({
         setRubricSet(!!rubricId);
 
         const qp = details?.question_paper;
-        const qpFilenameFromDetails: string | undefined = qp?.filename || qp?.file_name || qp?.name;
+        const qpFilenameFromDetails: string | undefined =
+          qp?.filename || qp?.file_name || qp?.name;
 
         const sy = details?.syllabus;
-        const syFilenameFromDetails: string | undefined = sy?.filename || sy?.file_name || sy?.name;
+        const syFilenameFromDetails: string | undefined =
+          sy?.filename || sy?.file_name || sy?.name;
 
         // Prefer session.details fields, but fall back to session resources list
         let qpFilename: string | undefined = qpFilenameFromDetails;
@@ -289,7 +316,12 @@ export default function ChatPage({
           const qpResource = (resources || []).find((r: any) => {
             const type = normalizeResourceType(r?.resource_type ?? r?.type);
             if (type) {
-              return type === "question_paper" || type === "questionpaper" || type === "question" || type === "questions";
+              return (
+                type === "question_paper" ||
+                type === "questionpaper" ||
+                type === "question" ||
+                type === "questions"
+              );
             }
             const filename = getResourceFilename(r);
             return classifyByFilename(filename) === "question_paper";
@@ -317,14 +349,19 @@ export default function ChatPage({
             hasSyllabus = true;
           }
         } catch (e) {
-          console.warn("Failed to list session resources for setup hydration", e);
+          console.warn(
+            "Failed to list session resources for setup hydration",
+            e
+          );
         }
 
         setQuestionsSet(hasQuestionPaper);
         setQuestionPaperName(qpFilename);
 
         setSyllabusSet(hasSyllabus);
-        setSyllabusCount(syFilenameFromDetails ? 1 : syllabusCountFromResources);
+        setSyllabusCount(
+          syFilenameFromDetails ? 1 : syllabusCountFromResources
+        );
 
         // Fetch rubric details if attached (requested API behavior)
         if (rubricId) {
@@ -352,10 +389,13 @@ export default function ChatPage({
 
             answerResources.forEach((r: any, idx: number) => {
               const rid: string | undefined = r?.resource_id || r?.id;
-              const filename: string | undefined = getResourceFilename(r) || undefined;
+              const filename: string | undefined =
+                getResourceFilename(r) || undefined;
               if (!rid) return;
               restoredIds.push(rid);
-              restoredFiles.push(new File([], filename || `Answer Sheet ${idx + 1}`));
+              restoredFiles.push(
+                new File([], filename || `Answer Sheet ${idx + 1}`)
+              );
             });
 
             if (restoredIds.length > 0) {
@@ -387,7 +427,10 @@ export default function ChatPage({
         results: s.results ?? [],
         averageScore: s.averageScore ?? 0,
       }));
-      localStorage.setItem(evaluationHistoryStorageKey(activeSessionId), JSON.stringify(toStore));
+      localStorage.setItem(
+        evaluationHistoryStorageKey(activeSessionId),
+        JSON.stringify(toStore)
+      );
     } catch (e) {
       console.warn("Failed to persist evaluation history", e);
     }
@@ -478,10 +521,16 @@ export default function ChatPage({
         setChats(mapped);
 
         // If we are on a specific chat URL, keep chatType in sync with its real session mode.
-        if (chatId && !chatId.startsWith("local-") && !chatId.startsWith("new-")) {
+        if (
+          chatId &&
+          !chatId.startsWith("local-") &&
+          !chatId.startsWith("new-")
+        ) {
           const current = mapped.find((c) => c.id === chatId);
           if (current) {
-            setChatType((prev) => (prev !== current.type ? current.type : prev));
+            setChatType((prev) =>
+              prev !== current.type ? current.type : prev
+            );
           }
         }
       } catch (err) {
@@ -584,7 +633,7 @@ export default function ChatPage({
 
           // If we haven't started yet, we need to show the files as messages now
           if (!isEvaluationStarted && fileMessages.length > 0) {
-             setEvaluationMessages((prev) => [...prev, ...fileMessages]);
+            setEvaluationMessages((prev) => [...prev, ...fileMessages]);
           }
 
           setEvaluationMessages((prev) => [
@@ -594,7 +643,7 @@ export default function ChatPage({
               content: evalContent,
             },
           ]);
-          
+
           setIsEvaluationStarted(true);
         }
 
@@ -862,7 +911,9 @@ export default function ChatPage({
     }
 
     if (!marksConfirmed) {
-      setToastMessage("Please confirm the paper config (marks) before sending.");
+      setToastMessage(
+        "Please confirm the paper config (marks) before sending."
+      );
       setToastType("warning");
       setIsToastVisible(true);
       return;
@@ -1064,7 +1115,9 @@ export default function ChatPage({
     if (isClearing) {
       if (activeSessionId) {
         try {
-          await removeAttachedRubricFromSession({ chatSessionId: activeSessionId });
+          await removeAttachedRubricFromSession({
+            chatSessionId: activeSessionId,
+          });
         } catch (e) {
           console.error("Failed to detach rubric", e);
           setToastMessage("Failed to remove rubric from the server.");
@@ -1192,7 +1245,9 @@ export default function ChatPage({
       });
 
       if (acceptedFiles.length === 0) {
-        setToastMessage("Answer sheet upload failed: no resource ids returned.");
+        setToastMessage(
+          "Answer sheet upload failed: no resource ids returned."
+        );
         setToastType("error");
         setIsToastVisible(true);
         return;
@@ -1224,7 +1279,10 @@ export default function ChatPage({
           const oldIds = [...answerResourceIds];
           for (const oldId of oldIds) {
             try {
-              await detachAnswerSheetFromSession({ sessionId: targetSessionId, resourceId: oldId });
+              await detachAnswerSheetFromSession({
+                sessionId: targetSessionId,
+                resourceId: oldId,
+              });
             } catch (err) {
               console.warn("Failed to detach previous answer sheet", err);
             }
@@ -1273,7 +1331,10 @@ export default function ChatPage({
 
     try {
       if (activeSessionId) {
-        await detachAnswerSheetFromSession({ sessionId: activeSessionId, resourceId });
+        await detachAnswerSheetFromSession({
+          sessionId: activeSessionId,
+          resourceId,
+        });
       }
     } catch (e) {
       console.error("Failed to delete answer sheet resource", e);
@@ -1319,7 +1380,9 @@ export default function ChatPage({
       });
       const newId = uploads[0]?.resource_id;
       if (!newId) {
-        setToastMessage("Failed to replace answer sheet: no resource id returned.");
+        setToastMessage(
+          "Failed to replace answer sheet: no resource id returned."
+        );
         setToastType("error");
         setIsToastVisible(true);
         return;
@@ -1327,7 +1390,10 @@ export default function ChatPage({
 
       if (oldId) {
         try {
-          await detachAnswerSheetFromSession({ sessionId: targetSessionId, resourceId: oldId });
+          await detachAnswerSheetFromSession({
+            sessionId: targetSessionId,
+            resourceId: oldId,
+          });
         } catch (e) {
           console.warn("Failed to detach old answer sheet resource", e);
         }
@@ -1373,8 +1439,8 @@ export default function ChatPage({
     }
 
     setProcessingStatus("processing");
-  // Re-processing invalidates any previous confirmation.
-  setMarksConfirmed(false);
+    // Re-processing invalidates any previous confirmation.
+    setMarksConfirmed(false);
     try {
       // Mobile parity: process one answer sheet at a time.
       for (const resourceId of answerResourceIds) {
@@ -1385,8 +1451,8 @@ export default function ChatPage({
       }
 
       setProcessingStatus("completed");
-  // After processing completes, marks must be (re)confirmed.
-  setMarksConfirmed(false);
+      // After processing completes, marks must be (re)confirmed.
+      setMarksConfirmed(false);
       setToastMessage("Documents processed successfully.");
       setToastType("success");
       setIsToastVisible(true);
@@ -1483,7 +1549,9 @@ export default function ChatPage({
 
               try {
                 setIsPaperConfigLoading(true);
-                const cfg = await getPaperConfigFromOCR({ chatSessionId: sessionId });
+                const cfg = await getPaperConfigFromOCR({
+                  chatSessionId: sessionId,
+                });
                 const qs = await getPaperQuestionStructure({
                   chatSessionId: sessionId,
                   paperConfigParts: cfg,
@@ -1502,7 +1570,10 @@ export default function ChatPage({
                   setPaperConfig(qs);
                 }
               } catch (e) {
-                console.error("Failed to fetch paper config/question structure", e);
+                console.error(
+                  "Failed to fetch paper config/question structure",
+                  e
+                );
                 setToastMessage(
                   "Failed to fetch paper structure. You can still edit manually."
                 );
@@ -1540,8 +1611,13 @@ export default function ChatPage({
             onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
             onViewResults={() => {
               // History entry is created on Send; here we just navigate.
-              if (!currentEvaluationResult || currentEvaluationResult.length === 0) {
-                const results = selectedFiles.map((f) => generateMockResult(f.name));
+              if (
+                !currentEvaluationResult ||
+                currentEvaluationResult.length === 0
+              ) {
+                const results = selectedFiles.map((f) =>
+                  generateMockResult(f.name)
+                );
                 setCurrentEvaluationResult(results);
               }
               setEvaluationStatus("results");
@@ -1588,11 +1664,14 @@ export default function ChatPage({
 
     // Keep the UI mode in sync immediately (important when staying on /chat and not remounting)
     setChatType(mode);
-    
+
     if (mode === "evaluation") {
       setCreating(true);
       try {
-        const session = await createChatSession({ mode: "evaluation", title: "New Evaluation Chat" });
+        const session = await createChatSession({
+          mode: "evaluation",
+          title: "New Evaluation Chat",
+        });
 
         // Optimistically add the session so sidebar can highlight it instantly
         setChats((prev) => {
@@ -1611,7 +1690,9 @@ export default function ChatPage({
         router.push(`/chat/${session.id}`);
       } catch (error) {
         console.error("Failed to create evaluation chat", error);
-        setToastMessage("Failed to create new evaluation chat. Please try again.");
+        setToastMessage(
+          "Failed to create new evaluation chat. Please try again."
+        );
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -1809,20 +1890,21 @@ export default function ChatPage({
                 }}
               />
             )}
-
-            <div className="mb-3">
-              <label className="mr-2 text-sm">{t("response_level")}:</label>
-              <select
-                value={responseLevel}
-                onChange={(e) => setResponseLevel(e.target.value)}
-                className="border rounded-lg px-3 py-1 bg-white dark:bg-[#1A1A1A]"
-              >
-                <option value="grade_6_8">Grades 6–8</option>
-                <option value="grade_9_11">Grades 9–11</option>
-                <option value="grade_12_13">Grades 12–13</option>
-                <option value="university">University Level</option>
-              </select>
-            </div>
+            {!pendingVoice && (
+              <div className="mb-3">
+                <label className="mr-2 text-sm">{t("response_level")}:</label>
+                <select
+                  value={responseLevel}
+                  onChange={(e) => setResponseLevel(e.target.value)}
+                  className="border rounded-lg px-3 py-1 bg-white dark:bg-[#1A1A1A]"
+                >
+                  <option value="grade_6_8">Grades 6–8</option>
+                  <option value="grade_9_11">Grades 9–11</option>
+                  <option value="grade_12_13">Grades 12–13</option>
+                  <option value="university">University Level</option>
+                </select>
+              </div>
+            )}
 
             <InputBar
               isRecording={isRecording}
@@ -1871,15 +1953,18 @@ export default function ChatPage({
           isSyllabusOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <SyllabusPanelpage 
-          onClose={toggleSyllabus} 
-          onSyllabusChange={useCallback((hasSyllabus: boolean, count: number) => {
-            setSyllabusSet(hasSyllabus);
-            setSyllabusCount(count);
-            if (processingStatusRef.current === "completed") {
-              setProcessingStatus("needs_reprocessing");
-            }
-          }, [])}
+        <SyllabusPanelpage
+          onClose={toggleSyllabus}
+          onSyllabusChange={useCallback(
+            (hasSyllabus: boolean, count: number) => {
+              setSyllabusSet(hasSyllabus);
+              setSyllabusCount(count);
+              if (processingStatusRef.current === "completed") {
+                setProcessingStatus("needs_reprocessing");
+              }
+            },
+            []
+          )}
           chatSessionId={activeSessionId}
           onRequireSession={ensureSessionId}
         />
@@ -1891,15 +1976,18 @@ export default function ChatPage({
           isQuestionsOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <QuestionsPanelpage 
-          onClose={toggleQuestions} 
-          onQuestionsChange={useCallback((hasQuestions: boolean, questionName?: string) => {
-            setQuestionsSet(hasQuestions);
-            setQuestionPaperName(questionName);
-            if (processingStatusRef.current === "completed") {
-              setProcessingStatus("needs_reprocessing");
-            }
-          }, [])}
+        <QuestionsPanelpage
+          onClose={toggleQuestions}
+          onQuestionsChange={useCallback(
+            (hasQuestions: boolean, questionName?: string) => {
+              setQuestionsSet(hasQuestions);
+              setQuestionPaperName(questionName);
+              if (processingStatusRef.current === "completed") {
+                setProcessingStatus("needs_reprocessing");
+              }
+            },
+            []
+          )}
           chatSessionId={activeSessionId}
           onRequireSession={ensureSessionId}
         />
