@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { KeyboardEvent, useState, DragEvent, useRef, useEffect } from "react";
 import { formatBytes } from "@/lib/utils/format";
 import FilePreviewModal from "@/components/chat/FilePreviewModal";
+import { ReactTransliterate } from "react-transliterate";
+import "react-transliterate/dist/index.css";
 
 type InputBarProps = Readonly<{
   isRecording: boolean;
@@ -48,6 +50,7 @@ export default function InputBar({
   const [isDragging, setIsDragging] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [sampleMessage, setSampleMessage] = useState("");
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -235,22 +238,39 @@ export default function InputBar({
             </div>
           ) : (
             // ✏️ TEXT INPUT
-            <textarea
-              ref={textareaRef}
-              placeholder={t("typing_placeholder")}
-              value={isRecording ? transcript : message}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              rows={1}
-              disabled={isRecording}
-              className={`chat-input w-full bg-transparent outline-none resize-none
+            <>
+              <textarea
+                ref={textareaRef}
+                placeholder={t("typing_placeholder")}
+                value={isRecording ? transcript : message}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                rows={1}
+                disabled={isRecording}
+                className={`chat-input w-full bg-transparent outline-none resize-none
         overflow-y-auto hidden-scrollbar leading-relaxed max-h-40 py-2
         ${
           isRecording
             ? "text-gray-700 dark:text-gray-100 italic"
             : "text-gray-800 dark:text-gray-200"
         }`}
-            />
+              />
+              <ReactTransliterate
+                renderComponent={(props) => (
+                  <textarea
+                    {...props}
+                    id="corrected-text"
+                    placeholder="Enter or correct the text from the image..."
+                    className="min-h-24 font-mono text-sm"
+                  />
+                )}
+                value={sampleMessage}
+                onChangeText={(text) => setSampleMessage(text)}
+                lang="si"
+                // Add custom styles for the suggestion dropdown if needed
+                containerStyles={{ position: "relative" }}
+              />
+            </>
           )}
         </div>
 
