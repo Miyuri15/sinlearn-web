@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { ApiError, apiFetch } from "./client";
 import { API_BASE_URL } from "../config";
 import type { SafetySummary } from "../models/chat";
 
@@ -81,13 +81,22 @@ export const postMessage = (
   });
 };
 
-export const listSessionMessages = (sessionId: string) => {
-  return apiFetch<any[]>(
-    `${API_BASE_URL}/api/v1/messages/sessions/${sessionId}`,
-    {
-      method: "GET",
+export const listSessionMessages = async (sessionId: string) => {
+  try {
+    return await apiFetch<any[]>(
+      `${API_BASE_URL}/api/v1/messages/sessions/${sessionId}`,
+      {
+        method: "GET",
+      }
+    );
+  } catch (error) {
+    // If the backend is temporarily broken (e.g., schema drift), treat as "no history"
+    // so the UI can still function.
+    if (error instanceof ApiError && error.status >= 500) {
+      return [];
     }
-  );
+    throw error;
+  }
 };
 
 export type UpdateChatSessionPayload = {

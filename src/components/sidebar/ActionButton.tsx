@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setSelectedChatType } from "@/lib/localStore";
+import { createChatSession } from "@/lib/api/chat";
 
 interface ActionButtonProps {
   icon: React.ReactNode;
@@ -10,6 +11,7 @@ interface ActionButtonProps {
   isOpen: boolean;
   chatType: "learning" | "evaluation";
   colorClass?: string;
+  onNewChat?: () => void | Promise<void>;
 }
 
 export default function ActionButton({
@@ -18,17 +20,56 @@ export default function ActionButton({
   isOpen,
   chatType,
   colorClass,
+  onNewChat,
 }: Readonly<ActionButtonProps>) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     if (isLoading) return; // Prevent multiple clicks
 
     setIsLoading(true);
     setSelectedChatType(chatType);
 
-    // Create a local temporary chat ID and navigate
+    // If parent provided explicit handler, prefer it.
+    if (onNewChat) {
+      try {
+        await onNewChat();
+      } finally {
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 500);
+      }
+      return;
+    }
+
+    // Evaluation mode: create a real session immediately (mobile parity)
+    if (chatType === "evaluation") {
+      try {
+        const session = await createChatSession({
+          mode: "evaluation",
+          channel: "text",
+          title: "New Evaluation Chat",
+          description: null as any,
+          grade: null as any,
+          subject: null as any,
+        });
+
+        router.push(`/chat/${session.id}`);
+      } catch (e) {
+        // Fallback: still allow a local temp chat if backend fails
+        const tempId = `local-${Date.now()}-${chatType}`;
+        router.push(`/chat/${tempId}`);
+      } finally {
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 500);
+      }
+
+      return;
+    }
+
+    // Learning mode: keep existing local temporary chat behavior
     const tempId = `local-${Date.now()}-${chatType}`;
     router.push(`/chat/${tempId}`);
 

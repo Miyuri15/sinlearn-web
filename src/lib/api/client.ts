@@ -7,6 +7,20 @@ import {
 } from "@/lib/localStore";
 import { API_BASE_URL } from "../config";
 
+export class ApiError extends Error {
+  status: number;
+  url: string;
+  details: unknown;
+
+  constructor(message: string, params: { status: number; url: string; details?: unknown }) {
+    super(message);
+    this.name = "ApiError";
+    this.status = params.status;
+    this.url = params.url;
+    this.details = params.details;
+  }
+}
+
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
@@ -102,9 +116,28 @@ export async function apiFetch<T>(
     }
 
     if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      const errorMessage = error.detail || error.message || "API request failed";
-      throw new Error(errorMessage);
+      let errorBody: unknown = undefined;
+
+      try {
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          errorBody = await res.json();
+        } else {
+          errorBody = await res.text();
+        }
+      } catch {
+        errorBody = undefined;
+      }
+
+      let errorMessage = "API request failed";
+      if (typeof errorBody === "string" && errorBody.trim()) {
+        errorMessage = errorBody;
+      } else if (errorBody && typeof errorBody === "object") {
+        const maybe = errorBody as any;
+        errorMessage = maybe.detail || maybe.message || errorMessage;
+      }
+
+      throw new ApiError(errorMessage, { status: res.status, url, details: errorBody });
     }
 
     // Handle empty responses (204 No Content, etc.)

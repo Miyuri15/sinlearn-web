@@ -3,10 +3,9 @@
 import { useTranslation } from "react-i18next";
 import AddIcon from "@mui/icons-material/Add";
 import MenuIcon from "@mui/icons-material/Menu";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import LanguageToggle from "@/components/header/LanguageToggle";
 import ThemeToggle from "@/components/header/ThemeToggle";
-import { BookOpen, ClipboardCheck } from "lucide-react";
+import { BookOpen, ClipboardCheck, FileText, Book, HelpCircle } from "lucide-react";
 import { useState } from "react";
 
 interface HeaderProps {
@@ -19,6 +18,7 @@ interface HeaderProps {
   toggleSyllabus: () => void;
   toggleQuestions: () => void;
   toggleSidebar?: () => void;
+  activeStep?: string; // Add this prop to track active step
 }
 
 export default function Header({
@@ -31,6 +31,7 @@ export default function Header({
   toggleSyllabus,
   toggleQuestions,
   toggleSidebar,
+  activeStep,
 }: Readonly<HeaderProps>) {
   const { t } = useTranslation("chat");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -111,79 +112,55 @@ export default function Header({
 
           {/* Evaluation Mode: "Extra One Button" (Dropdown) */}
           {mode === "evaluation" && (
-            <div className="relative">
+            <div className="flex items-center gap-1 ml-1">
               <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-colors ${
-                  isMobileMenuOpen
-                    ? "bg-gray-100 dark:bg-[#333] border-gray-300 dark:border-[#444]"
-                    : "bg-white dark:bg-[#222] border-gray-200 dark:border-[#333]"
+                onClick={toggleRubric}
+                className={`p-2 rounded-lg transition-all duration-300 relative ${
+                  isRubricOpen
+                    ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
+                    : activeStep === 'rubric'
+                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
+                      : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
                 }`}
+                title="Rubric"
               >
-                <MoreVertIcon className="text-gray-600 dark:text-gray-300 text-lg" />
+                <FileText className="w-5 h-5" />
+                {activeStep === 'rubric' && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
+                )}
               </button>
-
-              {/* The Dropdown Menu */}
-              {isMobileMenuOpen && (
-                <>
-                  {/* Backdrop to close on click outside */}
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  />
-
-                  {/* Menu Content */}
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] rounded-xl shadow-xl z-40 p-1.5 flex flex-col gap-1">
-                    {/* Rubric Toggle */}
-                    <button
-                      onClick={() => {
-                        toggleRubric();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
-                        isRubricOpen
-                          ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 font-medium"
-                          : "hover:bg-gray-50 dark:hover:bg-[#2a2a2a] text-gray-700 dark:text-gray-200"
-                      }`}
-                    >
-                      Rubric
-                    </button>
-
-                    {/* Syllabus Toggle */}
-                    <button
-                      onClick={() => {
-                        toggleSyllabus();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
-                        isSyllabusOpen
-                          ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 font-medium"
-                          : "hover:bg-gray-50 dark:hover:bg-[#2a2a2a] text-gray-700 dark:text-gray-200"
-                      }`}
-                    >
-                      Syllabus
-                    </button>
-
-                    <div className="h-px bg-gray-100 dark:bg-[#333] my-1" />
-
-                    {/* Add Questions Toggle */}
-                    <button
-                      onClick={() => {
-                        toggleQuestions();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${
-                        isQuestionsOpen
-                          ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 font-medium"
-                          : "hover:bg-gray-50 dark:hover:bg-[#2a2a2a] text-gray-700 dark:text-gray-200"
-                      }`}
-                    >
-                      <AddIcon className="text-sm" />
-                      <span>Add Questions</span>
-                    </button>
-                  </div>
-                </>
-              )}
+              <button
+                onClick={toggleSyllabus}
+                className={`p-2 rounded-lg transition-all duration-300 relative ${
+                  isSyllabusOpen
+                    ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
+                    : activeStep === 'syllabus'
+                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
+                      : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
+                }`}
+                title="Syllabus"
+              >
+                <Book className="w-5 h-5" />
+                {activeStep === 'syllabus' && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
+                )}
+              </button>
+              <button
+                onClick={toggleQuestions}
+                className={`p-2 rounded-lg transition-all duration-300 relative ${
+                  isQuestionsOpen
+                    ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
+                    : activeStep === 'questions'
+                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
+                      : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
+                }`}
+                title="Questions"
+              >
+                <HelpCircle className="w-5 h-5" />
+                {activeStep === 'questions' && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
+                )}
+              </button>
             </div>
           )}
         </div>
@@ -226,86 +203,54 @@ export default function Header({
 
         {/* RIGHT TOOLS */}
         <div className="flex items-center gap-4">
-          <ThemeToggle />
-          <LanguageToggle />
-
           {/* Show action buttons only in evaluation mode */}
           {mode === "evaluation" && (
-            <div className="relative">
+            <div className="flex items-center gap-2 mr-2">
               <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-colors ${
-                  isMobileMenuOpen
-                    ? "bg-gray-100 dark:bg-[#333] border-gray-300 dark:border-[#444]"
-                    : "bg-white dark:bg-[#222] border-gray-200 dark:border-[#333]"
+                onClick={toggleRubric}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                  isRubricOpen
+                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800"
+                    : "hover:bg-gray-50 dark:hover:bg-[#222] text-gray-600 dark:text-gray-400 border border-transparent hover:border-gray-200 dark:hover:border-[#333]"
                 }`}
+                title="Rubric"
               >
-                <MoreVertIcon className="text-gray-600 dark:text-gray-300 text-lg" />
+                <FileText className="w-5 h-5" />
+                <span className="text-sm font-medium">Rubric</span>
+              </button>
+              
+              <button
+                onClick={toggleSyllabus}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                  isSyllabusOpen
+                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800"
+                    : "hover:bg-gray-50 dark:hover:bg-[#222] text-gray-600 dark:text-gray-400 border border-transparent hover:border-gray-200 dark:hover:border-[#333]"
+                }`}
+                title="Syllabus"
+              >
+                <Book className="w-5 h-5" />
+                <span className="text-sm font-medium">Syllabus</span>
               </button>
 
-              {/* The Dropdown Menu */}
-              {isMobileMenuOpen && (
-                <>
-                  {/* Backdrop to close on click outside */}
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  />
-
-                  {/* Menu Content */}
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] rounded-xl shadow-xl z-40 p-1.5 flex flex-col gap-1">
-                    {/* Rubric Toggle */}
-                    <button
-                      onClick={() => {
-                        toggleRubric();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
-                        isRubricOpen
-                          ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 font-medium"
-                          : "hover:bg-gray-50 dark:hover:bg-[#2a2a2a] text-gray-700 dark:text-gray-200"
-                      }`}
-                    >
-                      Rubric
-                    </button>
-
-                    {/* Syllabus Toggle */}
-                    <button
-                      onClick={() => {
-                        toggleSyllabus();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
-                        isSyllabusOpen
-                          ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 font-medium"
-                          : "hover:bg-gray-50 dark:hover:bg-[#2a2a2a] text-gray-700 dark:text-gray-200"
-                      }`}
-                    >
-                      Syllabus
-                    </button>
-
-                    <div className="h-px bg-gray-100 dark:bg-[#333] my-1" />
-
-                    {/* Add Questions Toggle */}
-                    <button
-                      onClick={() => {
-                        toggleQuestions();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${
-                        isQuestionsOpen
-                          ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 font-medium"
-                          : "hover:bg-gray-50 dark:hover:bg-[#2a2a2a] text-gray-700 dark:text-gray-200"
-                      }`}
-                    >
-                      <AddIcon className="text-sm" />
-                      <span>Add Questions</span>
-                    </button>
-                  </div>
-                </>
-              )}
+              <button
+                onClick={toggleQuestions}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                  isQuestionsOpen
+                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800"
+                    : "hover:bg-gray-50 dark:hover:bg-[#222] text-gray-600 dark:text-gray-400 border border-transparent hover:border-gray-200 dark:hover:border-[#333]"
+                }`}
+                title="Questions"
+              >
+                <HelpCircle className="w-5 h-5" />
+                <span className="text-sm font-medium">Questions</span>
+              </button>
             </div>
           )}
+
+          <div className="h-6 w-px bg-gray-200 dark:bg-[#333] mx-1" />
+          
+          <ThemeToggle />
+          <LanguageToggle />
         </div>
       </div>
     </div>

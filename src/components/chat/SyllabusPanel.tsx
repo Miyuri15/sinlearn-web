@@ -5,6 +5,12 @@ import PDFViewer from "@/components/ui/PDFViewer";
 import CloseIcon from "@mui/icons-material/Close";
 import UpdatedToast from "@/components/ui/updatedtoast";
 import { BookOpen } from "lucide-react";
+import {
+  listChatSessionResources,
+  removeAttachedResourceFromSession,
+  uploadEvaluationResources,
+} from "@/lib/api/evaluation";
+import { ApiError } from "@/lib/api/client";
 
 type ToastState = {
   message: string;
@@ -14,10 +20,14 @@ type ToastState = {
 
 type SyllabusPanelProps = Readonly<{
   onClose: () => void;
+  onSyllabusChange?: (hasSyllabus: boolean, count: number) => void;
+  chatSessionId?: string | null;
+  onRequireSession?: () => Promise<string | null>;
 }>;
 
 type SyllabusItemType = {
   id: number;
+  resourceId?: string;
   title: string;
   subject: string;
   grade: string;
@@ -25,6 +35,16 @@ type SyllabusItemType = {
   topics: string;
   fileUrl?: string;
   fileType?: string;
+};
+
+type SessionResourceSummary = {
+  resource_id?: string;
+  id?: string;
+  resource_type?: string;
+  type?: string;
+  filename?: string;
+  file_name?: string;
+  name?: string;
 };
 
 const SyllabusItem = ({
@@ -81,32 +101,80 @@ const SyllabusItem = ({
   </div>
 );
 
-const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
+const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequireSession }: SyllabusPanelProps) => {
   const { t } = useTranslation("syllabus");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const initialSyllabi: SyllabusItemType[] = [
-    {
-      id: 1,
-      title: "Grade 10 Science Syllabus",
-      subject: "Science",
-      grade: "Grade 10",
-      uploaded: "1/15/2024",
-      topics: "Physics, Chemistry, Biology",
-      fileType: "pdf",
-    },
-    {
-      id: 2,
-      title: "Grade 11 Mathematics Syllabus",
-      subject: "Mathematics",
-      grade: "Grade 11",
-      uploaded: "2/20/2024",
-      topics: "Algebra, Geometry, Trigonometry",
-      fileType: "pdf",
-    },
-  ];
+  const [uploadedSyllabi, setUploadedSyllabi] = useState<SyllabusItemType[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [hydrationDone, setHydrationDone] = useState(false);
 
-  const [uploadedSyllabi, setUploadedSyllabi] = useState(initialSyllabi);
+  const normalizeResourceType = (value: unknown): string => {
+    const s = (value ?? "").toString().trim().toLowerCase();
+    return s.replace(/[\s-]+/g, "_");
+  };
+
+  const getResourceFilename = (r: SessionResourceSummary): string => {
+    return (
+      r.filename ||
+      r.file_name ||
+      r.name ||
+      (r as any).original_filename ||
+      (r as any).originalFilename ||
+      ""
+    ).toString();
+  };
+
+  // Hydrate previously uploaded syllabi for this chat session (if any)
+  React.useEffect(() => {
+    if (!chatSessionId) return;
+    if (uploadedSyllabi.length > 0) return;
+
+    const run = async () => {
+      try {
+        const resources = (await listChatSessionResources(chatSessionId)) as SessionResourceSummary[];
+        const syllabi = (resources || []).filter((r) => {
+          const type = normalizeResourceType(r.resource_type || r.type);
+          if (type) return type === "syllabus" || type === "syllabi";
+          const filename = getResourceFilename(r).toLowerCase();
+          return /syllabus|syllabi/.test(filename);
+        });
+
+        if (syllabi.length === 0) return;
+
+        const hydrated: SyllabusItemType[] = syllabi.map((r, idx: number) => {
+          const filename: string = getResourceFilename(r) || `Syllabus ${idx + 1}`;
+          const ext = filename.split(".").pop()?.toLowerCase();
+          return {
+            id: idx + 1,
+            resourceId: r.resource_id || r.id,
+            title: filename.replace(ext ? `.${ext}` : "", ""),
+            subject: "N/A",
+            grade: "N/A",
+            uploaded: new Date().toLocaleDateString("en-US"),
+            topics: `File: ${(ext || "N/A").toUpperCase()} | (Previously uploaded)`,
+            fileType: ext,
+          };
+        });
+
+        setUploadedSyllabi(hydrated);
+      } catch (e) {
+        // Non-fatal: don't block UI if hydration fails
+        console.warn("Failed to hydrate syllabi", e);
+      } finally {
+        setHydrationDone(true);
+      }
+    };
+
+    void run();
+  }, [chatSessionId, uploadedSyllabi.length]);
+
+  // Notify parent about syllabus status on mount and changes
+  React.useEffect(() => {
+    if (!hydrationDone) return;
+    onSyllabusChange?.(uploadedSyllabi.length > 0, uploadedSyllabi.length);
+  }, [uploadedSyllabi, onSyllabusChange, hydrationDone]);
+
   const [toast, setToast] = useState<ToastState>({
     message: "",
     isVisible: false,
@@ -122,7 +190,52 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
     setTimeout(() => setToast((prev) => ({ ...prev, isVisible: false })), 3000);
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const formatUploadError = (fileName: string, error: unknown): string => {
+    const basePrefix = `Validation error for ${fileName}: `;
+
+    if (error instanceof ApiError) {
+      const msg = error.message || "Upload failed";
+
+      const detailsText = (() => {
+        const details = error.details;
+        if (!details) return "";
+        if (typeof details === "string") return details.trim();
+        try {
+          return JSON.stringify(details);
+        } catch {
+          return "";
+        }
+      })();
+
+      // Server error: bubble up backend details (helps diagnose 500s)
+      if (error.status >= 500) {
+        const suffix = detailsText && detailsText !== msg ? ` Details: ${detailsText}` : "";
+        return basePrefix + `Server error (${error.status}) from API.` + suffix;
+      }
+
+      // Backend PDF extraction dependency missing (Poppler)
+      if (/poppler|page count/i.test(msg)) {
+        return (
+          basePrefix +
+          "PDF text extraction failed on the API server (Poppler missing). Install Poppler and ensure it's in PATH, then retry. Details: " +
+          msg
+        );
+      }
+
+      if (detailsText && detailsText !== msg) {
+        return basePrefix + msg + ` Details: ${detailsText}`;
+      }
+      return basePrefix + msg;
+    }
+
+    if (error instanceof Error && error.message) {
+      return basePrefix + error.message;
+    }
+
+    return basePrefix + "Upload failed.";
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
       const file = files[0];
@@ -131,29 +244,72 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
       const fileExt = fileName.split(".").pop()?.toLowerCase();
 
       if (fileExt && validExtensions.includes(fileExt)) {
-        const fileUrl = URL.createObjectURL(file);
+        let targetSessionId = chatSessionId;
+        if (!targetSessionId && onRequireSession) {
+            targetSessionId = await onRequireSession();
+        }
 
-        const newId =
-          uploadedSyllabi.length > 0
-            ? Math.max(...uploadedSyllabi.map((s) => s.id)) + 1
-            : 1;
-        const newSyllabus: SyllabusItemType = {
-          id: newId,
-          title: fileName.replace(`.${fileExt}`, ""),
-          subject: "N/A",
-          grade: "N/A",
-          uploaded: new Date().toLocaleDateString("en-US"),
-          topics: `File: ${fileExt.toUpperCase()} | Size: ${(
-            file.size /
-            1024 /
-            1024
-          ).toFixed(2)} MB`,
-          fileUrl: fileUrl,
-          fileType: fileExt,
-        };
+        if (!targetSessionId) {
+          showToast("Please create an evaluation chat first.", "error");
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+        }
 
-        setUploadedSyllabi((prev) => [...prev, newSyllabus]);
-        showToast(t("upload_success", { title: newSyllabus.title }), "success");
+        try {
+          setIsUploading(true);
+          const uploads = await uploadEvaluationResources({
+            chatSessionId: targetSessionId,
+            resourceType: "syllabus",
+            files: [file],
+          });
+
+          const newResourceId = uploads[0]?.resource_id;
+          if (!newResourceId) {
+            showToast("Upload succeeded but no resource id returned.", "error");
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+          }
+
+          // Store syllabus item with server resource id
+          const fileUrl = URL.createObjectURL(file);
+          const newId =
+            uploadedSyllabi.length > 0
+              ? Math.max(...uploadedSyllabi.map((s) => s.id)) + 1
+              : 1;
+          const newSyllabus: SyllabusItemType = {
+            id: newId,
+            resourceId: newResourceId,
+            title: fileName.replace(`.${fileExt}`, ""),
+            subject: "N/A",
+            grade: "N/A",
+            uploaded: new Date().toLocaleDateString("en-US"),
+            topics: `File: ${fileExt.toUpperCase()} | Size: ${(
+              file.size /
+              1024 /
+              1024
+            ).toFixed(2)} MB`,
+            fileUrl: fileUrl,
+            fileType: fileExt,
+          };
+
+          setUploadedSyllabi((prev) => [...prev, newSyllabus]);
+          showToast(t("upload_success", { title: newSyllabus.title }), "success");
+
+          // Auto-close panel after successful upload
+          setTimeout(() => {
+            onClose();
+          }, 1500);
+
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+        } catch (error) {
+          console.error("Failed to upload syllabus", error);
+          showToast(formatUploadError(fileName, error), "error");
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+        } finally {
+          setIsUploading(false);
+        }
       } else {
         showToast(t("invalid_file_type"), "error");
       }
@@ -164,11 +320,25 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
     }
   };
 
-  const handleDeleteSyllabus = (id: number, title: string) => {
+  const handleDeleteSyllabus = async (id: number, title: string) => {
     const syllabus = uploadedSyllabi.find((s) => s.id === id);
     if (syllabus?.fileUrl) {
       URL.revokeObjectURL(syllabus.fileUrl);
     }
+
+    if (chatSessionId) {
+      try {
+        await removeAttachedResourceFromSession({
+          chatSessionId,
+          resourceType: "syllabus",
+        });
+      } catch (e) {
+        console.error("Failed to delete attached syllabus", e);
+        showToast("Failed to remove syllabus from server.", "error");
+        return;
+      }
+    }
+
     setUploadedSyllabi((prev) => prev.filter((s) => s.id !== id));
     showToast(t("delete_success", { title }), "success");
   };
@@ -187,6 +357,8 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
         }),
         "error"
       );
+    } else if (syllabus && syllabus.fileType === "pdf" && !syllabus.fileUrl) {
+      showToast(t("preview_not_available"), "error");
     }
   };
 
@@ -233,8 +405,15 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
               {t("upload_section_subtitle")}
             </p>
             <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition duration-150"
+              onClick={() => {
+                if (isUploading) return;
+                fileInputRef.current?.click();
+              }}
+              className={`border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center transition duration-150 ${
+                isUploading
+                  ? "cursor-not-allowed opacity-70"
+                  : "cursor-pointer hover:border-blue-500 dark:hover:border-blue-500"
+              }`}
             >
               <div className="flex justify-center mb-2">
                 <Image
@@ -245,8 +424,14 @@ const SyllabusPanelpage = ({ onClose }: SyllabusPanelProps) => {
                 />
               </div>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {t("click_to_upload")}
+                {isUploading ? "Uploading…" : t("click_to_upload")}
               </span>
+
+              {isUploading && (
+                <div className="mt-3 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                  <div className="h-full w-1/2 bg-blue-600/70 animate-pulse" />
+                </div>
+              )}
             </div>
           </div>
 

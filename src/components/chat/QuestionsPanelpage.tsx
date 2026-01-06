@@ -6,6 +6,14 @@ import PDFViewer from "@/components/ui/PDFViewer";
 import HelpIcon from "@mui/icons-material/Help";
 import CloseIcon from "@mui/icons-material/Close";
 
+import {
+  getChatSessionDetails,
+  listChatSessionResources,
+  removeAttachedResourceFromSession,
+  uploadEvaluationResources,
+} from "@/lib/api/evaluation";
+import { ApiError } from "@/lib/api/client";
+
 type ToastState = {
   message: string;
   isVisible: boolean;
@@ -14,16 +22,30 @@ type ToastState = {
 
 type QuestionsPanelProps = Readonly<{
   onClose: () => void;
+  onQuestionsChange?: (hasQuestions: boolean, questionName?: string) => void;
+  chatSessionId?: string | null;
+  onRequireSession?: () => Promise<string | null>;
 }>;
 
 type QuestionItemType = {
   id: number;
+  resourceId?: string;
   title: string;
   subject: string;
   uploaded: string;
   details: string;
   fileUrl?: string;
   fileType?: string;
+};
+
+type SessionResourceSummary = {
+  resource_id?: string;
+  id?: string;
+  resource_type?: string;
+  type?: string;
+  filename?: string;
+  file_name?: string;
+  name?: string;
 };
 
 const QuestionItem = ({
@@ -83,11 +105,88 @@ const QuestionItem = ({
   </div>
 );
 
-const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
+const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequireSession }: QuestionsPanelProps) => {
   const { t } = useTranslation("questions");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedQuestion, setUploadedQuestion] =
     useState<QuestionItemType | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [hydrationDone, setHydrationDone] = useState(false);
+
+  const normalizeResourceType = (value: unknown): string => {
+    const s = (value ?? "").toString().trim().toLowerCase();
+    return s.replace(/[\s-]+/g, "_");
+  };
+
+  const getResourceFilename = (r: SessionResourceSummary): string => {
+    return (
+      r.filename ||
+      r.file_name ||
+      r.name ||
+      (r as any).original_filename ||
+      (r as any).originalFilename ||
+      ""
+    ).toString();
+  };
+
+  // Hydrate previously uploaded question paper for this chat session (if any)
+  React.useEffect(() => {
+    if (!chatSessionId) return;
+    if (uploadedQuestion) return;
+
+    const run = async () => {
+      try {
+        const details = await getChatSessionDetails(chatSessionId);
+        const qp = details?.question_paper;
+        let filename: string | undefined = qp?.filename || qp?.file_name || qp?.name;
+
+        // Prefer session resources list for stable resource_id + filename.
+        let resourceId: string | undefined = qp?.resource_id || qp?.id;
+        try {
+          const resources = (await listChatSessionResources(chatSessionId)) as SessionResourceSummary[];
+          const fromList = (resources || []).find((r) => {
+            const type = normalizeResourceType(r.resource_type || r.type);
+            if (type) {
+              return type === "question_paper" || type === "questionpaper" || type === "question" || type === "questions";
+            }
+            const f = getResourceFilename(r).toLowerCase();
+            return /\bmodel\b|\bquestion\b|\bqp\b|\bquestion[_\s-]?paper\b|\bmodel[_\s-]?paper\b/.test(f);
+          });
+          resourceId = resourceId || fromList?.resource_id || fromList?.id;
+          filename = filename || (fromList ? getResourceFilename(fromList) : undefined);
+        } catch (e) {
+          console.warn("Failed to list session resources for question paper", e);
+        }
+
+        if (!filename) return;
+
+        const ext = filename.split(".").pop()?.toLowerCase();
+        setUploadedQuestion({
+          id: 1,
+          resourceId,
+          title: filename.replace(ext ? `.${ext}` : "", ""),
+          subject: "N/A",
+          uploaded: new Date().toLocaleDateString("en-US"),
+          details: `File: ${(ext || "N/A").toUpperCase()} | (Previously uploaded)`,
+          fileType: ext,
+        });
+      } catch (e) {
+        // Non-fatal: don't block UI if hydration fails
+        console.warn("Failed to hydrate question paper", e);
+      } finally {
+        setHydrationDone(true);
+      }
+    };
+
+    void run();
+  }, [chatSessionId, uploadedQuestion]);
+
+  // Notify parent about questions status on mount and changes
+  React.useEffect(() => {
+    if (!hydrationDone) return;
+    onQuestionsChange?.(!!uploadedQuestion, uploadedQuestion?.title);
+  }, [uploadedQuestion, onQuestionsChange, hydrationDone]);
+
   const [toast, setToast] = useState<ToastState>({
     message: "",
     isVisible: false,
@@ -103,7 +202,51 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
     setTimeout(() => setToast((prev) => ({ ...prev, isVisible: false })), 3000);
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const formatUploadError = (fileName: string, error: unknown): string => {
+    const basePrefix = `Validation error for ${fileName}: `;
+
+    if (error instanceof ApiError) {
+      const msg = error.message || "Upload failed";
+
+      const detailsText = (() => {
+        const details = error.details;
+        if (!details) return "";
+        if (typeof details === "string") return details.trim();
+        try {
+          return JSON.stringify(details);
+        } catch {
+          return "";
+        }
+      })();
+
+      if (error.status >= 500) {
+        const suffix = detailsText && detailsText !== msg ? ` Details: ${detailsText}` : "";
+        return basePrefix + `Server error (${error.status}) from API.` + suffix;
+      }
+
+      if (/poppler|page count/i.test(msg)) {
+        return (
+          basePrefix +
+          "PDF text extraction failed on the API server (Poppler missing). Install Poppler and ensure it's in PATH, then retry. Details: " +
+          msg
+        );
+      }
+
+      if (detailsText && detailsText !== msg) {
+        return basePrefix + msg + ` Details: ${detailsText}`;
+      }
+
+      return basePrefix + msg;
+    }
+
+    if (error instanceof Error && error.message) {
+      return basePrefix + error.message;
+    }
+
+    return basePrefix + "Upload failed.";
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
       const file = files[0];
@@ -112,6 +255,57 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
       const fileExt = fileName.split(".").pop()?.toLowerCase();
 
       if (fileExt && validExtensions.includes(fileExt)) {
+        let targetSessionId = chatSessionId;
+        if (!targetSessionId && onRequireSession) {
+            targetSessionId = await onRequireSession();
+        }
+
+        let uploadedResourceId: string | undefined;
+
+        if (!targetSessionId) {
+          showToast("Please create an evaluation chat first.", "error");
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+        }
+
+        try {
+          setIsUploading(true);
+
+          // If there was an existing uploaded question paper (server-side), remove it first.
+          if (uploadedQuestion?.resourceId) {
+            try {
+              await removeAttachedResourceFromSession({
+                chatSessionId: targetSessionId,
+                resourceType: "question_paper",
+              });
+            } catch (e) {
+              console.warn("Failed to remove previous question paper", e);
+            }
+          }
+
+          const uploads = await uploadEvaluationResources({
+            chatSessionId: targetSessionId,
+            resourceType: "question_paper",
+            files: [file],
+          });
+
+          const newResourceId = uploads[0]?.resource_id;
+          if (!newResourceId) {
+            showToast("Upload succeeded but no resource id returned.", "error");
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+          }
+
+          uploadedResourceId = newResourceId;
+        } catch (error) {
+          console.error("Failed to upload question paper", error);
+          showToast(formatUploadError(fileName, error), "error");
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+        } finally {
+          setIsUploading(false);
+        }
+
         if (uploadedQuestion?.fileUrl) {
           URL.revokeObjectURL(uploadedQuestion.fileUrl);
         }
@@ -119,6 +313,7 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
 
         const newQuestion: QuestionItemType = {
           id: 1,
+          resourceId: uploadedResourceId,
           title: fileName.replace(`.${fileExt}`, ""),
           subject: "N/A",
           uploaded: new Date().toLocaleDateString("en-US"),
@@ -133,6 +328,11 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
 
         setUploadedQuestion(newQuestion);
         showToast(t("upload_success", { title: newQuestion.title }), "success");
+        
+        // Auto-close panel after successful upload
+        setTimeout(() => {
+          onClose();
+        }, 1500);
       } else {
         showToast(t("invalid_file_type"), "error");
       }
@@ -143,10 +343,24 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
     }
   };
 
-  const handleDeleteQuestion = (id: number, title: string) => {
+  const handleDeleteQuestion = async (id: number, title: string) => {
     if (uploadedQuestion?.fileUrl) {
       URL.revokeObjectURL(uploadedQuestion.fileUrl);
     }
+
+    if (chatSessionId) {
+      try {
+        await removeAttachedResourceFromSession({
+          chatSessionId,
+          resourceType: "question_paper",
+        });
+      } catch (e) {
+        console.error("Failed to delete attached question paper", e);
+        showToast("Failed to remove question paper from server.", "error");
+        return;
+      }
+    }
+
     setUploadedQuestion(null);
     showToast(t("delete_success", { title }), "success");
   };
@@ -168,6 +382,8 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
         }),
         "error"
       );
+    } else if (uploadedQuestion && uploadedQuestion.fileType === "pdf" && !uploadedQuestion.fileUrl) {
+      showToast(t("preview_not_available"), "error");
     } else {
       showToast(t("preview_not_available"), "error");
     }
@@ -216,8 +432,15 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
               {t("upload_section_subtitle")}
             </p>
             <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition duration-150"
+              onClick={() => {
+                if (isUploading) return;
+                fileInputRef.current?.click();
+              }}
+              className={`border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center transition duration-150 ${
+                isUploading
+                  ? "cursor-not-allowed opacity-70"
+                  : "cursor-pointer hover:border-blue-500 dark:hover:border-blue-500"
+              }`}
             >
               <div className="flex justify-center mb-2">
                 {/* Upload Icon */}
@@ -229,8 +452,14 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
                 />
               </div>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {t("click_to_upload")}
+                {isUploading ? "Uploading…" : t("click_to_upload")}
               </span>
+
+              {isUploading && (
+                <div className="mt-3 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                  <div className="h-full w-1/2 bg-blue-600/70 animate-pulse" />
+                </div>
+              )}
             </div>
           </div>
 

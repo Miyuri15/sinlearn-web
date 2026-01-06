@@ -20,6 +20,29 @@ export type FileMeta = {
   resource_id?: string;
 };
 
+export interface SubQuestion {
+  id: string;
+  label: string;
+  marks: number;
+}
+
+export interface Question {
+  id: string;
+  label: string;
+  marks: number;
+  hasSubQuestions: boolean;
+  subQuestions: SubQuestion[];
+}
+
+export interface PaperPart {
+  id: string;
+  name: string;
+  totalMarks: number;
+  mainQuestionsCount: number;
+  requiredQuestionsCount?: number;
+  questions: Question[];
+}
+
 export type TextMessage = {
   id?: string;
   role: "user" | "assistant";
@@ -32,11 +55,12 @@ export type TextMessage = {
 };
 
 export type EvaluationInputContent = {
-  totalMarks: number;
-  mainQuestions: number;
-  requiredQuestions: number;
-  subQuestions: number;
+  totalMarks?: number;
+  mainQuestions?: number;
+  requiredQuestions?: number;
+  subQuestions?: number;
   subQuestionMarks?: number[] | number[][];
+  paperConfig?: PaperPart[];
 };
 
 export type EvaluationInputMessage = {
