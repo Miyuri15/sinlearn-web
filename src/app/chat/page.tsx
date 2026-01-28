@@ -828,7 +828,6 @@ export default function ChatPage({
 
     try {
       setCreating(true);
-      setIsAutoProcessing(true);
 
       let uploadedResources: ResourceUploadResponse[] = [];
       if (pendingFiles.length > 0) {
@@ -852,6 +851,7 @@ export default function ChatPage({
         }
       }
 
+      setIsMessageGenerating(true);
       const data = await postVoiceQA({
         audio: audioBlob,
         session_id: activeSessionId ?? "undefined",
@@ -887,7 +887,7 @@ export default function ChatPage({
       setIsToastVisible(true);
     } finally {
       setCreating(false);
-      setIsAutoProcessing(false);
+      setIsMessageGenerating(false);
       clearPendingFiles();
     }
   };
@@ -1499,7 +1499,7 @@ export default function ChatPage({
     if (mode === "learning") {
       return (
         <div className="flex-1 overflow-y-auto p-6 space-y-4 w-full max-w-[320px] min-[350]:max-w-[380] min-[425]:max-w-[425] sm:max-w-full bg-gray-100 dark:bg-[#0C0C0C] custom-scrollbar">
-          {learningMessages.length === 0 ? (
+          {learningMessages.length === 0 && !isAutoProcessing && !isMessageGenerating ? (
             <EmptyState
               title={t("start_conversation")}
               subtitle={t("start_learning_conversation_sub")}
