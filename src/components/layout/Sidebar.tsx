@@ -176,7 +176,7 @@ export default function Sidebar({
               isOpen={isOpen}
               chatType="evaluation"
               onNewChat={onNewEvaluationChat}
-              colorClass="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800"
+              colorClass="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800"
             />
           </div>
         </div>
@@ -210,7 +210,7 @@ export default function Sidebar({
                       className={`shrink-0 ${
                         chat.type === "learning"
                           ? "text-blue-500"
-                          : "text-blue-500"
+                          : "text-emerald-500"
                       }`}
                     >
                       {isLoading ? (
