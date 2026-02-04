@@ -1,5 +1,10 @@
 # SinLearn Web (SinhalaLearn)
 
+🌐 **Live Web App**: https://web.sinhalalearn.online  
+🏠 **Project Home**: https://www.sinhalalearn.online
+
+
+[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://web.sinhalalearn.online)
 ![Next.js](https://img.shields.io/badge/Next.js-16.x-black)
 ![React](https://img.shields.io/badge/React-19.x-61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6)
