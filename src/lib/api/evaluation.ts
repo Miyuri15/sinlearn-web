@@ -804,3 +804,21 @@ export async function getEvaluationResult(answerDocumentId: string): Promise<any
     `${API_BASE_URL}/api/v1/evaluation/answers/${answerDocumentId}/result`
   );
 }
+
+export async function getEvaluationSessionResults(evaluationId: string): Promise<any> {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${evaluationId}/results`
+  );
+}
+
+export async function getEvaluationAnswerScore(answerId: string): Promise<any> {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/answers/${answerId}/score`
+  );
+}
+
+export async function getEvaluationAnswerFeedback(answerId: string): Promise<any> {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/answers/${answerId}/feedback`
+  );
+}

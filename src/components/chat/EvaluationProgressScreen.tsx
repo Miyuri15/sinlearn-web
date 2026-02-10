@@ -1,9 +1,54 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+// Backend workflow steps for global timeline
+const GLOBAL_EVAL_STEPS = [
+  {
+    key: "start",
+    label: "Starting background evaluation for session...",
+    backendMatch: "Starting background evaluation",
+  },
+  {
+    key: "trigger",
+    label: "Triggering evaluation for answer document...",
+    backendMatch: "Triggering evaluation",
+  },
+  {
+    key: "mapping",
+    label: "Using existing answer mapping...",
+    backendMatch: "Using existing answer mapping",
+  },
+  {
+    key: "mapped",
+    label: "Mapped answers.",
+    backendMatch: "Mapped",
+  },
+  {
+    key: "grading",
+    label: "Starting grading process...",
+    backendMatch: "Starting grading process",
+  },
+  {
+    key: "graded",
+    label: "Grading completed for answer document...",
+    backendMatch: "Grading completed",
+  },
+  {
+    key: "finished",
+    label: "Evaluation finished for answer document...",
+    backendMatch: "Evaluation finished",
+  },
+  {
+    key: "done",
+    label: "Background evaluation completed for session.",
+    backendMatch: "Background evaluation completed",
+  },
+];
 import { Check, FileText, Loader2, Eye, Clock } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
 
 interface EvaluationProgressScreenProps {
+  evaluationSessionId: string;
+  answerResourceIds: string[];
   answerSheets: File[];
   questionPaperName?: string;
   syllabusCount: number;
@@ -23,7 +68,11 @@ interface FileProgress {
   progress: number;
 }
 
+import { startEvaluationStream } from "@/lib/api/evaluation";
+
 export default function EvaluationProgressScreen({
+  evaluationSessionId,
+  answerResourceIds,
   answerSheets,
   questionPaperName,
   syllabusCount,
@@ -35,68 +84,118 @@ export default function EvaluationProgressScreen({
   const [filesProgress, setFilesProgress] = useState<FileProgress[]>([]);
   const [overallStatus, setOverallStatus] = useState<"processing" | "completed">("processing");
 
-  // Initialize state
+  // Global evaluation progress steps
+  const [globalProgressSteps, setGlobalProgressSteps] = useState(
+    GLOBAL_EVAL_STEPS.map((step, idx) => ({
+      ...step,
+      status: idx === 0 ? "active" : "pending", // first step active
+    }))
+  );
+
+  // Backend integration: listen to evaluation progress
   useEffect(() => {
-    const initial = answerSheets.map((file) => ({
-      id: file.name,
-      name: file.name,
+    if (!evaluationSessionId || !answerResourceIds || answerResourceIds.length === 0) return;
+
+    // Initialize progress for each answer
+    const initial = answerResourceIds.map((id, idx) => ({
+      id,
+      name: answerSheets[idx]?.name || `Answer ${idx + 1}`,
       status: "pending" as FileStatus,
       step: "analyzing" as ProcessingStep,
       progress: 0,
     }));
     setFilesProgress(initial);
+    setOverallStatus("processing");
 
-    const timer = setInterval(() => {
-      setFilesProgress((currentProgress) => {
-        if (currentProgress.length === 0) return initial;
+    let completedCount = 0;
+    let isMounted = true;
 
-        let allDone = true;
-        const updated = currentProgress.map((file, idx) => {
-          if (file.status === "completed") return file;
+    // Start evaluation and listen for progress
+    const abortController = new AbortController();
+    setGlobalProgressSteps(
+      GLOBAL_EVAL_STEPS.map((step, idx) => ({
+        ...step,
+        status: idx === 0 ? "active" : "pending",
+      }))
+    );
 
-          allDone = false;
-          let status: FileStatus = file.status;
-          let progress = file.progress;
-          let step: ProcessingStep = file.step;
-
-          // Start logic: stagger start or random
-          if (status === "pending") {
-            // Start first one immediately, others randomly
-            if (idx === 0 || Math.random() > 0.85) {
-              status = "processing";
-            }
+    // Helper to update global stepper
+    function markStepActiveOrComplete(backendMsg: string) {
+      setGlobalProgressSteps((prev) => {
+        let found = false;
+        return prev.map((step, idx) => {
+          if (!found && backendMsg.includes(step.backendMatch)) {
+            found = true;
+            // Mark all previous as completed, this as active
+            return { ...step, status: "active" };
+          } else if (!found && step.status !== "completed") {
+            return { ...step, status: "completed" };
+          } else if (found) {
+            return { ...step, status: "pending" };
           }
-
-          if (status === "processing") {
-            // Random progress increment
-            progress += Math.random() * 2 + 0.5; 
-            
-            if (progress >= 100) {
-              progress = 100;
-              status = "completed";
-              step = "done";
-            } else {
-              // Map progress to steps
-              if (progress < 30) step = "analyzing";
-              else if (progress < 60) step = "marking";
-              else if (progress < 85) step = "feedback";
-              else step = "report";
-            }
-          }
-
-          return { ...file, status, progress, step };
+          return step;
         });
-
-        if (allDone && updated.length > 0) {
-          setOverallStatus("completed");
-          clearInterval(timer);
-        }
-        return updated;
       });
-    }, 100);
+    }
 
-    return () => clearInterval(timer);
-  }, [answerSheets]);
+    startEvaluationStream({
+      body: {
+        chat_session_id: evaluationSessionId,
+        answer_resource_ids: answerResourceIds,
+      },
+      onEvent: (evt) => {
+        if (!isMounted) return;
+        // Example evt.raw: "processing:answer_id:step:progress"
+        // You should adapt this parsing to your backend's SSE format
+        try {
+          // If evt.raw is a backend log string, update global stepper
+          if (typeof evt.raw === "string" && evt.raw.includes("|") === false) {
+            // Try to match backend log lines
+            markStepActiveOrComplete(evt.raw);
+          }
+          const data = typeof evt.raw === "string" && evt.raw.trim().startsWith("{") ? JSON.parse(evt.raw) : evt.raw;
+          // Example: { answer_id, step, progress, status }
+          if (data && data.answer_id) {
+            setFilesProgress((prev) =>
+              prev.map((file) => {
+                if (file.id !== data.answer_id) return file;
+                let status: FileStatus = data.status || file.status;
+                let progress = typeof data.progress === "number" ? data.progress : file.progress;
+                let step: ProcessingStep = data.step || file.step;
+                if (status === "completed" || progress >= 100) {
+                  status = "completed";
+                  progress = 100;
+                  step = "done";
+                  completedCount++;
+                }
+                return { ...file, status, progress, step };
+              })
+            );
+          }
+        } catch {
+          // fallback: if evt.step is present
+          if (evt.step === "completed") {
+            setFilesProgress((prev) =>
+              prev.map((file) => ({ ...file, status: "completed", progress: 100, step: "done" }))
+            );
+            setOverallStatus("completed");
+          }
+        }
+      },
+      signal: abortController.signal,
+    })
+      .then(() => {
+        if (isMounted) setOverallStatus("completed");
+      })
+      .catch(() => {
+        if (isMounted) setOverallStatus("completed");
+      });
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
+  }, [evaluationSessionId, answerResourceIds, answerSheets]);
 
   const getStepLabel = (step: ProcessingStep) => {
     switch (step) {
@@ -117,6 +216,31 @@ export default function EvaluationProgressScreen({
 
   return (
     <div className="flex flex-col items-center w-full max-w-5xl mx-auto p-4 space-y-8">
+      {/* Global Evaluation Timeline */}
+      <div className="w-full max-w-3xl mb-4">
+        <ol className="relative border-l border-gray-300 dark:border-gray-700">
+          {globalProgressSteps.map((step, idx) => (
+            <li key={step.key} className="mb-6 ml-4">
+              <div className={`absolute w-3 h-3 rounded-full -left-1.5 border-2 ${
+                step.status === "completed"
+                  ? "bg-green-500 border-green-500"
+                  : step.status === "active"
+                  ? "bg-blue-500 border-blue-500 animate-pulse"
+                  : "bg-gray-300 border-gray-300 dark:bg-gray-700 dark:border-gray-700"
+              }`} />
+              <p className={`text-base font-medium ${
+                step.status === "completed"
+                  ? "text-green-600 dark:text-green-400"
+                  : step.status === "active"
+                  ? "text-blue-600 dark:text-blue-400"
+                  : "text-gray-500 dark:text-gray-400"
+              }`}>
+                {step.label}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </div>
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
           {t("evaluation_progress_title")}

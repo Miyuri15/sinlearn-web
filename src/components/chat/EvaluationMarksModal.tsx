@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X, Plus, Trash2, Info } from "lucide-react";
 import NumberInput from "@/components/ui/NumberInput";
@@ -60,6 +60,7 @@ export default function EvaluationMarksModal({
   initialConfig,
 }: EvaluationMarksModalProps) {
   const { t } = useTranslation("chat");
+  // Use backend config as source of truth
   const [paperParts, setPaperParts] = useState<PaperPart[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [popup, setPopup] = useState<
@@ -72,116 +73,33 @@ export default function EvaluationMarksModal({
   >(null);
 
   // Initialize or Fetch Data
+  // Map backend config to UI state
   useEffect(() => {
     if (open) {
       setPopup(null);
       if (initialConfig && initialConfig.length > 0) {
         setPaperParts(initialConfig);
       } else {
-        // Default start with one paper part
-        setPaperParts([createDefaultPaperPart(0)]);
-        
-        // TODO: Fetch from endpoint if needed
-        // fetch('/api/paper-config').then(...)
+        setPaperParts([]);
       }
     }
   }, [open, initialConfig]);
 
-  const handleAddPaperPart = () => {
-    setPaperParts((prev) => [...prev, createDefaultPaperPart(prev.length)]);
-  };
+  // Remove add/remove handlers since backend is source of truth
+  const handleAddPaperPart = () => {};
+  const handleRemovePaperPart = (id: string) => {};
+  // Duplicate definition removed
+  
+  
 
-  const handleRemovePaperPart = (id: string) => {
-    setPaperParts((prev) => prev.filter((p) => p.id !== id));
-  };
+  // Disable editing of paper part fields (read-only from backend)
+  const updatePaperPart = () => {};
 
-  const updatePaperPart = (id: string, updates: Partial<PaperPart>) => {
-    setPaperParts((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        const updatedPart = { ...p, ...updates };
+  const updateQuestion = () => {};
 
-        // Handle Main Questions Count Change
-        if (updates.mainQuestionsCount !== undefined) {
-          const currentCount = p.questions.length;
-          const newCount = updates.mainQuestionsCount;
+  const handleAddSubQuestion = () => {};
 
-          if (newCount > currentCount) {
-            // Add questions
-            const newQuestions = [...p.questions];
-            for (let i = currentCount; i < newCount; i++) {
-              newQuestions.push(createDefaultQuestion(i));
-            }
-            updatedPart.questions = newQuestions;
-          } else if (newCount < currentCount) {
-            // Remove questions
-            updatedPart.questions = p.questions.slice(0, newCount);
-          }
-        }
 
-        return updatedPart;
-      })
-    );
-  };
-
-  const updateQuestion = (
-    partId: string,
-    questionId: string,
-    updates: Partial<Question>
-  ) => {
-    setPaperParts((prev) =>
-      prev.map((p) => {
-        if (p.id !== partId) return p;
-        return {
-          ...p,
-          questions: p.questions.map((q) => {
-            if (q.id !== questionId) return q;
-            
-            const updatedQ = { ...q, ...updates };
-            
-            // If toggling hasSubQuestions to true, recalculate marks from subquestions
-            if (updates.hasSubQuestions === true) {
-              const subMarksSum = updatedQ.subQuestions.reduce((sum, sq) => sum + sq.marks, 0);
-              updatedQ.marks = subMarksSum;
-            }
-            
-            return updatedQ;
-          }),
-        };
-      })
-    );
-  };
-
-  const handleAddSubQuestion = (partId: string, questionId: string) => {
-    setPaperParts((prev) =>
-      prev.map((p) => {
-        if (p.id !== partId) return p;
-        return {
-          ...p,
-          questions: p.questions.map((q) => {
-            if (q.id !== questionId) return q;
-            const newSubIndex = q.subQuestions.length;
-            const newSubQuestions = [
-              ...q.subQuestions,
-              {
-                id: generateId(),
-                label: getSubQuestionLabel(newSubIndex),
-                marks: 0,
-              },
-            ];
-            // Recalculate parent marks
-            const subMarksSum = newSubQuestions.reduce((sum, sq) => sum + sq.marks, 0);
-            
-            return {
-              ...q,
-              subQuestions: newSubQuestions,
-              marks: subMarksSum,
-            };
-          }),
-        };
-      })
-    );
-  };
 
   const handleRemoveSubQuestion = (
     partId: string,
@@ -396,7 +314,7 @@ export default function EvaluationMarksModal({
               key={part.id}
               className="p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1A1A1A] space-y-4"
             >
-              {/* Paper Part Header Inputs */}
+              {/* Paper Part Header - Readonly */}
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
@@ -405,21 +323,11 @@ export default function EvaluationMarksModal({
                     </label>
                     <Input
                       value={part.name}
-                      onChange={(e) =>
-                        updatePaperPart(part.id, { name: e.target.value })
-                      }
-                      className="bg-white dark:bg-[#111111]"
+                      readOnly
+                      className="bg-white dark:bg-[#111111] cursor-not-allowed"
                     />
                   </div>
-                  <button
-                    onClick={() => handleRemovePaperPart(part.id)}
-                    className="mt-6 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    title={t("evaluation_marks_remove_paper_part")}
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
                 </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
@@ -427,9 +335,7 @@ export default function EvaluationMarksModal({
                     </label>
                     <NumberInput
                       value={part.totalMarks}
-                      onChange={(val) =>
-                        updatePaperPart(part.id, { totalMarks: val })
-                      }
+                      onChange={(val) => updatePaperPart(part.id, { totalMarks: val })}
                       className="w-full bg-white dark:bg-[#111111]"
                     />
                   </div>
@@ -439,126 +345,77 @@ export default function EvaluationMarksModal({
                     </label>
                     <NumberInput
                       value={part.mainQuestionsCount}
-                      onChange={(val) =>
-                        updatePaperPart(part.id, { mainQuestionsCount: val })
-                      }
+                      onChange={(val) => updatePaperPart(part.id, { mainQuestionsCount: val })}
                       className="w-full bg-white dark:bg-[#111111]"
                     />
                   </div>
                 </div>
-
                 <div>
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
                     {t("evaluation_marks_choose_any_optional")}
                   </label>
-                  <NumberInput
-                    value={part.requiredQuestionsCount || 0}
-                    onChange={(val) =>
-                      updatePaperPart(part.id, { requiredQuestionsCount: val })
+                  <Input
+                    value={
+                      part.requiredQuestionsCount === 0
+                        ? t("all")
+                        : part.requiredQuestionsCount
                     }
-                    className="w-full bg-white dark:bg-[#111111]"
-                    placeholder={t("evaluation_marks_choose_any_placeholder")}
+                    readOnly
+                    className="w-full bg-white dark:bg-[#111111] cursor-not-allowed"
                   />
                 </div>
               </div>
-
-              {/* Questions List */}
-              <div className="space-y-3 mt-4">
-                {part.questions.map((q) => (
-                  <div
-                    key={q.id}
-                    className="p-3 rounded-lg border border-gray-200 dark:border-[#333] bg-white dark:bg-[#111111]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-gray-500 w-6">
-                        {q.label}
-                      </span>
-                      
-                      <div className="flex-1">
-                         <label className="text-[10px] font-medium text-gray-400 mb-0.5 block">
+              {/* Questions List - If present */}
+              {Array.isArray(part.questions) && part.questions.length > 0 && (
+                <div className="space-y-3 mt-4">
+                  {part.questions.map((q) => (
+                    <div
+                      key={q.id || q.label}
+                      className="p-3 rounded-lg border border-gray-200 dark:border-[#333] bg-white dark:bg-[#111111]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-gray-500 w-6">
+                          {q.label}
+                        </span>
+                        <div className="flex-1">
+                          <label className="text-[10px] font-medium text-gray-400 mb-0.5 block">
                             {t("marks")}
                           </label>
-                        <NumberInput
-                          value={q.marks}
-                          onChange={(val) =>
-                            updateQuestion(part.id, q.id, { marks: val })
-                          }
-                          className="w-full"
-                          disabled={q.hasSubQuestions} // Disable if subquestions control marks? Or allow override?
-                        />
+                          <NumberInput
+                            value={q.marks}
+                            onChange={(val) => updateQuestion(part.id, q.id, { marks: val })}
+                            className="w-full"
+                          />
+                        </div>
                       </div>
-
-                      <div className="flex items-center pt-4">
-                        <input
-                          type="checkbox"
-                          checked={q.hasSubQuestions}
-                          onChange={(e) =>
-                            updateQuestion(part.id, q.id, {
-                              hasSubQuestions: e.target.checked,
-                            })
-                          }
-                          className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Sub Questions */}
-                    {q.hasSubQuestions && (
-                      <div className="mt-3 pl-9 space-y-2">
-                        {q.subQuestions.map((sq) => (
-                          <div key={sq.id} className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-500 w-4 text-center">
-                              {sq.label}
-                            </span>
-                            <div className="flex-1">
-                               <label className="text-[10px] font-medium text-gray-400 mb-0.5 block">
-                                {t("marks")}
-                              </label>
-                              <NumberInput
-                                value={sq.marks}
-                                onChange={(val) =>
-                                  handleSubQuestionMarkChange(
-                                    part.id,
-                                    q.id,
-                                    sq.id,
-                                    val
-                                  )
-                                }
-                                className="w-full"
-                              />
+                      {/* Sub Questions */}
+                      {Array.isArray(q.subQuestions) && q.subQuestions.length > 0 && (
+                        <div className="mt-3 pl-9 space-y-2">
+                          {q.subQuestions.map((sq) => (
+                            <div key={sq.id || sq.label} className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-500 w-4 text-center">
+                                {sq.label}
+                              </span>
+                              <div className="flex-1">
+                                <label className="text-[10px] font-medium text-gray-400 mb-0.5 block">
+                                  {t("marks")}
+                                </label>
+                                <NumberInput
+                                  value={sq.marks}
+                                  onChange={(val) => handleSubQuestionMarkChange(part.id, q.id, sq.id, val)}
+                                  className="w-full"
+                                />
+                              </div>
                             </div>
-                            <button
-                              onClick={() =>
-                                handleRemoveSubQuestion(part.id, q.id, sq.id)
-                              }
-                              className="mt-4 p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                        <button
-                          onClick={() => handleAddSubQuestion(part.id, q.id)}
-                          className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium mt-2"
-                        >
-                          <Plus className="w-4 h-4" />
-                          {t("add_sub_question")}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
-
-          <button
-            onClick={handleAddPaperPart}
-            className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-[#333] rounded-xl text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors flex items-center justify-center gap-2 font-medium"
-          >
-            <Plus className="w-5 h-5" />
-            {t("evaluation_marks_add_paper_part")}
-          </button>
         </div>
 
         {/* Footer */}

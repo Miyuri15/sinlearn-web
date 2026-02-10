@@ -62,6 +62,7 @@ import {
   confirmPaperConfig,
   mergePaperConfigWithQuestionStructure,
   startEvaluation,
+  startEvaluationStream,
 } from "@/lib/api/evaluation";
 import { formatDistanceToNow } from "date-fns";
 import { getSelectedChatType } from "@/lib/localStore";
@@ -177,6 +178,9 @@ export default function ChatPage({
   >(undefined);
   const [rubricSet, setRubricSet] = useState(false);
   const [attachedRubricId, setAttachedRubricId] = useState<string | null>(null);
+  // Add state for evaluation session and answer resource ids
+  const [evaluationSessionId, setEvaluationSessionId] = useState<string | null>(null);
+  const [evaluationAnswerResourceIds, setEvaluationAnswerResourceIds] = useState<string[]>([]);
   const [syllabusSet, setSyllabusSet] = useState(false);
   const [syllabusCount, setSyllabusCount] = useState(0);
   const [questionsSet, setQuestionsSet] = useState(false);
@@ -1596,28 +1600,31 @@ export default function ChatPage({
           />
         )}
 
-        {evaluationStatus === "in_progress" && (
-          <EvaluationProgressScreen
-            answerSheets={selectedFiles}
-            questionPaperName={questionPaperName}
-            syllabusCount={syllabusCount}
-            hasRubric={rubricSet}
-            onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
-            onViewResults={() => {
-              // History entry is created on Send; here we just navigate.
-              if (
-                !currentEvaluationResult ||
-                currentEvaluationResult.length === 0
-              ) {
-                const results = selectedFiles.map((f) =>
-                  generateMockResult(f.name)
-                );
-                setCurrentEvaluationResult(results);
-              }
-              setEvaluationStatus("results");
-            }}
-          />
-        )}
+        {evaluationStatus === "in_progress" ? (
+          evaluationSessionId && evaluationAnswerResourceIds.length > 0 ? (
+            <EvaluationProgressScreen
+              evaluationSessionId={evaluationSessionId}
+              answerResourceIds={evaluationAnswerResourceIds}
+              answerSheets={selectedFiles}
+              questionPaperName={questionPaperName}
+              syllabusCount={syllabusCount}
+              hasRubric={rubricSet}
+              onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
+              onViewResults={() => {
+                if (!currentEvaluationResult || currentEvaluationResult.length === 0) {
+                  const results = selectedFiles.map((f) => generateMockResult(f.name));
+                  setCurrentEvaluationResult(results);
+                }
+                setEvaluationStatus("results");
+              }}
+            />
+          ) : (
+            <div style={{ padding: 40, textAlign: "center" }}>
+              <div className="text-lg font-semibold mb-2">Evaluation is starting...</div>
+              <div className="text-gray-500">Waiting for evaluation session and answer resources.<br/>If this message persists, there may be a backend or data issue.</div>
+            </div>
+          )
+        ) : null}
 
         {evaluationStatus === "results" && (
           <EvaluationResultsScreen
