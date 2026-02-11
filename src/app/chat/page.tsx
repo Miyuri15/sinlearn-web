@@ -242,6 +242,7 @@ export default function ChatPage({
               id: string;
               timestamp: number;
               fileNames: string[];
+              resourceIds?: string[];
               results: any[];
               averageScore: number;
             }>;
@@ -253,6 +254,7 @@ export default function ChatPage({
                   id: s.id,
                   timestamp: Number(s.timestamp) || Date.now(),
                   files: (s.fileNames || []).map((name) => new File([], name)),
+                  resourceIds: Array.isArray(s.resourceIds) ? s.resourceIds : [],
                   results: Array.isArray(s.results) ? s.results : [],
                   averageScore: Number(s.averageScore) || 0,
                 }));
@@ -428,6 +430,7 @@ export default function ChatPage({
         id: s.id,
         timestamp: s.timestamp,
         fileNames: (s.files || []).map((f) => f.name),
+        resourceIds: s.resourceIds || [],
         results: s.results ?? [],
         averageScore: s.averageScore ?? 0,
       }));
@@ -964,6 +967,7 @@ export default function ChatPage({
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         timestamp: Date.now(),
         files: [...selectedFiles],
+        resourceIds: [...answerResourceIds],
         results,
         averageScore: avgScore,
       };
@@ -1637,6 +1641,7 @@ export default function ChatPage({
           <EvaluationResultsScreen
             evaluationSessionId={evaluationSessionId || undefined}
             answerSheets={selectedFiles}
+            answerResourceIds={evaluationAnswerResourceIds}
             results={currentEvaluationResult}
             onAnalysisClick={() => setEvaluationStatus("analytics")}
             onViewHistory={() => setEvaluationStatus("history")}
@@ -1657,6 +1662,7 @@ export default function ChatPage({
             history={evaluationHistory}
             onSelectSession={(session) => {
               setSelectedFiles(session.files);
+              setEvaluationAnswerResourceIds(session.resourceIds || []);
               setCurrentEvaluationResult(session.results);
               setEvaluationStatus("results");
             }}

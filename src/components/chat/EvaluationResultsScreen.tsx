@@ -52,6 +52,7 @@ export const generateMockResult = (fileName: string) => ({
 interface EvaluationResultsScreenProps {
   evaluationSessionId?: string;
   answerSheets: File[];
+  answerResourceIds?: string[];
   results?: any[]; // Optional prop to pass pre-calculated results (for backward compatibility)
   onAnalysisClick: () => void;
   onViewHistory: () => void;
@@ -79,6 +80,7 @@ interface DetailedResult {
 export default function EvaluationResultsScreen({
   evaluationSessionId,
   answerSheets,
+  answerResourceIds,
   results: propResults,
   onAnalysisClick,
   onViewHistory,
@@ -167,6 +169,16 @@ export default function EvaluationResultsScreen({
     return "F";
   };
 
+  const getStudentDisplayName = (documentId: string, identifier: string) => {
+    if (!answerResourceIds || !answerSheets) return identifier;
+
+    const idx = answerResourceIds.indexOf(documentId);
+    if (idx !== -1 && answerSheets[idx]) {
+      return answerSheets[idx].name;
+    }
+    return identifier;
+  };
+
 
   // Show loading state
   if (isLoading) {
@@ -242,7 +254,7 @@ export default function EvaluationResultsScreen({
 
       {/* Results List */}
       <div className="space-y-4">
-        {resultsSummary.map((result) => {
+        {[...resultsSummary].reverse().map((result) => {
           const detailedResult = detailedResults.get(result.answer_document_id);
           const isLoadingDetail = loadingDetails.has(result.answer_document_id);
           const grade = calculateGrade(result.total_score);
@@ -263,7 +275,7 @@ export default function EvaluationResultsScreen({
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg">
-                      {result.student_identifier}
+                      {getStudentDisplayName(result.answer_document_id, result.student_identifier)}
                     </h3>
                     <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 dark:text-gray-400">
                       <span className="flex items-center gap-1">
