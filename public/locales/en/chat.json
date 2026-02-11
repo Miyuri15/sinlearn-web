@@ -23,8 +23,7 @@
     "sub_question": "Sub-question",
     "next": "Next",
     "previous": "Previous",
-    "add_sub_question": "Add Sub-question"
-    ,
+    "add_sub_question": "Add Sub-question",
     "evaluation_analytics_title": "Evaluation Analytics",
     "evaluation_analytics_subtitle": "Comprehensive analysis of {{count}} student answer sheets",
     "evaluation_analytics_download_report": "Download Report",
@@ -57,7 +56,6 @@
     "evaluation_analytics_difficulty_easy": "Easy",
     "evaluation_analytics_difficulty_medium": "Medium",
     "evaluation_analytics_difficulty_hard": "Hard",
-
     "evaluation_progress_title": "Evaluation in Progress",
     "evaluation_progress_subtitle_one": "Evaluating {{count}} answer sheet against the marking scheme",
     "evaluation_progress_subtitle_other": "Evaluating {{count}} answer sheets against the marking scheme",
@@ -79,7 +77,6 @@
     "evaluation_progress_step_report": "Finalizing report...",
     "evaluation_progress_step_done": "Completed",
     "evaluation_progress_step_pending": "Pending",
-
     "evaluation_results_title": "Evaluation Results",
     "evaluation_results_subtitle_one": "{{count}} answer sheet evaluated",
     "evaluation_results_subtitle_other": "{{count}} answer sheets evaluated",
@@ -94,7 +91,9 @@
     "evaluation_results_correct_concepts": "Correct Concepts",
     "evaluation_results_missed_concepts": "Missed Concepts",
     "evaluation_results_feedback": "Feedback",
-
+    "evaluation_results_loading": "Loading results...",
+    "evaluation_results_retry": "Retry",
+    "evaluation_results_improvement_points": "Improvement Points",
     "evaluation_history_title": "Evaluation History",
     "evaluation_history_subtitle": "View past evaluation sessions and results",
     "evaluation_history_empty_title": "No History Yet",
@@ -103,9 +102,7 @@
     "evaluation_history_answer_sheets_one": "{{count}} Answer Sheet",
     "evaluation_history_answer_sheets_other": "{{count}} Answer Sheets",
     "evaluation_history_avg_score": "Avg. Score",
-
-    "evaluation_start_view_results_history": "View results history"
-    ,
+    "evaluation_start_view_results_history": "View results history",
     "evaluation_start_new_answer_evaluation": "Start New Answer Evaluation",
     "evaluation_start_clear_answer_sheets": "Clear uploaded answer sheets",
     "evaluation_start_title": "Start a new evaluation",
@@ -133,7 +130,6 @@
     "evaluation_start_status_pending": "Pending",
     "evaluation_start_status_processing": "Processing",
     "evaluation_start_status_completed": "Completed",
-
     "dismiss": "Dismiss",
     "paper_config": "Paper Config",
     "evaluation_marks_info_banner": "If a main question has sub-questions, check the sub-questions checkbox to add them.",

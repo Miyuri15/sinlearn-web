@@ -176,6 +176,7 @@ export default function ChatPage({
   const [currentEvaluationResult, setCurrentEvaluationResult] = useState<
     any[] | undefined
   >(undefined);
+  const [analyticsResults, setAnalyticsResults] = useState<any[]>([]);
   const [rubricSet, setRubricSet] = useState(false);
   const [attachedRubricId, setAttachedRubricId] = useState<string | null>(null);
   // Add state for evaluation session and answer resource ids
@@ -242,6 +243,7 @@ export default function ChatPage({
               id: string;
               timestamp: number;
               fileNames: string[];
+              resourceIds?: string[];
               results: any[];
               averageScore: number;
             }>;
@@ -253,6 +255,7 @@ export default function ChatPage({
                   id: s.id,
                   timestamp: Number(s.timestamp) || Date.now(),
                   files: (s.fileNames || []).map((name) => new File([], name)),
+                  resourceIds: Array.isArray(s.resourceIds) ? s.resourceIds : [],
                   results: Array.isArray(s.results) ? s.results : [],
                   averageScore: Number(s.averageScore) || 0,
                 }));
@@ -428,6 +431,7 @@ export default function ChatPage({
         id: s.id,
         timestamp: s.timestamp,
         fileNames: (s.files || []).map((f) => f.name),
+        resourceIds: s.resourceIds || [],
         results: s.results ?? [],
         averageScore: s.averageScore ?? 0,
       }));
@@ -964,6 +968,7 @@ export default function ChatPage({
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         timestamp: Date.now(),
         files: [...selectedFiles],
+        resourceIds: [...answerResourceIds],
         results,
         averageScore: avgScore,
       };
@@ -1622,10 +1627,6 @@ export default function ChatPage({
               hasRubric={rubricSet}
               onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
               onViewResults={() => {
-                if (!currentEvaluationResult || currentEvaluationResult.length === 0) {
-                  const results = selectedFiles.map((f) => generateMockResult(f.name));
-                  setCurrentEvaluationResult(results);
-                }
                 setEvaluationStatus("results");
               }}
             />
@@ -1639,9 +1640,14 @@ export default function ChatPage({
 
         {evaluationStatus === "results" && (
           <EvaluationResultsScreen
+            evaluationSessionId={evaluationSessionId || undefined}
             answerSheets={selectedFiles}
+            answerResourceIds={evaluationAnswerResourceIds}
             results={currentEvaluationResult}
-            onAnalysisClick={() => setEvaluationStatus("analytics")}
+            onAnalysisClick={(results) => {
+              setAnalyticsResults(results);
+              setEvaluationStatus("analytics");
+            }}
             onViewHistory={() => setEvaluationStatus("history")}
             onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
           />
@@ -1649,6 +1655,8 @@ export default function ChatPage({
 
         {evaluationStatus === "analytics" && (
           <EvaluationAnalyticsScreen
+            evaluationSessionId={evaluationSessionId || undefined}
+            results={analyticsResults}
             answerSheets={selectedFiles}
             onBack={() => setEvaluationStatus("results")}
             onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
@@ -1660,6 +1668,7 @@ export default function ChatPage({
             history={evaluationHistory}
             onSelectSession={(session) => {
               setSelectedFiles(session.files);
+              setEvaluationAnswerResourceIds(session.resourceIds || []);
               setCurrentEvaluationResult(session.results);
               setEvaluationStatus("results");
             }}
@@ -1870,7 +1879,7 @@ export default function ChatPage({
             }
 
             try {
-              await confirmPaperConfig({ chatSessionId: sessionId });
+              await confirmPaperConfig({ chatSessionId: sessionId, config });
               setPaperConfig(config);
               setMarksConfirmed(true);
               setToastMessage("Paper config confirmed.");

@@ -1,9 +1,9 @@
 import React from "react";
-import { 
-  Calendar, 
-  Clock, 
-  FileText, 
-  ChevronRight, 
+import {
+  Calendar,
+  Clock,
+  FileText,
+  ChevronRight,
   ArrowLeft,
   BarChart2
 } from "lucide-react";
@@ -41,6 +41,7 @@ export interface EvaluationSession {
   id: string;
   timestamp: number;
   files: File[];
+  resourceIds?: string[];
   results: any[]; // Using any for now to match the mock structure
   averageScore: number;
 }
@@ -65,9 +66,9 @@ export default function EvaluationHistoryScreen({
       {/* Header */}
       <div className="flex items-center justify-between gap-4 bg-white dark:bg-[#111111] p-6 rounded-xl border border-gray-200 dark:border-[#2a2a2a]">
         <div>
-        <Button variant="ghost" onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-[#222] rounded-full">
-          <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-300" />
-        </Button>
+          <Button variant="ghost" onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-[#222] rounded-full">
+            <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+          </Button>
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -128,7 +129,7 @@ export default function EvaluationHistoryScreen({
                     </div>
                   </div>
                 </div>
-                
+
                 <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
               </div>
             </div>
