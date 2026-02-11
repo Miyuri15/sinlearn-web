@@ -716,11 +716,42 @@ export async function getPaperQuestionStructure(params: {
 
 export async function confirmPaperConfig(params: {
   chatSessionId: string;
+  config: PaperPart[];
 }): Promise<void> {
-  const { chatSessionId } = params;
+  const { chatSessionId, config } = params;
+
+  // Map back to backend expected shape
+  const payload = {
+    paper_parts: config.map((p) => ({
+      part_id: p.id,
+      paper_part: p.name,
+      total_marks: p.totalMarks,
+      main_questions_count: p.mainQuestionsCount,
+      selection_rules: {
+        choose_any: p.requiredQuestionsCount || 0,
+      },
+      questions: p.questions.map((q) => ({
+        question_id: q.id,
+        label: q.label,
+        marks: q.marks,
+        has_sub_questions: q.hasSubQuestions,
+        sub_questions: q.subQuestions.map((sq) => ({
+          sub_question_id: sq.id,
+          label: sq.label,
+          marks: sq.marks,
+        })),
+      })),
+    })),
+  };
+
   await apiFetch<void>(
-    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(chatSessionId)}/paper-config/confirm`,
-    { method: "POST", body: JSON.stringify({}) }
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(
+      chatSessionId
+    )}/paper-config/confirm`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
   );
 }
 

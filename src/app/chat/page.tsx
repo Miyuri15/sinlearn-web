@@ -1622,10 +1622,6 @@ export default function ChatPage({
               hasRubric={rubricSet}
               onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
               onViewResults={() => {
-                if (!currentEvaluationResult || currentEvaluationResult.length === 0) {
-                  const results = selectedFiles.map((f) => generateMockResult(f.name));
-                  setCurrentEvaluationResult(results);
-                }
                 setEvaluationStatus("results");
               }}
             />
@@ -1639,6 +1635,7 @@ export default function ChatPage({
 
         {evaluationStatus === "results" && (
           <EvaluationResultsScreen
+            evaluationSessionId={evaluationSessionId || undefined}
             answerSheets={selectedFiles}
             results={currentEvaluationResult}
             onAnalysisClick={() => setEvaluationStatus("analytics")}
@@ -1870,7 +1867,7 @@ export default function ChatPage({
             }
 
             try {
-              await confirmPaperConfig({ chatSessionId: sessionId });
+              await confirmPaperConfig({ chatSessionId: sessionId, config });
               setPaperConfig(config);
               setMarksConfirmed(true);
               setToastMessage("Paper config confirmed.");

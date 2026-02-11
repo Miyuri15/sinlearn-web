@@ -66,10 +66,10 @@ export default function EvaluationMarksModal({
   const [popup, setPopup] = useState<
     | null
     | {
-        title: string;
-        messages: string[];
-        variant: "warning" | "error";
-      }
+      title: string;
+      messages: string[];
+      variant: "warning" | "error";
+    }
   >(null);
 
   // Initialize or Fetch Data
@@ -86,18 +86,62 @@ export default function EvaluationMarksModal({
   }, [open, initialConfig]);
 
   // Remove add/remove handlers since backend is source of truth
-  const handleAddPaperPart = () => {};
-  const handleRemovePaperPart = (id: string) => {};
+  const handleAddPaperPart = () => { };
+  const handleRemovePaperPart = (id: string) => { };
   // Duplicate definition removed
-  
-  
 
-  // Disable editing of paper part fields (read-only from backend)
-  const updatePaperPart = () => {};
 
-  const updateQuestion = () => {};
 
-  const handleAddSubQuestion = () => {};
+  // Map backend config to UI state
+  const updatePaperPart = (partId: string, updates: Partial<PaperPart>) => {
+    setPaperParts((prev) =>
+      prev.map((p) => (p.id === partId ? { ...p, ...updates } : p))
+    );
+  };
+
+  const updateQuestion = (
+    partId: string,
+    questionId: string,
+    updates: Partial<Question>
+  ) => {
+    setPaperParts((prev) =>
+      prev.map((p) => {
+        if (p.id !== partId) return p;
+        return {
+          ...p,
+          questions: p.questions.map((q) =>
+            q.id === questionId ? { ...q, ...updates } : q
+          ),
+        };
+      })
+    );
+  };
+
+  const handleAddSubQuestion = (partId: string, questionId: string) => {
+    setPaperParts((prev) =>
+      prev.map((p) => {
+        if (p.id !== partId) return p;
+        return {
+          ...p,
+          questions: p.questions.map((q) => {
+            if (q.id !== questionId) return q;
+            const newSub = {
+              id: generateId(),
+              label: getSubQuestionLabel(q.subQuestions.length),
+              marks: 0,
+            };
+            const updatedSubQuestions = [...q.subQuestions, newSub];
+            return {
+              ...q,
+              hasSubQuestions: true,
+              subQuestions: updatedSubQuestions,
+              marks: updatedSubQuestions.reduce((sum, sq) => sum + sq.marks, 0),
+            };
+          }),
+        };
+      })
+    );
+  };
 
 
 
@@ -121,7 +165,7 @@ export default function EvaluationMarksModal({
               ...sq,
               label: getSubQuestionLabel(idx),
             }));
-            
+
             // Recalculate parent marks
             const subMarksSum = reLabeled.reduce((sum, sq) => sum + sq.marks, 0);
 
@@ -145,11 +189,11 @@ export default function EvaluationMarksModal({
           ...p,
           questions: p.questions.map((q) => {
             if (q.id !== questionId) return q;
-            
+
             const updatedSubQuestions = q.subQuestions.map((sq) =>
               sq.id === subQuestionId ? { ...sq, marks } : sq
             );
-            
+
             // Recalculate parent marks
             const subMarksSum = updatedSubQuestions.reduce((sum, sq) => sum + sq.marks, 0);
 
@@ -167,18 +211,18 @@ export default function EvaluationMarksModal({
   // Validation Helper
   const getValidationErrors = () => {
     const errors: string[] = [];
-    
+
     paperParts.forEach((part) => {
       const requiredCount = part.requiredQuestionsCount || 0;
       const totalMarks = part.totalMarks;
-      
+
       // If requiredCount > 0 (e.g. "Choose 4"), check if sum of any N questions equals total marks.
       // This implies all questions must have equal marks if N < total questions.
       if (requiredCount > 0 && requiredCount < part.questions.length) {
         // Check if all questions have equal marks
         const firstMark = part.questions[0]?.marks || 0;
         const allEqual = part.questions.every(q => q.marks === firstMark);
-        
+
         if (!allEqual) {
           errors.push(
             t("evaluation_marks_validation_choose_any_equal_marks", {
@@ -214,7 +258,7 @@ export default function EvaluationMarksModal({
         }
       }
     });
-    
+
     return errors;
   };
 
@@ -251,11 +295,10 @@ export default function EvaluationMarksModal({
       <div className="relative bg-white dark:bg-[#111111] rounded-2xl shadow-2xl w-full max-w-4xl border dark:border-[#2a2a2a] flex flex-col max-h-[90vh]">
         {popup && (
           <div
-            className={`absolute z-10 top-4 right-4 left-4 sm:left-auto sm:w-lg rounded-xl border p-4 shadow-lg backdrop-blur-sm ${
-              popup.variant === "warning"
+            className={`absolute z-10 top-4 right-4 left-4 sm:left-auto sm:w-lg rounded-xl border p-4 shadow-lg backdrop-blur-sm ${popup.variant === "warning"
                 ? "bg-amber-50/95 dark:bg-amber-900/25 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100"
                 : "bg-red-50/95 dark:bg-red-900/25 border-red-200 dark:border-red-800 text-red-900 dark:text-red-100"
-            }`}
+              }`}
             role="alert"
             aria-live="polite"
           >
@@ -354,14 +397,13 @@ export default function EvaluationMarksModal({
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
                     {t("evaluation_marks_choose_any_optional")}
                   </label>
-                  <Input
-                    value={
-                      part.requiredQuestionsCount === 0
-                        ? t("all")
-                        : part.requiredQuestionsCount
+                  <NumberInput
+                    value={part.requiredQuestionsCount || 0}
+                    onChange={(val) =>
+                      updatePaperPart(part.id, { requiredQuestionsCount: val })
                     }
-                    readOnly
-                    className="w-full bg-white dark:bg-[#111111] cursor-not-allowed"
+                    className="w-full bg-white dark:bg-[#111111]"
+                    placeholder={t("all")}
                   />
                 </div>
               </div>
