@@ -62,6 +62,7 @@ import {
   confirmPaperConfig,
   mergePaperConfigWithQuestionStructure,
   startEvaluation,
+  startEvaluationStream,
 } from "@/lib/api/evaluation";
 import { formatDistanceToNow } from "date-fns";
 import { getSelectedChatType } from "@/lib/localStore";
@@ -177,6 +178,9 @@ export default function ChatPage({
   >(undefined);
   const [rubricSet, setRubricSet] = useState(false);
   const [attachedRubricId, setAttachedRubricId] = useState<string | null>(null);
+  // Add state for evaluation session and answer resource ids
+  const [evaluationSessionId, setEvaluationSessionId] = useState<string | null>(null);
+  const [evaluationAnswerResourceIds, setEvaluationAnswerResourceIds] = useState<string[]>([]);
   const [syllabusSet, setSyllabusSet] = useState(false);
   const [syllabusCount, setSyllabusCount] = useState(0);
   const [questionsSet, setQuestionsSet] = useState(false);
@@ -615,8 +619,8 @@ export default function ChatPage({
           const evalContent = configOverride
             ? { paperConfig: configOverride }
             : paperConfig.length > 0
-            ? { paperConfig }
-            : {
+              ? { paperConfig }
+              : {
                 totalMarks,
                 mainQuestions,
                 requiredQuestions,
@@ -675,8 +679,8 @@ export default function ChatPage({
           const evalContent = configOverride
             ? { paperConfig: configOverride }
             : paperConfig.length > 0
-            ? { paperConfig }
-            : {
+              ? { paperConfig }
+              : {
                 totalMarks,
                 mainQuestions,
                 requiredQuestions,
@@ -748,7 +752,7 @@ export default function ChatPage({
             console.error("Failed to process attachments", err);
             setToastMessage(
               (err instanceof Error ? err.message : null) ||
-                "Failed to process attachments."
+              "Failed to process attachments."
             );
             setToastType("error");
             setIsToastVisible(true);
@@ -930,11 +934,19 @@ export default function ChatPage({
       setIsAutoProcessing(true);
 
       // Mobile parity: start evaluation one answer sheet at a time.
+      // Capture the evaluation session ID from the first response
+      let capturedEvaluationSessionId: string | null = null;
+
       for (const resourceId of answerResourceIds) {
-        await startEvaluation({
+        const response = await startEvaluation({
           chat_session_id: sessionId,
           answer_resource_ids: [resourceId],
         });
+
+        // Extract evaluation session ID from the response
+        if (!capturedEvaluationSessionId && response?.id) {
+          capturedEvaluationSessionId = response.id;
+        }
       }
 
       // Create a new evaluation session entry in history (one per Send).
@@ -943,9 +955,9 @@ export default function ChatPage({
       const avgScore =
         results.length > 0
           ? Math.round(
-              results.reduce((acc, curr) => acc + curr.overallScore, 0) /
-                results.length
-            )
+            results.reduce((acc, curr) => acc + curr.overallScore, 0) /
+            results.length
+          )
           : 0;
 
       const newSession: EvaluationSession = {
@@ -956,6 +968,9 @@ export default function ChatPage({
         averageScore: avgScore,
       };
 
+      // Use the captured evaluation session ID, not the chat session ID
+      setEvaluationSessionId(capturedEvaluationSessionId || sessionId);
+      setEvaluationAnswerResourceIds(answerResourceIds);
       setEvaluationHistory((prev) => [newSession, ...prev]);
       setCurrentEvaluationResult(results);
 
@@ -1596,28 +1611,31 @@ export default function ChatPage({
           />
         )}
 
-        {evaluationStatus === "in_progress" && (
-          <EvaluationProgressScreen
-            answerSheets={selectedFiles}
-            questionPaperName={questionPaperName}
-            syllabusCount={syllabusCount}
-            hasRubric={rubricSet}
-            onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
-            onViewResults={() => {
-              // History entry is created on Send; here we just navigate.
-              if (
-                !currentEvaluationResult ||
-                currentEvaluationResult.length === 0
-              ) {
-                const results = selectedFiles.map((f) =>
-                  generateMockResult(f.name)
-                );
-                setCurrentEvaluationResult(results);
-              }
-              setEvaluationStatus("results");
-            }}
-          />
-        )}
+        {evaluationStatus === "in_progress" ? (
+          evaluationSessionId && evaluationAnswerResourceIds.length > 0 ? (
+            <EvaluationProgressScreen
+              evaluationSessionId={evaluationSessionId}
+              answerResourceIds={evaluationAnswerResourceIds}
+              answerSheets={selectedFiles}
+              questionPaperName={questionPaperName}
+              syllabusCount={syllabusCount}
+              hasRubric={rubricSet}
+              onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
+              onViewResults={() => {
+                if (!currentEvaluationResult || currentEvaluationResult.length === 0) {
+                  const results = selectedFiles.map((f) => generateMockResult(f.name));
+                  setCurrentEvaluationResult(results);
+                }
+                setEvaluationStatus("results");
+              }}
+            />
+          ) : (
+            <div style={{ padding: 40, textAlign: "center" }}>
+              <div className="text-lg font-semibold mb-2">Evaluation is starting...</div>
+              <div className="text-gray-500">Waiting for evaluation session and answer resources.<br />If this message persists, there may be a backend or data issue.</div>
+            </div>
+          )
+        ) : null}
 
         {evaluationStatus === "results" && (
           <EvaluationResultsScreen
@@ -1819,9 +1837,8 @@ export default function ChatPage({
 
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${
-          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
-        }`}
+        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+          }`}
       >
         {/* HEADER COMPONENT */}
         <Header
@@ -1943,9 +1960,8 @@ export default function ChatPage({
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <SyllabusPanelpage
           onClose={toggleSyllabus}
@@ -1966,9 +1982,8 @@ export default function ChatPage({
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <QuestionsPanelpage
           onClose={toggleQuestions}
