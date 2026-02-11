@@ -54,7 +54,7 @@ interface EvaluationResultsScreenProps {
   answerSheets: File[];
   answerResourceIds?: string[];
   results?: any[]; // Optional prop to pass pre-calculated results (for backward compatibility)
-  onAnalysisClick: () => void;
+  onAnalysisClick: (results: ResultSummary[]) => void;
   onViewHistory: () => void;
   onStartNewAnswerEvaluation: () => void | Promise<void>;
 }
@@ -243,7 +243,7 @@ export default function EvaluationResultsScreen({
           </Button>
 
           <Button
-            onClick={onAnalysisClick}
+            onClick={() => onAnalysisClick(resultsSummary)}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             <BarChart2 className="w-4 h-4" />

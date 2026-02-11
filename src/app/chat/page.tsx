@@ -176,6 +176,7 @@ export default function ChatPage({
   const [currentEvaluationResult, setCurrentEvaluationResult] = useState<
     any[] | undefined
   >(undefined);
+  const [analyticsResults, setAnalyticsResults] = useState<any[]>([]);
   const [rubricSet, setRubricSet] = useState(false);
   const [attachedRubricId, setAttachedRubricId] = useState<string | null>(null);
   // Add state for evaluation session and answer resource ids
@@ -1643,7 +1644,10 @@ export default function ChatPage({
             answerSheets={selectedFiles}
             answerResourceIds={evaluationAnswerResourceIds}
             results={currentEvaluationResult}
-            onAnalysisClick={() => setEvaluationStatus("analytics")}
+            onAnalysisClick={(results) => {
+              setAnalyticsResults(results);
+              setEvaluationStatus("analytics");
+            }}
             onViewHistory={() => setEvaluationStatus("history")}
             onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
           />
@@ -1651,6 +1655,8 @@ export default function ChatPage({
 
         {evaluationStatus === "analytics" && (
           <EvaluationAnalyticsScreen
+            evaluationSessionId={evaluationSessionId || undefined}
+            results={analyticsResults}
             answerSheets={selectedFiles}
             onBack={() => setEvaluationStatus("results")}
             onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
