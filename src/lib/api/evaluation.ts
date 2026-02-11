@@ -50,7 +50,7 @@ export async function uploadEvaluationResources(params: {
 
   let url = `${API_BASE_URL}/api/v1/resources/upload`;
   const queryParams = new URLSearchParams();
-  
+
   if (resourceType) {
     queryParams.append("resource_type", resourceType);
   }
@@ -220,41 +220,41 @@ function normalizePaperConfigPayload(payload: any): PaperPart[] {
     const partId = String(p?.id ?? p?.part_id ?? `ocr-part-${partIndex}`);
     const name = String(
       p?.paper_part ??
-        p?.paperPart ??
-        p?.name ??
-        p?.title ??
-        p?.part_name ??
-        `Paper_${partIndex + 1}`
+      p?.paperPart ??
+      p?.name ??
+      p?.title ??
+      p?.part_name ??
+      `Paper_${partIndex + 1}`
     );
     const totalMarks = coerceNumber(p?.totalMarks ?? p?.total_marks ?? p?.total ?? p?.marks, 0);
     const mainQuestionsCount = coerceNumber(
       p?.total_main_questions ??
-        p?.mainQuestionsCount ??
-        p?.main_questions_count ??
-        p?.main_questions ??
-        p?.mainQuestions,
+      p?.mainQuestionsCount ??
+      p?.main_questions_count ??
+      p?.main_questions ??
+      p?.mainQuestions,
       0
     );
     const selectionRules = p?.selection_rules ?? p?.selectionRules ?? null;
     const chooseAny =
       selectionRules && typeof selectionRules === "object"
         ? coerceNumber(
-            (selectionRules as any).choose_any ??
-              (selectionRules as any).chooseAny ??
-              (selectionRules as any).choose,
-            0
-          )
+          (selectionRules as any).choose_any ??
+          (selectionRules as any).chooseAny ??
+          (selectionRules as any).choose,
+          0
+        )
         : 0;
     const requiredQuestionsCount =
       chooseAny > 0
         ? chooseAny
         : coerceNumber(
-            p?.requiredQuestionsCount ??
-              p?.required_questions_count ??
-              p?.required_questions ??
-              p?.requiredQuestions,
-            0
-          );
+          p?.requiredQuestionsCount ??
+          p?.required_questions_count ??
+          p?.required_questions ??
+          p?.requiredQuestions,
+          0
+        );
 
     const rawQuestions = Array.isArray(p?.questions)
       ? p.questions
@@ -341,11 +341,11 @@ function normalizePaperQuestionsPayload(payload: any): PaperPart[] {
     const partId = String(p?.id ?? p?.part_id ?? `qs-part-${partIndex}`);
     const name = String(
       p?.name ??
-        p?.part_name ??
-        p?.title ??
-        p?.section ??
-        p?.section_name ??
-        `Part ${partIndex + 1}`
+      p?.part_name ??
+      p?.title ??
+      p?.section ??
+      p?.section_name ??
+      `Part ${partIndex + 1}`
     );
 
     const totalMarks = coerceNumber(
@@ -379,12 +379,12 @@ function normalizePaperQuestionsPayload(payload: any): PaperPart[] {
       const questionId = String(q?.id ?? q?.question_id ?? `qs-q-${partIndex}-${qIndex}`);
       const label = String(
         q?.label ??
-          q?.name ??
-          q?.question_label ??
-          q?.question_no ??
-          q?.question_number ??
-          q?.question ??
-          `Q${qIndex + 1}`
+        q?.name ??
+        q?.question_label ??
+        q?.question_no ??
+        q?.question_number ??
+        q?.question ??
+        `Q${qIndex + 1}`
       );
 
       const rawSub = Array.isArray(q?.subQuestions)
@@ -504,6 +504,66 @@ function sortQuestionsByNumber(questions: Question[]): Question[] {
   });
 }
 
+function smartSortQuestions(flatQuestions: Question[], paperConfigParts: PaperPart[]): Question[] {
+  // 1. Partition
+  const simple = sortQuestionsByNumber(flatQuestions.filter(q => !q.hasSubQuestions));
+  const complex = sortQuestionsByNumber(flatQuestions.filter(q => q.hasSubQuestions));
+
+  // If we don't have distinct groups, or config is missing, just return numeric sort
+  if (simple.length === 0 || complex.length === 0 || paperConfigParts.length === 0) {
+    return sortQuestionsByNumber(flatQuestions);
+  }
+
+  // 2. Generate candidates
+  const candidates = [
+    { name: 'simple_first', qs: [...simple, ...complex] },
+    { name: 'complex_first', qs: [...complex, ...simple] },
+  ];
+
+  // 3. Score
+  let bestOrder = candidates[0].qs;
+  let bestScore = -1;
+
+  for (const cand of candidates) {
+    let cursor = 0;
+    let totalScore = 0;
+    let partsChecked = 0;
+
+    for (const part of paperConfigParts) {
+      const count = part.mainQuestionsCount || 0;
+      if (count <= 0) continue;
+
+      const slice = cand.qs.slice(cursor, cursor + count);
+      cursor += count;
+
+      if (slice.length === 0) break;
+
+      // Calculate homogeneity: 
+      // 1.0 if all simple OR all complex
+      // < 1.0 if mixed
+      const simpleCount = slice.filter(q => !q.hasSubQuestions).length;
+      const complexCount = slice.filter(q => q.hasSubQuestions).length;
+
+      const majority = Math.max(simpleCount, complexCount);
+      const homogeneity = majority / slice.length;
+
+      totalScore += homogeneity;
+      partsChecked++;
+    }
+
+    const avgScore = partsChecked > 0 ? totalScore / partsChecked : 0;
+    console.log(`SmartSort candidate ${cand.name}: score=${avgScore}`);
+
+    if (avgScore > bestScore) {
+      bestScore = avgScore;
+      bestOrder = cand.qs;
+    }
+  }
+
+  // If ambiguous (scores equal), prefer simple_first as it's the standard convention (Paper I = MCQ/Short)
+  return bestOrder;
+}
+
 function splitFlatQuestionsIntoParts(params: {
   paperConfigParts: PaperPart[];
   flatQuestions: Question[];
@@ -513,7 +573,8 @@ function splitFlatQuestionsIntoParts(params: {
     return [];
   }
 
-  const sorted = sortQuestionsByNumber(flatQuestions);
+  // Use smart sort to align questions with parts
+  const sorted = smartSortQuestions(flatQuestions, paperConfigParts);
   let cursor = 0;
 
   return paperConfigParts.map((p, idx) => {
@@ -578,20 +639,20 @@ export function mergePaperConfigWithQuestionStructure(params: {
     const mergedQuestions: Question[] =
       basePart.questions && basePart.questions.length > 0
         ? basePart.questions.map((baseQ) => {
-            const q2 =
-              matched.questions.find((q) => q.id === baseQ.id) ??
-              findQuestionByLabel(matched.questions, baseQ.label);
+          const q2 =
+            matched.questions.find((q) => q.id === baseQ.id) ??
+            findQuestionByLabel(matched.questions, baseQ.label);
 
-            if (!q2) return baseQ;
+          if (!q2) return baseQ;
 
-            // Keep label/id from base (user-visible), but pull marks allocations from structure.
-            return {
-              ...baseQ,
-              marks: typeof q2.marks === "number" ? q2.marks : baseQ.marks,
-              hasSubQuestions: q2.hasSubQuestions ?? baseQ.hasSubQuestions,
-              subQuestions: Array.isArray(q2.subQuestions) && q2.subQuestions.length > 0 ? q2.subQuestions : baseQ.subQuestions,
-            };
-          })
+          // Keep label/id from base (user-visible), but pull marks allocations from structure.
+          return {
+            ...baseQ,
+            marks: typeof q2.marks === "number" ? q2.marks : baseQ.marks,
+            hasSubQuestions: q2.hasSubQuestions ?? baseQ.hasSubQuestions,
+            subQuestions: Array.isArray(q2.subQuestions) && q2.subQuestions.length > 0 ? q2.subQuestions : baseQ.subQuestions,
+          };
+        })
         : matched.questions;
 
     return {
@@ -799,6 +860,67 @@ export async function startEvaluation(body: StartEvaluationRequest): Promise<any
   });
 }
 
+export async function evaluateAnswerStream(params: {
+  answerId: string;
+  onEvent: (evt: StreamProgressEvent) => void;
+  signal?: AbortSignal;
+}): Promise<void> {
+  const { answerId, onEvent, signal } = params;
+  const token = getAccessToken();
+
+  const res = await fetch(`${API_BASE_URL}/api/v1/evaluation/answers/${answerId}/evaluate/stream`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Failed to start evaluation stream for answer ${answerId}`);
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) {
+    // Fallback or immediate completion if no body
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      // SSE format: data: ...
+      const payload = trimmed.startsWith("data:")
+        ? trimmed.slice("data:".length).trim()
+        : trimmed;
+
+      onEvent({ raw: payload, step: guessStepFromLine(payload) });
+    }
+  }
+
+  // Process any remaining buffer
+  const finalText = buffer.trim();
+  if (finalText) {
+    const payload = finalText.startsWith("data:")
+      ? finalText.slice("data:".length).trim()
+      : finalText;
+    onEvent({ raw: payload, step: guessStepFromLine(payload) });
+  }
+}
+
 export async function getEvaluationResult(answerDocumentId: string): Promise<any> {
   return apiFetch<any>(
     `${API_BASE_URL}/api/v1/evaluation/answers/${answerDocumentId}/result`
@@ -820,5 +942,11 @@ export async function getEvaluationAnswerScore(answerId: string): Promise<any> {
 export async function getEvaluationAnswerFeedback(answerId: string): Promise<any> {
   return apiFetch<any>(
     `${API_BASE_URL}/api/v1/evaluation/answers/${answerId}/feedback`
+  );
+}
+
+export async function getAnswerDocuments(evaluationSessionId: string): Promise<any[]> {
+  return apiFetch<any[]>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${evaluationSessionId}/answers`
   );
 }

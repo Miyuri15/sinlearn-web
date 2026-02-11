@@ -1,50 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-// Backend workflow steps for global timeline
-const GLOBAL_EVAL_STEPS = [
-  {
-    key: "start",
-    label: "Starting background evaluation for session...",
-    backendMatch: "Starting background evaluation",
-  },
-  {
-    key: "trigger",
-    label: "Triggering evaluation for answer document...",
-    backendMatch: "Triggering evaluation",
-  },
-  {
-    key: "mapping",
-    label: "Using existing answer mapping...",
-    backendMatch: "Using existing answer mapping",
-  },
-  {
-    key: "mapped",
-    label: "Mapped answers.",
-    backendMatch: "Mapped",
-  },
-  {
-    key: "grading",
-    label: "Starting grading process...",
-    backendMatch: "Starting grading process",
-  },
-  {
-    key: "graded",
-    label: "Grading completed for answer document...",
-    backendMatch: "Grading completed",
-  },
-  {
-    key: "finished",
-    label: "Evaluation finished for answer document...",
-    backendMatch: "Evaluation finished",
-  },
-  {
-    key: "done",
-    label: "Background evaluation completed for session.",
-    backendMatch: "Background evaluation completed",
-  },
-];
 import { Check, FileText, Loader2, Eye, Clock } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
+import { evaluateAnswerStream, StreamProgressEvent, getAnswerDocuments } from "@/lib/api/evaluation";
 
 interface EvaluationProgressScreenProps {
   evaluationSessionId: string;
@@ -68,7 +26,16 @@ interface FileProgress {
   progress: number;
 }
 
-import { startEvaluationStream } from "@/lib/api/evaluation";
+function mapBackendStepToFrontend(backendStep: any): ProcessingStep {
+  switch (backendStep) {
+    case "evaluating_answer_sheets": return "analyzing";
+    case "calculating_marks": return "marking";
+    case "generating_feedback": return "feedback";
+    case "preparing_report": return "report";
+    case "completed": return "done";
+    default: return "analyzing"; // Default fallback
+  }
+}
 
 export default function EvaluationProgressScreen({
   evaluationSessionId,
@@ -84,112 +51,150 @@ export default function EvaluationProgressScreen({
   const [filesProgress, setFilesProgress] = useState<FileProgress[]>([]);
   const [overallStatus, setOverallStatus] = useState<"processing" | "completed">("processing");
 
-  // Global evaluation progress steps
-  const [globalProgressSteps, setGlobalProgressSteps] = useState(
-    GLOBAL_EVAL_STEPS.map((step, idx) => ({
-      ...step,
-      status: idx === 0 ? "active" : "pending", // first step active
-    }))
-  );
-
-  // Backend integration: listen to evaluation progress
+  // Backend integration: listen to evaluation progress for EACH answer
   useEffect(() => {
     if (!evaluationSessionId || !answerResourceIds || answerResourceIds.length === 0) return;
 
-    // Initialize progress for each answer
-    const initial = answerResourceIds.map((id, idx) => ({
-      id,
-      name: answerSheets[idx]?.name || `Answer ${idx + 1}`,
-      status: "pending" as FileStatus,
-      step: "analyzing" as ProcessingStep,
-      progress: 0,
-    }));
-    setFilesProgress(initial);
-    setOverallStatus("processing");
-
-    let completedCount = 0;
     let isMounted = true;
-
-    // Start evaluation and listen for progress
     const abortController = new AbortController();
-    setGlobalProgressSteps(
-      GLOBAL_EVAL_STEPS.map((step, idx) => ({
-        ...step,
-        status: idx === 0 ? "active" : "pending",
-      }))
-    );
 
-    // Helper to update global stepper
-    function markStepActiveOrComplete(backendMsg: string) {
-      setGlobalProgressSteps((prev) => {
-        let found = false;
-        return prev.map((step, idx) => {
-          if (!found && backendMsg.includes(step.backendMatch)) {
-            found = true;
-            // Mark all previous as completed, this as active
-            return { ...step, status: "active" };
-          } else if (!found && step.status !== "completed") {
-            return { ...step, status: "completed" };
-          } else if (found) {
-            return { ...step, status: "pending" };
-          }
-          return step;
-        });
-      });
-    }
+    // Fetch answer documents and start evaluation streams
+    const initializeAndStartEvaluation = async () => {
+      try {
+        // Fetch answer documents for this evaluation session
+        const answerDocuments = await getAnswerDocuments(evaluationSessionId);
 
-    startEvaluationStream({
-      body: {
-        chat_session_id: evaluationSessionId,
-        answer_resource_ids: answerResourceIds,
-      },
-      onEvent: (evt) => {
         if (!isMounted) return;
-        // Example evt.raw: "processing:answer_id:step:progress"
-        // You should adapt this parsing to your backend's SSE format
-        try {
-          // If evt.raw is a backend log string, update global stepper
-          if (typeof evt.raw === "string" && evt.raw.includes("|") === false) {
-            // Try to match backend log lines
-            markStepActiveOrComplete(evt.raw);
+
+        // Create a map from resource_id to answer_document_id
+        const resourceToAnswerMap = new Map<string, string>();
+        answerDocuments.forEach((doc: any) => {
+          if (doc.resource_id && doc.id) {
+            resourceToAnswerMap.set(doc.resource_id, doc.id);
           }
-          const data = typeof evt.raw === "string" && evt.raw.trim().startsWith("{") ? JSON.parse(evt.raw) : evt.raw;
-          // Example: { answer_id, step, progress, status }
-          if (data && data.answer_id) {
-            setFilesProgress((prev) =>
-              prev.map((file) => {
-                if (file.id !== data.answer_id) return file;
-                let status: FileStatus = data.status || file.status;
-                let progress = typeof data.progress === "number" ? data.progress : file.progress;
-                let step: ProcessingStep = data.step || file.step;
-                if (status === "completed" || progress >= 100) {
-                  status = "completed";
-                  progress = 100;
-                  step = "done";
-                  completedCount++;
-                }
-                return { ...file, status, progress, step };
-              })
-            );
-          }
-        } catch {
-          // fallback: if evt.step is present
-          if (evt.step === "completed") {
-            setFilesProgress((prev) =>
-              prev.map((file) => ({ ...file, status: "completed", progress: 100, step: "done" }))
-            );
+        });
+
+        // Initialize progress for each answer using resource IDs for display
+        const initial = answerResourceIds.map((resourceId, idx) => ({
+          id: resourceId, // Keep resource ID for UI tracking
+          name: answerSheets[idx]?.name || `Answer ${idx + 1}`,
+          status: "pending" as FileStatus,
+          step: "analyzing" as ProcessingStep,
+          progress: 0,
+        }));
+        setFilesProgress(initial);
+        setOverallStatus("processing");
+
+        // Start evaluation streams using answer document IDs
+        const startAllStreams = async () => {
+          const promises = answerResourceIds.map(async (resourceId) => {
+            const answerDocId = resourceToAnswerMap.get(resourceId);
+
+            if (!answerDocId) {
+              console.error(`No answer document found for resource ${resourceId}`);
+              if (isMounted) {
+                setFilesProgress((prev) =>
+                  prev.map((f) => f.id === resourceId ? { ...f, status: 'failed' } : f)
+                );
+              }
+              return;
+            }
+
+            try {
+              await evaluateAnswerStream({
+                answerId: answerDocId, // Use answer document ID, not resource ID
+                onEvent: (evt: StreamProgressEvent) => {
+                  if (!isMounted) return;
+
+                  setFilesProgress((prev) =>
+                    prev.map((file) => {
+                      if (file.id !== resourceId) return file; // Match by resource ID for UI
+
+                      // Parse event
+                      // Expectation: backend sends either JSON or raw text
+                      // If JSON: { step, progress, status, ... }
+                      // If text: "data: ..."
+
+                      let newStatus = file.status;
+                      let newProgress = file.progress;
+                      let newStep = file.step;
+
+                      try {
+                        const data = typeof evt.raw === "string" && evt.raw.trim().startsWith("{")
+                          ? JSON.parse(evt.raw)
+                          : null;
+
+                        if (data) {
+                          if (data.status) newStatus = data.status;
+                          if (typeof data.progress === "number") newProgress = data.progress;
+                          if (data.step) newStep = mapBackendStepToFrontend(data.step);
+                        } else if (evt.step) {
+                          // Fallback from raw text guessing
+                          newStep = mapBackendStepToFrontend(evt.step);
+                        }
+
+                        // Auto-complete logic
+                        if (newStatus === "completed" || newProgress >= 100 || newStep === 'done') {
+                          newStatus = "completed";
+                          newProgress = 100;
+                          newStep = "done";
+                        }
+
+                        // If we just started processing
+                        if (newStatus === 'pending' && (newProgress > 0 || (newStep !== 'analyzing'))) {
+                          newStatus = 'processing';
+                        }
+
+                      } catch (e) {
+                        console.error("Error parsing progress event", e);
+                      }
+
+                      return { ...file, status: newStatus as FileStatus, progress: newProgress, step: newStep as ProcessingStep };
+                    })
+                  );
+                },
+                signal: abortController.signal,
+              });
+
+              // When specific stream finishes successfully (resolves)
+              if (isMounted) {
+                setFilesProgress((prev) =>
+                  prev.map((f) => f.id === resourceId ? { ...f, status: 'completed', progress: 100, step: 'done' } : f)
+                );
+              }
+            } catch (err: any) {
+              if (err.name === "AbortError" || abortController.signal.aborted) {
+                return;
+              }
+              console.error(`Error streaming answer ${answerDocId}`, err);
+              if (isMounted) {
+                setFilesProgress((prev) =>
+                  prev.map((f) => f.id === resourceId ? { ...f, status: 'failed' } : f)
+                );
+              }
+            }
+          });
+
+          await Promise.allSettled(promises);
+          if (isMounted) {
             setOverallStatus("completed");
           }
+        };
+
+        startAllStreams();
+      } catch (error) {
+        console.error("Error fetching answer documents:", error);
+        if (isMounted) {
+          // Mark all as failed if we can't fetch answer documents
+          setFilesProgress((prev) =>
+            prev.map((f) => ({ ...f, status: 'failed' as FileStatus }))
+          );
+          setOverallStatus("completed");
         }
-      },
-      signal: abortController.signal,
-    })
-      .then(() => {
-        if (isMounted) setOverallStatus("completed");
-      })
-      .catch(() => {
-        if (isMounted) setOverallStatus("completed");
-      });
+      }
+    };
+
+    initializeAndStartEvaluation();
 
     return () => {
       isMounted = false;
@@ -216,31 +221,6 @@ export default function EvaluationProgressScreen({
 
   return (
     <div className="flex flex-col items-center w-full max-w-5xl mx-auto p-4 space-y-8">
-      {/* Global Evaluation Timeline */}
-      <div className="w-full max-w-3xl mb-4">
-        <ol className="relative border-l border-gray-300 dark:border-gray-700">
-          {globalProgressSteps.map((step, idx) => (
-            <li key={step.key} className="mb-6 ml-4">
-              <div className={`absolute w-3 h-3 rounded-full -left-1.5 border-2 ${
-                step.status === "completed"
-                  ? "bg-green-500 border-green-500"
-                  : step.status === "active"
-                  ? "bg-blue-500 border-blue-500 animate-pulse"
-                  : "bg-gray-300 border-gray-300 dark:bg-gray-700 dark:border-gray-700"
-              }`} />
-              <p className={`text-base font-medium ${
-                step.status === "completed"
-                  ? "text-green-600 dark:text-green-400"
-                  : step.status === "active"
-                  ? "text-blue-600 dark:text-blue-400"
-                  : "text-gray-500 dark:text-gray-400"
-              }`}>
-                {step.label}
-              </p>
-            </li>
-          ))}
-        </ol>
-      </div>
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
           {t("evaluation_progress_title")}
@@ -258,48 +238,52 @@ export default function EvaluationProgressScreen({
         </div>
         <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 hidden sm:block" />
         <div className="flex items-center gap-2">
-            <span className="font-medium text-gray-900 dark:text-gray-200">{t("evaluation_progress_label_syllabus")}:</span>
-            {t("evaluation_progress_syllabus_files", { count: syllabusCount })}
+          <span className="font-medium text-gray-900 dark:text-gray-200">{t("evaluation_progress_label_syllabus")}:</span>
+          {t("evaluation_progress_syllabus_files", { count: syllabusCount })}
         </div>
         <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 hidden sm:block" />
         <div className="flex items-center gap-2">
-           <span className="font-medium text-gray-900 dark:text-gray-200">{t("evaluation_progress_label_rubric")}:</span>
-           {hasRubric ? (
-             <span className="text-green-600 dark:text-green-400">{t("evaluation_progress_rubric_applied")}</span>
-           ) : (
-             t("evaluation_progress_rubric_none")
-           )}
+          <span className="font-medium text-gray-900 dark:text-gray-200">{t("evaluation_progress_label_rubric")}:</span>
+          {hasRubric ? (
+            <span className="text-green-600 dark:text-green-400">{t("evaluation_progress_rubric_applied")}</span>
+          ) : (
+            t("evaluation_progress_rubric_none")
+          )}
         </div>
       </div>
 
       {/* Answer Sheets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 w-full max-w-4xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-6xl">
         {filesProgress.map((file) => (
-          <div 
-            key={file.id} 
+          <div
+            key={file.id}
             className={`
               relative overflow-hidden p-5 rounded-xl border transition-all duration-300
-              ${file.status === 'completed' 
-                ? 'bg-white dark:bg-[#111111] border-green-200 dark:border-green-900/30 shadow-sm' 
-                : 'bg-white dark:bg-[#111111] border-gray-200 dark:border-[#2a2a2a] shadow-sm'
+              ${file.status === 'completed'
+                ? 'bg-white dark:bg-[#111111] border-green-200 dark:border-green-900/30 shadow-sm'
+                : file.status === 'failed'
+                  ? 'bg-white dark:bg-[#111111] border-red-200 dark:border-red-900/30 shadow-sm'
+                  : 'bg-white dark:bg-[#111111] border-gray-200 dark:border-[#2a2a2a] shadow-sm'
               }
             `}
           >
             {/* Background Progress Fill (Optional subtle effect) */}
-            {file.status === 'processing' && (
-               <div 
-                 className="absolute bottom-0 left-0 h-1 bg-blue-500 transition-all duration-300"
-                 style={{ width: `${file.progress}%` }}
-               />
+            {(file.status === 'processing' || file.status === 'pending') && (
+              <div
+                className="absolute bottom-0 left-0 h-1 bg-blue-500 transition-all duration-300"
+                style={{ width: `${file.progress}%` }}
+              />
             )}
 
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3 overflow-hidden">
                 <div className={`
                   p-2.5 rounded-lg shrink-0 transition-colors
-                  ${file.status === 'completed' 
-                    ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' 
-                    : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'}
+                  ${file.status === 'completed'
+                    ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
+                    : file.status === 'failed'
+                      ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
+                      : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'}
                 `}>
                   <FileText className="w-6 h-6" />
                 </div>
@@ -310,7 +294,9 @@ export default function EvaluationProgressScreen({
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     {file.status === "pending"
                       ? t("evaluation_progress_waiting_to_start")
-                      : getStepLabel(file.step)}
+                      : file.status === "failed"
+                        ? "Failed"
+                        : getStepLabel(file.step)}
                   </p>
                 </div>
               </div>
@@ -320,6 +306,10 @@ export default function EvaluationProgressScreen({
                 {file.status === 'completed' ? (
                   <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
                     <Check className="w-5 h-5" />
+                  </div>
+                ) : file.status === 'failed' ? (
+                  <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400">
+                    <span className="text-xl font-bold">!</span>
                   </div>
                 ) : file.status === 'processing' ? (
                   <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
@@ -340,10 +330,9 @@ export default function EvaluationProgressScreen({
                 <span>{Math.round(file.progress)}%</span>
               </div>
               <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    file.status === 'completed' ? 'bg-green-500' : 'bg-blue-600'
-                  }`}
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${file.status === 'completed' ? 'bg-green-500' : file.status === 'failed' ? 'bg-red-500' : 'bg-blue-600'
+                    }`}
                   style={{ width: `${file.progress}%` }}
                 />
               </div>
@@ -355,35 +344,35 @@ export default function EvaluationProgressScreen({
       {/* View Results Button */}
       <div className="pt-4 w-full max-w-2xl flex items-center justify-center gap-3">
         <div>
-        <Button
-          onClick={onViewResults}
-          disabled={overallStatus !== "completed"}
-          className="flex-1 flex items-center justify-center gap-2 py-6 text-lg"
-          variant={overallStatus === "completed" ? "primary" : "secondary"}
-        >
-          {overallStatus === "completed" ? (
-            <>
-              <Eye className="w-5 h-5" />
-              {t("evaluation_progress_view_all_results")}
-            </>
-          ) : (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              {t("evaluation_progress_processing")}
-            </>
-          )}
-        </Button>
+          <Button
+            onClick={onViewResults}
+            disabled={overallStatus !== "completed"}
+            className="flex-1 flex items-center justify-center gap-2 py-6 text-lg"
+            variant={overallStatus === "completed" ? "primary" : "secondary"}
+          >
+            {overallStatus === "completed" ? (
+              <>
+                <Eye className="w-5 h-5" />
+                {t("evaluation_progress_view_all_results")}
+              </>
+            ) : (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                {t("evaluation_progress_processing")}
+              </>
+            )}
+          </Button>
         </div>
         <div>
 
-        <Button
-          onClick={onStartNewAnswerEvaluation}
-          disabled={overallStatus !== "completed"}
-          variant={overallStatus === "completed" ? "primary" : "secondary"}
-          className="whitespace-nowrap py-6"
-        >
-          {t("evaluation_start_new_answer_evaluation")}
-        </Button>
+          <Button
+            onClick={onStartNewAnswerEvaluation}
+            disabled={overallStatus !== "completed"}
+            variant={overallStatus === "completed" ? "primary" : "secondary"}
+            className="whitespace-nowrap py-6"
+          >
+            {t("evaluation_start_new_answer_evaluation")}
+          </Button>
         </div>
       </div>
     </div>
