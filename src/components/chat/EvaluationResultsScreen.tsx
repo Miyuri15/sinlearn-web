@@ -15,7 +15,8 @@ import { useTranslation } from "react-i18next";
 import {
   getEvaluationSessionResults,
   getEvaluationResult,
-  getEvaluationAnswerFeedback
+  getEvaluationAnswerFeedback,
+  generateEvaluationFeedback
 } from "@/lib/api/evaluation";
 
 // Mock data generator for demonstration (kept for backward compatibility)
@@ -92,6 +93,7 @@ export default function EvaluationResultsScreen({
   const [resultsSummary, setResultsSummary] = useState<ResultSummary[]>([]);
   const [detailedResults, setDetailedResults] = useState<Map<string, DetailedResult>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
+  const [generatingFeedback, setGeneratingFeedback] = useState<Set<string>>(new Set());
 
   const { t, i18n } = useTranslation("chat");
   const contentLanguage: "en" | "si" = i18n.language?.startsWith("si") ? "si" : "en";
@@ -119,21 +121,34 @@ export default function EvaluationResultsScreen({
 
   // Fetch detailed result when expanding
   const toggleExpand = async (answerId: string) => {
+    // If feedback is already loaded, just toggle
+    if (detailedResults.has(answerId)) {
+      setExpandedId(expandedId === answerId ? null : answerId);
+      return;
+    }
+
+    // If feedback is not loaded, we don't allow expanding via chevron alone anymore
+    // expansion happens via "View Feedback" button now
+  };
+
+  const handleViewFeedback = async (answerId: string) => {
     if (expandedId === answerId) {
       setExpandedId(null);
       return;
     }
 
-    setExpandedId(answerId);
-
-    // If we already have the detailed result, don't fetch again
+    // If we already have the detailed result, just expand
     if (detailedResults.has(answerId)) {
+      setExpandedId(answerId);
       return;
     }
 
-    // Fetch detailed result and feedback
-    setLoadingDetails(prev => new Set(prev).add(answerId));
+    setGeneratingFeedback(prev => new Set(prev).add(answerId));
     try {
+      // First generate the feedback
+      await generateEvaluationFeedback(answerId);
+
+      // Then fetch result and feedback details
       const [resultData, feedbackData] = await Promise.all([
         getEvaluationResult(answerId),
         getEvaluationAnswerFeedback(answerId)
@@ -149,10 +164,12 @@ export default function EvaluationResultsScreen({
       };
 
       setDetailedResults(prev => new Map(prev).set(answerId, combined));
+      setExpandedId(answerId);
     } catch (err) {
-      console.error(`Failed to fetch details for answer ${answerId}:`, err);
+      console.error(`Failed to generate/fetch feedback for answer ${answerId}:`, err);
+      setError(err instanceof Error ? err.message : "Failed to generate feedback");
     } finally {
-      setLoadingDetails(prev => {
+      setGeneratingFeedback(prev => {
         const next = new Set(prev);
         next.delete(answerId);
         return next;
@@ -160,14 +177,6 @@ export default function EvaluationResultsScreen({
     }
   };
 
-  // Calculate grade from score
-  const calculateGrade = (score: number): string => {
-    if (score >= 90) return "A";
-    if (score >= 75) return "B";
-    if (score >= 60) return "C";
-    if (score >= 50) return "S";
-    return "F";
-  };
 
   const getStudentDisplayName = (documentId: string, identifier: string) => {
     if (!answerResourceIds || !answerSheets) return identifier;
@@ -257,7 +266,6 @@ export default function EvaluationResultsScreen({
         {[...resultsSummary].reverse().map((result) => {
           const detailedResult = detailedResults.get(result.answer_document_id);
           const isLoadingDetail = loadingDetails.has(result.answer_document_id);
-          const grade = calculateGrade(result.total_score);
 
           return (
             <div
@@ -290,22 +298,44 @@ export default function EvaluationResultsScreen({
 
                 <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
                   <div className="text-right">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">{t("evaluation_results_grade")}</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{grade}</p>
-                  </div>
-                  <div className="text-right border-l border-gray-200 dark:border-[#333] pl-6">
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">{t("evaluation_results_score")}</p>
                     <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {result.percentage_score ? `${result.percentage_score}%` : `${result.total_score} pts`}
+                      {result.percentage_score !== null && result.percentage_score !== undefined
+                        ? `${result.percentage_score}%`
+                        : `${result.total_score}`}
                     </p>
                   </div>
+
+                  <div className="flex items-center gap-3 border-l border-gray-200 dark:border-[#333] pl-6">
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewFeedback(result.answer_document_id);
+                      }}
+                      disabled={generatingFeedback.has(result.answer_document_id)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap min-w-[120px]"
+                    >
+                      {generatingFeedback.has(result.answer_document_id) ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          {t("generating...") || "Generating..."}
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare className="w-4 h-4" />
+                          {t("view_feedback") || "View Feedback"}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
                   <div className="pl-2">
-                    {isLoadingDetail ? (
-                      <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
-                    ) : expandedId === result.answer_document_id ? (
+                    {expandedId === result.answer_document_id ? (
                       <ChevronUp className="w-5 h-5 text-gray-400" />
                     ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                      <ChevronDown
+                        className={`w-5 h-5 transition-opacity ${detailedResults.has(result.answer_document_id) ? 'text-gray-400' : 'text-gray-200 dark:text-gray-800'}`}
+                      />
                     )}
                   </div>
                 </div>
