@@ -92,6 +92,7 @@ export default function EvaluationResultsScreen({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultsSummary, setResultsSummary] = useState<ResultSummary[]>([]);
+  const [docIdToFilenameMap, setDocIdToFilenameMap] = useState<Map<string, string>>(new Map());
   const [detailedResults, setDetailedResults] = useState<Map<string, DetailedResult>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
   const [generatingFeedback, setGeneratingFeedback] = useState<Set<string>>(new Set());
@@ -110,18 +111,41 @@ export default function EvaluationResultsScreen({
         // 1. Fetch all results for the session
         const data = await getEvaluationSessionResults(evaluationSessionId);
 
-        // 2. Fetch answer documents to map resource IDs to answer document IDs
+        // 2. Fetch answer documents to map resource IDs to answer document IDs and build filename map
         let mappedAnswerIds: string[] = [];
-        if (answerResourceIds && answerResourceIds.length > 0) {
-          try {
-            const answerDocs = await getAnswerDocuments(evaluationSessionId);
-            mappedAnswerIds = answerDocs
-              .filter((doc: any) => answerResourceIds.includes(doc.resource_id))
-              .map((doc: any) => doc.id);
-          } catch (mapErr) {
-            console.error("Failed to fetch answer document mapping:", mapErr);
-            // Fallback will happen below
+        const newDocIdToFilenameMap = new Map<string, string>();
+
+        try {
+          const answerDocs = await getAnswerDocuments(evaluationSessionId);
+
+          // Build a lookup for resource ID -> filename from answerSheets prop
+          const resourceToFilename = new Map<string, string>();
+          if (answerResourceIds && answerSheets) {
+            answerResourceIds.forEach((rid, idx) => {
+              if (answerSheets[idx]?.name) {
+                resourceToFilename.set(rid, answerSheets[idx].name);
+              }
+            });
           }
+
+          answerDocs.forEach((doc: any) => {
+            // Populate ID mapping for filtering
+            if (answerResourceIds && answerResourceIds.includes(doc.resource_id)) {
+              mappedAnswerIds.push(doc.id);
+            }
+
+            // Populate filename mapping for display
+            // Prioritize name from answerDocs if backend provided one, or lookup from resourceToFilename
+            const filename = resourceToFilename.get(doc.resource_id) || doc.filename || doc.name;
+            if (filename && !filename.includes("Answer Sheet") && filename !== "untreated") {
+              newDocIdToFilenameMap.set(doc.id, filename);
+            }
+          });
+
+          setDocIdToFilenameMap(newDocIdToFilenameMap);
+        } catch (mapErr) {
+          console.error("Failed to fetch answer document mapping:", mapErr);
+          // Fallback filtering logic
         }
 
         // 3. Filter results by mapped answer IDs if we have them
@@ -139,7 +163,7 @@ export default function EvaluationResultsScreen({
     };
 
     fetchResults();
-  }, [evaluationSessionId, answerResourceIds]);
+  }, [evaluationSessionId, answerResourceIds, answerSheets]);
 
   // Fetch detailed result when expanding
   const toggleExpand = async (answerId: string) => {
@@ -201,7 +225,12 @@ export default function EvaluationResultsScreen({
 
 
   const getStudentDisplayName = (documentId: string, identifier: string) => {
-    // 1. Prioritize filenames from answerSheets if available
+    // 1. Check mapped filenames from useEffect
+    if (docIdToFilenameMap.has(documentId)) {
+      return docIdToFilenameMap.get(documentId)!;
+    }
+
+    // 2. Prioritize filenames from answerSheets if available (legacy/fallback)
     if (answerResourceIds && answerSheets) {
       const idx = answerResourceIds.indexOf(documentId);
       if (idx !== -1 && answerSheets[idx]) {
@@ -213,7 +242,7 @@ export default function EvaluationResultsScreen({
       }
     }
 
-    // 2. Clean up common "Student-UUID" pattern from backend
+    // 3. Clean up common "Student-UUID" pattern from backend
     if (identifier && identifier.startsWith("Student-")) {
       // If we have a filename in the identifier (sometimes backend does this), keep it, else it's just a UUID
       const parts = identifier.split("-");
