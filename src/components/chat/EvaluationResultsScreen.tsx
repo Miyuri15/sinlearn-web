@@ -16,7 +16,8 @@ import {
   getEvaluationSessionResults,
   getEvaluationResult,
   getEvaluationAnswerFeedback,
-  generateEvaluationFeedback
+  generateEvaluationFeedback,
+  getAnswerDocuments
 } from "@/lib/api/evaluation";
 
 // Mock data generator for demonstration (kept for backward compatibility)
@@ -106,8 +107,29 @@ export default function EvaluationResultsScreen({
       setIsLoading(true);
       setError(null);
       try {
+        // 1. Fetch all results for the session
         const data = await getEvaluationSessionResults(evaluationSessionId);
-        setResultsSummary(data || []);
+
+        // 2. Fetch answer documents to map resource IDs to answer document IDs
+        let mappedAnswerIds: string[] = [];
+        if (answerResourceIds && answerResourceIds.length > 0) {
+          try {
+            const answerDocs = await getAnswerDocuments(evaluationSessionId);
+            mappedAnswerIds = answerDocs
+              .filter((doc: any) => answerResourceIds.includes(doc.resource_id))
+              .map((doc: any) => doc.id);
+          } catch (mapErr) {
+            console.error("Failed to fetch answer document mapping:", mapErr);
+            // Fallback will happen below
+          }
+        }
+
+        // 3. Filter results by mapped answer IDs if we have them
+        const filtered = mappedAnswerIds.length > 0
+          ? (data || []).filter((r: ResultSummary) => mappedAnswerIds.includes(r.answer_document_id))
+          : (data || []); // Fallback to all results if no filtering or mapping fails
+
+        setResultsSummary(filtered);
       } catch (err) {
         console.error("Failed to fetch evaluation results:", err);
         setError(err instanceof Error ? err.message : "Failed to load results");
@@ -117,7 +139,7 @@ export default function EvaluationResultsScreen({
     };
 
     fetchResults();
-  }, [evaluationSessionId]);
+  }, [evaluationSessionId, answerResourceIds]);
 
   // Fetch detailed result when expanding
   const toggleExpand = async (answerId: string) => {
@@ -179,13 +201,31 @@ export default function EvaluationResultsScreen({
 
 
   const getStudentDisplayName = (documentId: string, identifier: string) => {
-    if (!answerResourceIds || !answerSheets) return identifier;
-
-    const idx = answerResourceIds.indexOf(documentId);
-    if (idx !== -1 && answerSheets[idx]) {
-      return answerSheets[idx].name;
+    // 1. Prioritize filenames from answerSheets if available
+    if (answerResourceIds && answerSheets) {
+      const idx = answerResourceIds.indexOf(documentId);
+      if (idx !== -1 && answerSheets[idx]) {
+        // If it's a File object with a real name (not just placeholder from history)
+        const name = answerSheets[idx].name;
+        if (name && !name.includes("Answer Sheet") && name !== "untreated") {
+          return name;
+        }
+      }
     }
-    return identifier;
+
+    // 2. Clean up common "Student-UUID" pattern from backend
+    if (identifier && identifier.startsWith("Student-")) {
+      // If we have a filename in the identifier (sometimes backend does this), keep it, else it's just a UUID
+      const parts = identifier.split("-");
+      if (parts.length > 2) {
+        // It's likely Student-UUID-ActualName.pdf or similar
+        // Try to return everything after the first two parts if it looks like a name
+        return identifier; // Default to full identifier if ambiguous
+      }
+    }
+
+    // 3. Last fallback
+    return identifier || "Unknown Student";
   };
 
 

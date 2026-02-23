@@ -1680,6 +1680,10 @@ export default function ChatPage({
               setSelectedFiles(session.files);
               setEvaluationAnswerResourceIds(session.resourceIds || []);
               setCurrentEvaluationResult(session.results);
+              // Ensure we have a session ID to fetch from if not already set
+              if (!evaluationSessionId && activeSessionId) {
+                setEvaluationSessionId(activeSessionId);
+              }
               setEvaluationStatus("results");
             }}
             onBack={() => setEvaluationStatus("setup")}
