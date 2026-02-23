@@ -15,7 +15,9 @@ import { useTranslation } from "react-i18next";
 import {
   getEvaluationSessionResults,
   getEvaluationResult,
-  getEvaluationAnswerFeedback
+  getEvaluationAnswerFeedback,
+  generateEvaluationFeedback,
+  getAnswerDocuments
 } from "@/lib/api/evaluation";
 
 // Mock data generator for demonstration (kept for backward compatibility)
@@ -90,8 +92,10 @@ export default function EvaluationResultsScreen({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultsSummary, setResultsSummary] = useState<ResultSummary[]>([]);
+  const [docIdToFilenameMap, setDocIdToFilenameMap] = useState<Map<string, string>>(new Map());
   const [detailedResults, setDetailedResults] = useState<Map<string, DetailedResult>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
+  const [generatingFeedback, setGeneratingFeedback] = useState<Set<string>>(new Set());
 
   const { t, i18n } = useTranslation("chat");
   const contentLanguage: "en" | "si" = i18n.language?.startsWith("si") ? "si" : "en";
@@ -104,8 +108,52 @@ export default function EvaluationResultsScreen({
       setIsLoading(true);
       setError(null);
       try {
+        // 1. Fetch all results for the session
         const data = await getEvaluationSessionResults(evaluationSessionId);
-        setResultsSummary(data || []);
+
+        // 2. Fetch answer documents to map resource IDs to answer document IDs and build filename map
+        let mappedAnswerIds: string[] = [];
+        const newDocIdToFilenameMap = new Map<string, string>();
+
+        try {
+          const answerDocs = await getAnswerDocuments(evaluationSessionId);
+
+          // Build a lookup for resource ID -> filename from answerSheets prop
+          const resourceToFilename = new Map<string, string>();
+          if (answerResourceIds && answerSheets) {
+            answerResourceIds.forEach((rid, idx) => {
+              if (answerSheets[idx]?.name) {
+                resourceToFilename.set(rid, answerSheets[idx].name);
+              }
+            });
+          }
+
+          answerDocs.forEach((doc: any) => {
+            // Populate ID mapping for filtering
+            if (answerResourceIds && answerResourceIds.includes(doc.resource_id)) {
+              mappedAnswerIds.push(doc.id);
+            }
+
+            // Populate filename mapping for display
+            // Prioritize name from answerDocs if backend provided one, or lookup from resourceToFilename
+            const filename = resourceToFilename.get(doc.resource_id) || doc.filename || doc.name;
+            if (filename && !filename.includes("Answer Sheet") && filename !== "untreated") {
+              newDocIdToFilenameMap.set(doc.id, filename);
+            }
+          });
+
+          setDocIdToFilenameMap(newDocIdToFilenameMap);
+        } catch (mapErr) {
+          console.error("Failed to fetch answer document mapping:", mapErr);
+          // Fallback filtering logic
+        }
+
+        // 3. Filter results by mapped answer IDs if we have them
+        const filtered = mappedAnswerIds.length > 0
+          ? (data || []).filter((r: ResultSummary) => mappedAnswerIds.includes(r.answer_document_id))
+          : (data || []); // Fallback to all results if no filtering or mapping fails
+
+        setResultsSummary(filtered);
       } catch (err) {
         console.error("Failed to fetch evaluation results:", err);
         setError(err instanceof Error ? err.message : "Failed to load results");
@@ -115,25 +163,38 @@ export default function EvaluationResultsScreen({
     };
 
     fetchResults();
-  }, [evaluationSessionId]);
+  }, [evaluationSessionId, answerResourceIds, answerSheets]);
 
   // Fetch detailed result when expanding
   const toggleExpand = async (answerId: string) => {
+    // If feedback is already loaded, just toggle
+    if (detailedResults.has(answerId)) {
+      setExpandedId(expandedId === answerId ? null : answerId);
+      return;
+    }
+
+    // If feedback is not loaded, we don't allow expanding via chevron alone anymore
+    // expansion happens via "View Feedback" button now
+  };
+
+  const handleViewFeedback = async (answerId: string) => {
     if (expandedId === answerId) {
       setExpandedId(null);
       return;
     }
 
-    setExpandedId(answerId);
-
-    // If we already have the detailed result, don't fetch again
+    // If we already have the detailed result, just expand
     if (detailedResults.has(answerId)) {
+      setExpandedId(answerId);
       return;
     }
 
-    // Fetch detailed result and feedback
-    setLoadingDetails(prev => new Set(prev).add(answerId));
+    setGeneratingFeedback(prev => new Set(prev).add(answerId));
     try {
+      // First generate the feedback
+      await generateEvaluationFeedback(answerId);
+
+      // Then fetch result and feedback details
       const [resultData, feedbackData] = await Promise.all([
         getEvaluationResult(answerId),
         getEvaluationAnswerFeedback(answerId)
@@ -149,10 +210,12 @@ export default function EvaluationResultsScreen({
       };
 
       setDetailedResults(prev => new Map(prev).set(answerId, combined));
+      setExpandedId(answerId);
     } catch (err) {
-      console.error(`Failed to fetch details for answer ${answerId}:`, err);
+      console.error(`Failed to generate/fetch feedback for answer ${answerId}:`, err);
+      setError(err instanceof Error ? err.message : "Failed to generate feedback");
     } finally {
-      setLoadingDetails(prev => {
+      setGeneratingFeedback(prev => {
         const next = new Set(prev);
         next.delete(answerId);
         return next;
@@ -160,23 +223,38 @@ export default function EvaluationResultsScreen({
     }
   };
 
-  // Calculate grade from score
-  const calculateGrade = (score: number): string => {
-    if (score >= 90) return "A";
-    if (score >= 75) return "B";
-    if (score >= 60) return "C";
-    if (score >= 50) return "S";
-    return "F";
-  };
 
   const getStudentDisplayName = (documentId: string, identifier: string) => {
-    if (!answerResourceIds || !answerSheets) return identifier;
-
-    const idx = answerResourceIds.indexOf(documentId);
-    if (idx !== -1 && answerSheets[idx]) {
-      return answerSheets[idx].name;
+    // 1. Check mapped filenames from useEffect
+    if (docIdToFilenameMap.has(documentId)) {
+      return docIdToFilenameMap.get(documentId)!;
     }
-    return identifier;
+
+    // 2. Prioritize filenames from answerSheets if available (legacy/fallback)
+    if (answerResourceIds && answerSheets) {
+      const idx = answerResourceIds.indexOf(documentId);
+      if (idx !== -1 && answerSheets[idx]) {
+        // If it's a File object with a real name (not just placeholder from history)
+        const name = answerSheets[idx].name;
+        if (name && !name.includes("Answer Sheet") && name !== "untreated") {
+          return name;
+        }
+      }
+    }
+
+    // 3. Clean up common "Student-UUID" pattern from backend
+    if (identifier && identifier.startsWith("Student-")) {
+      // If we have a filename in the identifier (sometimes backend does this), keep it, else it's just a UUID
+      const parts = identifier.split("-");
+      if (parts.length > 2) {
+        // It's likely Student-UUID-ActualName.pdf or similar
+        // Try to return everything after the first two parts if it looks like a name
+        return identifier; // Default to full identifier if ambiguous
+      }
+    }
+
+    // 3. Last fallback
+    return identifier || "Unknown Student";
   };
 
 
@@ -257,7 +335,6 @@ export default function EvaluationResultsScreen({
         {[...resultsSummary].reverse().map((result) => {
           const detailedResult = detailedResults.get(result.answer_document_id);
           const isLoadingDetail = loadingDetails.has(result.answer_document_id);
-          const grade = calculateGrade(result.total_score);
 
           return (
             <div
@@ -290,22 +367,44 @@ export default function EvaluationResultsScreen({
 
                 <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
                   <div className="text-right">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">{t("evaluation_results_grade")}</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{grade}</p>
-                  </div>
-                  <div className="text-right border-l border-gray-200 dark:border-[#333] pl-6">
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">{t("evaluation_results_score")}</p>
                     <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {result.percentage_score ? `${result.percentage_score}%` : `${result.total_score} pts`}
+                      {result.percentage_score !== null && result.percentage_score !== undefined
+                        ? `${result.percentage_score}%`
+                        : `${result.total_score}`}
                     </p>
                   </div>
+
+                  <div className="flex items-center gap-3 border-l border-gray-200 dark:border-[#333] pl-6">
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewFeedback(result.answer_document_id);
+                      }}
+                      disabled={generatingFeedback.has(result.answer_document_id)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap min-w-[120px]"
+                    >
+                      {generatingFeedback.has(result.answer_document_id) ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          {t("generating...") || "Generating..."}
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare className="w-4 h-4" />
+                          {t("view_feedback") || "View Feedback"}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
                   <div className="pl-2">
-                    {isLoadingDetail ? (
-                      <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
-                    ) : expandedId === result.answer_document_id ? (
+                    {expandedId === result.answer_document_id ? (
                       <ChevronUp className="w-5 h-5 text-gray-400" />
                     ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                      <ChevronDown
+                        className={`w-5 h-5 transition-opacity ${detailedResults.has(result.answer_document_id) ? 'text-gray-400' : 'text-gray-200 dark:text-gray-800'}`}
+                      />
                     )}
                   </div>
                 </div>

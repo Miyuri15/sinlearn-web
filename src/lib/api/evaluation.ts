@@ -981,3 +981,12 @@ export async function getAnswerDocuments(evaluationSessionId: string): Promise<a
     `${API_BASE_URL}/api/v1/evaluation/sessions/${evaluationSessionId}/answers`
   );
 }
+
+export async function generateEvaluationFeedback(answerId: string): Promise<any> {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/answers/${answerId}/generate-feedback`,
+    {
+      method: "POST",
+    }
+  );
+}

@@ -284,10 +284,10 @@ export default function ChatPage({
 
         const classifyByFilename = (
           filename: string
-        ): "syllabus" | "question_paper" | "answer_sheet" => {
+        ): "syllabus" | "question_paper" | "answer_sheet" | "rubric" | null => {
           const f = filename.toLowerCase();
-          if (/syllabus|syllabi/.test(f)) return "syllabus";
-          // Common names: "model paper", "question paper", "qp"
+          if (/syllabus|syllabi|textbook|guide/.test(f)) return "syllabus";
+          if (/rubric/.test(f)) return "rubric";
           if (
             /\bmodel\b|\bquestion\b|\bqp\b|\bquestion[_\s-]?paper\b|\bmodel[_\s-]?paper\b/.test(
               f
@@ -295,7 +295,11 @@ export default function ChatPage({
           ) {
             return "question_paper";
           }
-          return "answer_sheet";
+          // Only classify as answer_sheet if it has common patterns or we have no reason to think it's something else
+          // In the hydration logic below, we will be more strict.
+          if (/answer|script|st\d+|paper[_\s-]?part/i.test(f)) return "answer_sheet";
+
+          return null;
         };
 
         const details = await getChatSessionDetails(activeSessionId);
@@ -386,9 +390,15 @@ export default function ChatPage({
             const resources = await listChatSessionResources(activeSessionId);
             const answerResources = (resources || []).filter((r: any) => {
               const type = normalizeResourceType(r?.resource_type ?? r?.type);
-              if (type) return type === "answer_sheet";
               const filename = getResourceFilename(r);
-              return classifyByFilename(filename) === "answer_sheet";
+              const classified = classifyByFilename(filename);
+
+              // If explicitly tagged, trust it
+              if (type === "answer_sheet") return true;
+              if (type === "syllabus" || type === "question_paper" || type === "rubric") return false;
+
+              // If fallback to filename, ensure it's categorized as answer_sheet and NOT something else
+              return classified === "answer_sheet";
             });
 
             const restoredIds: string[] = [];
@@ -1670,6 +1680,10 @@ export default function ChatPage({
               setSelectedFiles(session.files);
               setEvaluationAnswerResourceIds(session.resourceIds || []);
               setCurrentEvaluationResult(session.results);
+              // Ensure we have a session ID to fetch from if not already set
+              if (!evaluationSessionId && activeSessionId) {
+                setEvaluationSessionId(activeSessionId);
+              }
               setEvaluationStatus("results");
             }}
             onBack={() => setEvaluationStatus("setup")}

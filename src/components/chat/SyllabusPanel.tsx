@@ -137,7 +137,7 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
           const type = normalizeResourceType(r.resource_type || r.type);
           if (type) return type === "syllabus" || type === "syllabi";
           const filename = getResourceFilename(r).toLowerCase();
-          return /syllabus|syllabi/.test(filename);
+          return /syllabus|syllabi|textbook|guide/.test(filename);
         });
 
         if (syllabi.length === 0) return;
@@ -246,7 +246,7 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
       if (fileExt && validExtensions.includes(fileExt)) {
         let targetSessionId = chatSessionId;
         if (!targetSessionId && onRequireSession) {
-            targetSessionId = await onRequireSession();
+          targetSessionId = await onRequireSession();
         }
 
         if (!targetSessionId) {
@@ -409,11 +409,10 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
                 if (isUploading) return;
                 fileInputRef.current?.click();
               }}
-              className={`border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center transition duration-150 ${
-                isUploading
+              className={`border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center transition duration-150 ${isUploading
                   ? "cursor-not-allowed opacity-70"
                   : "cursor-pointer hover:border-blue-500 dark:hover:border-blue-500"
-              }`}
+                }`}
             >
               <div className="flex justify-center mb-2">
                 <Image
