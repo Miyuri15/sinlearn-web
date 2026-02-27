@@ -1354,9 +1354,10 @@ export default function ChatPage({
     }
 
     try {
-      if (activeSessionId) {
+      const targetSessionId = activeSessionId || evaluationSessionId;
+      if (targetSessionId) {
         await detachAnswerSheetFromSession({
-          sessionId: activeSessionId,
+          sessionId: targetSessionId,
           resourceId,
         });
       }
