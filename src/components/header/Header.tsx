@@ -25,6 +25,7 @@ interface HeaderProps {
   toggleSessionResources?: () => void;
   toggleSidebar?: () => void;
   activeStep?: string; // Add this prop to track active step
+  isTemporal?: boolean;
 }
 
 export default function Header({
@@ -40,6 +41,7 @@ export default function Header({
   toggleSessionResources,
   toggleSidebar,
   activeStep,
+  isTemporal = false,
 }: Readonly<HeaderProps>) {
   const { t } = useTranslation("chat");
 
@@ -104,7 +106,7 @@ export default function Header({
 
         {/* RIGHT: Toggles + (Evaluation Action Menu) */}
         <div className="flex items-center gap-1">
-          {mode === "learning" && (
+          {mode === "learning" && !isTemporal && (
             <button
               onClick={toggleSessionResources}
               className={`flex items-center gap-1 px-2 py-1.5 rounded-lg transition-all ${
@@ -222,7 +224,7 @@ export default function Header({
 
         {/* RIGHT TOOLS */}
         <div className="flex items-center gap-4">
-          {mode === "learning" && (
+          {mode === "learning" && !isTemporal && (
             <button
               onClick={toggleSessionResources}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${

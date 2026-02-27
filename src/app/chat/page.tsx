@@ -1963,6 +1963,9 @@ export default function ChatPage({
           isQuestionsOpen={isQuestionsOpen}
           isSessionResourcesOpen={isSessionResourcesModalOpen}
           isSyncingMessages={isSyncingMessages}
+          isTemporal={
+            !chatId || chatId.startsWith("local-") || chatId.startsWith("new-")
+          }
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           toggleRubric={toggleRubric}
           toggleSyllabus={toggleSyllabus}
