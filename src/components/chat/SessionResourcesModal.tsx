@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { ReactNode, useState } from "react";
 import { viewResource } from "@/lib/api/resource";
 import FilePreviewModal from "@/components/chat/uploads/FilePreviewModal";
+import { formatDistanceToNow } from "date-fns";
 
 export type SessionResourceItem = {
   id: string;
@@ -118,9 +119,13 @@ export default function SessionResourcesModal({
       <ul className="space-y-3">
         {resources.map((resource) => {
           const fileName = resource.original_filename || resource.id;
-          const createdAt = resource.created_at
-            ? new Date(resource.created_at).toLocaleString()
-            : "-";
+          const createdDate = resource.created_at
+            ? new Date(resource.created_at)
+            : null;
+          const createdAt =
+            createdDate && !Number.isNaN(createdDate.getTime())
+              ? formatDistanceToNow(createdDate, { addSuffix: true })
+              : "-";
           const sizeLabel = formatBytes(resource.size_bytes);
 
           return (
