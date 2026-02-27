@@ -1199,11 +1199,7 @@ export default function ChatPage({
     }
 
     setIsSessionResourcesModalOpen(true);
-    globalThis.history.pushState(
-      {},
-      "",
-      `/chat/${activeSessionId}/resources`
-    );
+    globalThis.history.pushState({}, "", `/chat/${activeSessionId}/resources`);
     void loadSessionResources();
   }, [
     activeSessionId,
