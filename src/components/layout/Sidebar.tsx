@@ -57,7 +57,7 @@ export default function Sidebar({
   const { t } = useTranslation("common");
 
   const filteredChats = chats.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase())
+    c.title.toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleChatClick = (chat: ChatItem) => {
@@ -243,15 +243,29 @@ export default function Sidebar({
                     {/* Action Buttons (Visible when Open) */}
                     {isOpen && !isLoading && (
                       <div className="flex items-center gap-1">
+                        {/* Rename Button - Available for all */}
                         <button
                           onClick={(e) => {
                             e.preventDefault();
+                            e.stopPropagation();
                             onEditChat?.(chat);
                           }}
                           className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
                           title={t("rename_chat")}
                         >
                           <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onDeleteChat?.(chat);
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                          title={t("delete_chat")}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     )}
