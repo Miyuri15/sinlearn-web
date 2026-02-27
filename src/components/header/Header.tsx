@@ -1,22 +1,28 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import AddIcon from "@mui/icons-material/Add";
 import MenuIcon from "@mui/icons-material/Menu";
 import LanguageToggle from "@/components/header/LanguageToggle";
 import ThemeToggle from "@/components/header/ThemeToggle";
-import { BookOpen, ClipboardCheck, FileText, Book, HelpCircle } from "lucide-react";
-import { useState } from "react";
+import {
+  BookOpen,
+  ClipboardCheck,
+  FileText,
+  Book,
+  HelpCircle,
+} from "lucide-react";
 
 interface HeaderProps {
   mode: "learning" | "evaluation";
   isRubricOpen: boolean;
   isSyllabusOpen: boolean;
   isQuestionsOpen: boolean;
+  isSessionResourcesOpen?: boolean;
   isSyncingMessages?: boolean;
   toggleRubric: () => void;
   toggleSyllabus: () => void;
   toggleQuestions: () => void;
+  toggleSessionResources?: () => void;
   toggleSidebar?: () => void;
   activeStep?: string; // Add this prop to track active step
 }
@@ -26,18 +32,16 @@ export default function Header({
   isRubricOpen,
   isSyllabusOpen,
   isQuestionsOpen,
+  isSessionResourcesOpen = false,
   isSyncingMessages = false,
   toggleRubric,
   toggleSyllabus,
   toggleQuestions,
+  toggleSessionResources,
   toggleSidebar,
   activeStep,
 }: Readonly<HeaderProps>) {
   const { t } = useTranslation("chat");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Check if any panel is open
-  const isAnyPanelOpen = isRubricOpen || isSyllabusOpen || isQuestionsOpen;
 
   const modeDetails =
     mode === "learning"
@@ -100,6 +104,21 @@ export default function Header({
 
         {/* RIGHT: Toggles + (Evaluation Action Menu) */}
         <div className="flex items-center gap-1">
+          {mode === "learning" && (
+            <button
+              onClick={toggleSessionResources}
+              className={`flex items-center gap-1 px-2 py-1.5 rounded-lg transition-all ${
+                isSessionResourcesOpen
+                  ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
+                  : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
+              }`}
+              title={t("view_resources")}
+            >
+              <Book className="w-4 h-4" />
+              <span className="text-xs font-medium">{t("view_resources")}</span>
+            </button>
+          )}
+
           {/* Theme & Language */}
           <div className="flex items-center">
             <div className="scale-75">
@@ -118,14 +137,14 @@ export default function Header({
                 className={`p-2 rounded-lg transition-all duration-300 relative ${
                   isRubricOpen
                     ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-                    : activeStep === 'rubric'
+                    : activeStep === "rubric"
                       ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
                       : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
                 }`}
                 title="Rubric"
               >
                 <FileText className="w-5 h-5" />
-                {activeStep === 'rubric' && (
+                {activeStep === "rubric" && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
                 )}
               </button>
@@ -134,14 +153,14 @@ export default function Header({
                 className={`p-2 rounded-lg transition-all duration-300 relative ${
                   isSyllabusOpen
                     ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-                    : activeStep === 'syllabus'
+                    : activeStep === "syllabus"
                       ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
                       : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
                 }`}
                 title="Syllabus"
               >
                 <Book className="w-5 h-5" />
-                {activeStep === 'syllabus' && (
+                {activeStep === "syllabus" && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
                 )}
               </button>
@@ -150,14 +169,14 @@ export default function Header({
                 className={`p-2 rounded-lg transition-all duration-300 relative ${
                   isQuestionsOpen
                     ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-                    : activeStep === 'questions'
+                    : activeStep === "questions"
                       ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
                       : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
                 }`}
                 title="Questions"
               >
                 <HelpCircle className="w-5 h-5" />
-                {activeStep === 'questions' && (
+                {activeStep === "questions" && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
                 )}
               </button>
@@ -203,6 +222,21 @@ export default function Header({
 
         {/* RIGHT TOOLS */}
         <div className="flex items-center gap-4">
+          {mode === "learning" && (
+            <button
+              onClick={toggleSessionResources}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                isSessionResourcesOpen
+                  ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800"
+                  : "hover:bg-gray-50 dark:hover:bg-[#222] text-gray-600 dark:text-gray-400 border border-transparent hover:border-gray-200 dark:hover:border-[#333]"
+              }`}
+              title={t("view_resources")}
+            >
+              <Book className="w-5 h-5" />
+              <span className="text-sm font-medium">{t("view_resources")}</span>
+            </button>
+          )}
+
           {/* Show action buttons only in evaluation mode */}
           {mode === "evaluation" && (
             <div className="flex items-center gap-2 mr-2">
@@ -218,7 +252,7 @@ export default function Header({
                 <FileText className="w-5 h-5" />
                 <span className="text-sm font-medium">Rubric</span>
               </button>
-              
+
               <button
                 onClick={toggleSyllabus}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
@@ -248,7 +282,7 @@ export default function Header({
           )}
 
           <div className="h-6 w-px bg-gray-200 dark:bg-[#333] mx-1" />
-          
+
           <ThemeToggle />
           <LanguageToggle />
         </div>

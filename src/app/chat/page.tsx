@@ -18,6 +18,9 @@ import Sidebar from "@/components/layout/Sidebar";
 import RubricSidebar from "@/components/chat/RubricSidebar";
 import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
 import QuestionsPanelpage from "@/components/chat/QuestionsPanelpage";
+import SessionResourcesModal, {
+  SessionResourceItem,
+} from "@/components/chat/SessionResourcesModal";
 import Header from "@/components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
 import { ChatMessage, PaperPart } from "@/lib/models/chat";
@@ -81,7 +84,7 @@ export default function ChatPage({
 }: Readonly<ChatPageProps>) {
   const { t } = useTranslation("chat");
   const [chatType, setChatType] = useState<"learning" | "evaluation">(
-    () => getSelectedChatType() || "learning"
+    () => getSelectedChatType() || "learning",
   );
   // ✅ ADD THIS: active server session id for the current chat
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -96,6 +99,16 @@ export default function ChatPage({
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isSyllabusOpen, setIsSyllabusOpen] = useState(false);
   const [isQuestionsOpen, setIsQuestionsOpen] = useState(false);
+  const [isSessionResourcesModalOpen, setIsSessionResourcesModalOpen] =
+    useState(false);
+  const [isSessionResourcesLoading, setIsSessionResourcesLoading] =
+    useState(false);
+  const [sessionResources, setSessionResources] = useState<
+    SessionResourceItem[]
+  >([]);
+  const [sessionResourcesError, setSessionResourcesError] = useState<
+    string | null
+  >(null);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
@@ -111,7 +124,7 @@ export default function ChatPage({
   const [editingTitle, setEditingTitle] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingChat, setDeletingChat] = useState<SidebarChatItem | null>(
-    null
+    null,
   );
   const [isDeletingChat, setIsDeletingChat] = useState(false);
   const [isAutoProcessing, setIsAutoProcessing] = useState(false);
@@ -180,8 +193,11 @@ export default function ChatPage({
   const [rubricSet, setRubricSet] = useState(false);
   const [attachedRubricId, setAttachedRubricId] = useState<string | null>(null);
   // Add state for evaluation session and answer resource ids
-  const [evaluationSessionId, setEvaluationSessionId] = useState<string | null>(null);
-  const [evaluationAnswerResourceIds, setEvaluationAnswerResourceIds] = useState<string[]>([]);
+  const [evaluationSessionId, setEvaluationSessionId] = useState<string | null>(
+    null,
+  );
+  const [evaluationAnswerResourceIds, setEvaluationAnswerResourceIds] =
+    useState<string[]>([]);
   const [syllabusSet, setSyllabusSet] = useState(false);
   const [syllabusCount, setSyllabusCount] = useState(0);
   const [questionsSet, setQuestionsSet] = useState(false);
@@ -236,7 +252,7 @@ export default function ChatPage({
         // Restore evaluation history for this chat session (client-side persistence)
         try {
           const raw = localStorage.getItem(
-            evaluationHistoryStorageKey(activeSessionId)
+            evaluationHistoryStorageKey(activeSessionId),
           );
           if (raw) {
             const parsed = JSON.parse(raw) as Array<{
@@ -255,7 +271,9 @@ export default function ChatPage({
                   id: s.id,
                   timestamp: Number(s.timestamp) || Date.now(),
                   files: (s.fileNames || []).map((name) => new File([], name)),
-                  resourceIds: Array.isArray(s.resourceIds) ? s.resourceIds : [],
+                  resourceIds: Array.isArray(s.resourceIds)
+                    ? s.resourceIds
+                    : [],
                   results: Array.isArray(s.results) ? s.results : [],
                   averageScore: Number(s.averageScore) || 0,
                 }));
@@ -283,21 +301,22 @@ export default function ChatPage({
         };
 
         const classifyByFilename = (
-          filename: string
+          filename: string,
         ): "syllabus" | "question_paper" | "answer_sheet" | "rubric" | null => {
           const f = filename.toLowerCase();
           if (/syllabus|syllabi|textbook|guide/.test(f)) return "syllabus";
           if (/rubric/.test(f)) return "rubric";
           if (
             /\bmodel\b|\bquestion\b|\bqp\b|\bquestion[_\s-]?paper\b|\bmodel[_\s-]?paper\b/.test(
-              f
+              f,
             )
           ) {
             return "question_paper";
           }
           // Only classify as answer_sheet if it has common patterns or we have no reason to think it's something else
           // In the hydration logic below, we will be more strict.
-          if (/answer|script|st\d+|paper[_\s-]?part/i.test(f)) return "answer_sheet";
+          if (/answer|script|st\d+|paper[_\s-]?part/i.test(f))
+            return "answer_sheet";
 
           return null;
         };
@@ -362,7 +381,7 @@ export default function ChatPage({
         } catch (e) {
           console.warn(
             "Failed to list session resources for setup hydration",
-            e
+            e,
           );
         }
 
@@ -371,7 +390,7 @@ export default function ChatPage({
 
         setSyllabusSet(hasSyllabus);
         setSyllabusCount(
-          syFilenameFromDetails ? 1 : syllabusCountFromResources
+          syFilenameFromDetails ? 1 : syllabusCountFromResources,
         );
 
         // Fetch rubric details if attached (requested API behavior)
@@ -395,7 +414,12 @@ export default function ChatPage({
 
               // If explicitly tagged, trust it
               if (type === "answer_sheet") return true;
-              if (type === "syllabus" || type === "question_paper" || type === "rubric") return false;
+              if (
+                type === "syllabus" ||
+                type === "question_paper" ||
+                type === "rubric"
+              )
+                return false;
 
               // If fallback to filename, ensure it's categorized as answer_sheet and NOT something else
               return classified === "answer_sheet";
@@ -411,7 +435,7 @@ export default function ChatPage({
               if (!rid) return;
               restoredIds.push(rid);
               restoredFiles.push(
-                new File([], filename || `Answer Sheet ${idx + 1}`)
+                new File([], filename || `Answer Sheet ${idx + 1}`),
               );
             });
 
@@ -447,7 +471,7 @@ export default function ChatPage({
       }));
       localStorage.setItem(
         evaluationHistoryStorageKey(activeSessionId),
-        JSON.stringify(toStore)
+        JSON.stringify(toStore),
       );
     } catch (e) {
       console.warn("Failed to persist evaluation history", e);
@@ -503,7 +527,7 @@ export default function ChatPage({
         // ✅ SORT BY created_at (oldest → newest)
         const sorted = messages.sort(
           (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
         );
 
         setLearningMessages(sorted);
@@ -547,7 +571,7 @@ export default function ChatPage({
           const current = mapped.find((c) => c.id === chatId);
           if (current) {
             setChatType((prev) =>
-              prev !== current.type ? current.type : prev
+              prev !== current.type ? current.type : prev,
             );
           }
         }
@@ -635,12 +659,12 @@ export default function ChatPage({
             : paperConfig.length > 0
               ? { paperConfig }
               : {
-                totalMarks,
-                mainQuestions,
-                requiredQuestions,
-                subQuestions,
-                subQuestionMarks,
-              };
+                  totalMarks,
+                  mainQuestions,
+                  requiredQuestions,
+                  subQuestions,
+                  subQuestionMarks,
+                };
 
           // If we are starting evaluation, add the files to the message
           const fileMessages = selectedFiles.map((file) => ({
@@ -695,12 +719,12 @@ export default function ChatPage({
             : paperConfig.length > 0
               ? { paperConfig }
               : {
-                totalMarks,
-                mainQuestions,
-                requiredQuestions,
-                subQuestions,
-                subQuestionMarks,
-              };
+                  totalMarks,
+                  mainQuestions,
+                  requiredQuestions,
+                  subQuestions,
+                  subQuestionMarks,
+                };
 
           const resourceAttachments = uploadedResources.map((item, index) => ({
             resource_id: item.resource_id,
@@ -766,7 +790,7 @@ export default function ChatPage({
             console.error("Failed to process attachments", err);
             setToastMessage(
               (err instanceof Error ? err.message : null) ||
-              "Failed to process attachments."
+                "Failed to process attachments.",
             );
             setToastType("error");
             setIsToastVisible(true);
@@ -811,7 +835,7 @@ export default function ChatPage({
             const sorted = messages.sort(
               (a, b) =>
                 new Date(a.created_at).getTime() -
-                new Date(b.created_at).getTime()
+                new Date(b.created_at).getTime(),
             );
 
             setLearningMessages(sorted);
@@ -856,7 +880,7 @@ export default function ChatPage({
         setIsAutoProcessing(true);
         try {
           await processResourcesBatch(
-            uploadedResources.map((r) => r.resource_id)
+            uploadedResources.map((r) => r.resource_id),
           );
         } catch (err) {
           console.error("Failed to process resources batch", err);
@@ -930,7 +954,7 @@ export default function ChatPage({
 
     if (!marksConfirmed) {
       setToastMessage(
-        "Please confirm the paper config (marks) before sending."
+        "Please confirm the paper config (marks) before sending.",
       );
       setToastType("warning");
       setIsToastVisible(true);
@@ -969,9 +993,9 @@ export default function ChatPage({
       const avgScore =
         results.length > 0
           ? Math.round(
-            results.reduce((acc, curr) => acc + curr.overallScore, 0) /
-            results.length
-          )
+              results.reduce((acc, curr) => acc + curr.overallScore, 0) /
+                results.length,
+            )
           : 0;
 
       const newSession: EvaluationSession = {
@@ -1076,7 +1100,7 @@ export default function ChatPage({
         };
 
         setLearningMessages((prev) =>
-          prev.map((msg) => (msg.id === messageId ? nextMessage : msg))
+          prev.map((msg) => (msg.id === messageId ? nextMessage : msg)),
         );
       }
     } catch (error) {
@@ -1124,6 +1148,69 @@ export default function ChatPage({
     setIsRubricOpen(false);
     setIsSyllabusOpen(false);
   };
+
+  const loadSessionResources = useCallback(async () => {
+    if (!activeSessionId) return;
+
+    setIsSessionResourcesLoading(true);
+    setSessionResourcesError(null);
+
+    try {
+      const resources = await listChatSessionResources(activeSessionId);
+      const normalized = (
+        Array.isArray(resources) ? resources : []
+      ) as SessionResourceItem[];
+      normalized.sort((a, b) => {
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bTime - aTime;
+      });
+      setSessionResources(normalized);
+    } catch (error) {
+      console.error("Failed to load session resources", error);
+      setSessionResourcesError("Failed to load session resources.");
+      setSessionResources([]);
+    } finally {
+      setIsSessionResourcesLoading(false);
+    }
+  }, [activeSessionId]);
+
+  const closeSessionResourcesModal = useCallback(() => {
+    setIsSessionResourcesModalOpen(false);
+    if (!activeSessionId) return;
+
+    const basePath = `/chat/${activeSessionId}`;
+    if (globalThis.location.pathname !== basePath) {
+      globalThis.history.pushState({}, "", basePath);
+    }
+  }, [activeSessionId]);
+
+  const toggleSessionResourcesModal = useCallback(() => {
+    if (isSessionResourcesModalOpen) {
+      closeSessionResourcesModal();
+      return;
+    }
+
+    if (!activeSessionId) {
+      setToastMessage("Please create a learning chat first.");
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    setIsSessionResourcesModalOpen(true);
+    globalThis.history.pushState(
+      {},
+      "",
+      `/chat/${activeSessionId}/resources`
+    );
+    void loadSessionResources();
+  }, [
+    activeSessionId,
+    closeSessionResourcesModal,
+    isSessionResourcesModalOpen,
+    loadSessionResources,
+  ]);
 
   const isAnyRightPanelOpen = isRubricOpen || isSyllabusOpen || isQuestionsOpen;
 
@@ -1215,7 +1302,7 @@ export default function ChatPage({
 
     if (!isEvaluationStarted && remainingSlots <= 0) {
       setToastMessage(
-        "You have already uploaded the maximum of 10 answer sheets for this evaluation chat."
+        "You have already uploaded the maximum of 10 answer sheets for this evaluation chat.",
       );
       setToastType("error");
       setIsToastVisible(true);
@@ -1252,7 +1339,7 @@ export default function ChatPage({
       const byName = new Map(
         uploads
           .filter((u) => typeof u?.filename === "string" && !!u.filename)
-          .map((u) => [u.filename as string, u.resource_id])
+          .map((u) => [u.filename as string, u.resource_id]),
       );
 
       const acceptedFiles: File[] = [];
@@ -1270,7 +1357,7 @@ export default function ChatPage({
 
       if (acceptedFiles.length === 0) {
         setToastMessage(
-          "Answer sheet upload failed: no resource ids returned."
+          "Answer sheet upload failed: no resource ids returned.",
         );
         setToastType("error");
         setIsToastVisible(true);
@@ -1279,7 +1366,7 @@ export default function ChatPage({
 
       if (acceptedFiles.length < filesToUpload.length) {
         setToastMessage(
-          "Some answer sheets uploaded but the server did not return resource ids for all files. Please retry the missing files."
+          "Some answer sheets uploaded but the server did not return resource ids for all files. Please retry the missing files.",
         );
         setToastType("warning");
         setIsToastVisible(true);
@@ -1405,7 +1492,7 @@ export default function ChatPage({
       const newId = uploads[0]?.resource_id;
       if (!newId) {
         setToastMessage(
-          "Failed to replace answer sheet: no resource id returned."
+          "Failed to replace answer sheet: no resource id returned.",
         );
         setToastType("error");
         setIsToastVisible(true);
@@ -1455,7 +1542,7 @@ export default function ChatPage({
 
     if (answerResourceIds.length === 0) {
       setToastMessage(
-        "No uploaded answer-sheet ids found. Please upload answer sheets again."
+        "No uploaded answer-sheet ids found. Please upload answer sheets again.",
       );
       setToastType("error");
       setIsToastVisible(true);
@@ -1529,7 +1616,9 @@ export default function ChatPage({
     if (mode === "learning") {
       return (
         <div className="flex-1 overflow-y-auto p-6 space-y-4 w-full max-w-[320px] min-[350]:max-w-[380] min-[425]:max-w-[425] sm:max-w-full bg-gray-100 dark:bg-[#0C0C0C] custom-scrollbar">
-          {learningMessages.length === 0 && !isAutoProcessing && !isMessageGenerating ? (
+          {learningMessages.length === 0 &&
+          !isAutoProcessing &&
+          !isMessageGenerating ? (
             <EmptyState
               title={t("start_conversation")}
               subtitle={t("start_learning_conversation_sub")}
@@ -1596,10 +1685,10 @@ export default function ChatPage({
               } catch (e) {
                 console.error(
                   "Failed to fetch paper config/question structure",
-                  e
+                  e,
                 );
                 setToastMessage(
-                  "Failed to fetch paper structure. You can still edit manually."
+                  "Failed to fetch paper structure. You can still edit manually.",
                 );
                 setToastType("warning");
                 setIsToastVisible(true);
@@ -1642,8 +1731,14 @@ export default function ChatPage({
             />
           ) : (
             <div style={{ padding: 40, textAlign: "center" }}>
-              <div className="text-lg font-semibold mb-2">Evaluation is starting...</div>
-              <div className="text-gray-500">Waiting for evaluation session and answer resources.<br />If this message persists, there may be a backend or data issue.</div>
+              <div className="text-lg font-semibold mb-2">
+                Evaluation is starting...
+              </div>
+              <div className="text-gray-500">
+                Waiting for evaluation session and answer resources.
+                <br />
+                If this message persists, there may be a backend or data issue.
+              </div>
             </div>
           )
         ) : null}
@@ -1726,7 +1821,7 @@ export default function ChatPage({
       } catch (error) {
         console.error("Failed to create evaluation chat", error);
         setToastMessage(
-          "Failed to create new evaluation chat. Please try again."
+          "Failed to create new evaluation chat. Please try again.",
         );
         setToastType("error");
         setIsToastVisible(true);
@@ -1768,8 +1863,8 @@ export default function ChatPage({
 
         setChats((prev) =>
           prev.map((item) =>
-            item.id === editingChat.id ? { ...item, title: nextTitle } : item
-          )
+            item.id === editingChat.id ? { ...item, title: nextTitle } : item,
+          ),
         );
 
         setToastMessage("Chat title updated successfully");
@@ -1860,8 +1955,9 @@ export default function ChatPage({
 
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
-          }`}
+        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${
+          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+        }`}
       >
         {/* HEADER COMPONENT */}
         <Header
@@ -1869,11 +1965,13 @@ export default function ChatPage({
           isRubricOpen={isRubricOpen}
           isSyllabusOpen={isSyllabusOpen}
           isQuestionsOpen={isQuestionsOpen}
+          isSessionResourcesOpen={isSessionResourcesModalOpen}
           isSyncingMessages={isSyncingMessages}
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           toggleRubric={toggleRubric}
           toggleSyllabus={toggleSyllabus}
           toggleQuestions={toggleQuestions}
+          toggleSessionResources={toggleSessionResourcesModal}
           activeStep={getActiveStep()}
         />
 
@@ -1969,6 +2067,17 @@ export default function ChatPage({
         onCancel={handleSubMarksCancel}
       />
 
+      <SessionResourcesModal
+        isOpen={isSessionResourcesModalOpen}
+        isLoading={isSessionResourcesLoading}
+        resources={sessionResources}
+        errorMessage={sessionResourcesError}
+        onClose={closeSessionResourcesModal}
+        onRetry={() => {
+          void loadSessionResources();
+        }}
+      />
+
       {/* RUBRIC SIDEBAR */}
       <RubricSidebar
         isOpen={isRubricOpen}
@@ -1983,8 +2092,9 @@ export default function ChatPage({
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isSyllabusOpen ? "translate-x-0" : "translate-x-full"
-          }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+        }`}
       >
         <SyllabusPanelpage
           onClose={toggleSyllabus}
@@ -1996,7 +2106,7 @@ export default function ChatPage({
                 setProcessingStatus("needs_reprocessing");
               }
             },
-            []
+            [],
           )}
           chatSessionId={activeSessionId}
           onRequireSession={ensureSessionId}
@@ -2005,8 +2115,9 @@ export default function ChatPage({
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isQuestionsOpen ? "translate-x-0" : "translate-x-full"
-          }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+        }`}
       >
         <QuestionsPanelpage
           onClose={toggleQuestions}
@@ -2018,7 +2129,7 @@ export default function ChatPage({
                 setProcessingStatus("needs_reprocessing");
               }
             },
-            []
+            [],
           )}
           chatSessionId={activeSessionId}
           onRequireSession={ensureSessionId}
