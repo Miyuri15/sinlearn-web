@@ -32,7 +32,7 @@ export const createChatSession = (payload: CreateChatPayload) => {
 
 export const listChatSessions = () => {
   return apiFetch<ChatSessionResponse[]>(
-    `${API_BASE_URL}/api/v1/chat/sessions`
+    `${API_BASE_URL}/api/v1/chat/sessions`,
   );
 };
 
@@ -63,13 +63,13 @@ export const uploadResources = (files: File[]) => {
     {
       method: "POST",
       body: formData,
-    }
+    },
   );
 };
 
 export const postMessage = (
   sessionId: string | undefined,
-  payload: PostMessagePayload
+  payload: PostMessagePayload,
 ) => {
   // ✅ FORCE backend to receive "undefined" string when no session exists
   const sid =
@@ -87,7 +87,7 @@ export const listSessionMessages = async (sessionId: string) => {
       `${API_BASE_URL}/api/v1/messages/sessions/${sessionId}`,
       {
         method: "GET",
-      }
+      },
     );
   } catch (error) {
     // If the backend is temporarily broken (e.g., schema drift), treat as "no history"
@@ -105,14 +105,14 @@ export type UpdateChatSessionPayload = {
 
 export const updateChatSession = (
   sessionId: string,
-  payload: UpdateChatSessionPayload
+  payload: UpdateChatSessionPayload,
 ) => {
   return apiFetch<ChatSessionResponse>(
     `${API_BASE_URL}/api/v1/chat/sessions/${sessionId}`,
     {
       method: "PUT",
       body: JSON.stringify(payload),
-    }
+    },
   );
 };
 
@@ -166,7 +166,7 @@ export async function postVoiceQA(params: {
     {
       method: "POST",
       body: formData,
-    }
+    },
   );
 }
 
@@ -175,7 +175,7 @@ export const generateMessageResponse = async (messageId: string) => {
     `${API_BASE_URL}/api/v1/messages/${messageId}/generate`,
     {
       method: "POST",
-    }
+    },
   );
 
   return {
@@ -184,4 +184,10 @@ export const generateMessageResponse = async (messageId: string) => {
     grade_level: message.grade_level,
     message,
   };
+};
+
+export const getExplanationForMessage = async (messageId: string) => {
+  return apiFetch<any>(`${API_BASE_URL}/api/v1/messages/${messageId}/xai`, {
+    method: "GET",
+  });
 };
