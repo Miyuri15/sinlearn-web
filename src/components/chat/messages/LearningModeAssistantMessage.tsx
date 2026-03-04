@@ -18,7 +18,7 @@ import { XAIPanel } from "./XAIPanel";
 
 /**
  * LearningModeAssistantMessage - A friendly AI assistant message component
- * Designed to make learning interactive and engaging
+ * Designed to make learning interactive and engaging for students
  */
 export function LearningModeAssistantMessage({
   message,
@@ -85,34 +85,25 @@ export function LearningModeAssistantMessage({
     };
   }, []);
 
-  const shouldShowFooter =
-    Boolean(m.grade_level) ||
-    safetySummary !== undefined ||
-    localXAI !== undefined ||
-    xaiExplanation !== undefined;
-
   return (
-    <div className="p-6 relative rounded-2xl w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 shadow-sm hover:shadow-md transition-all duration-300">
-      {/* AI Assistant Header - More welcoming design */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-indigo-400 dark:to-indigo-500 flex items-center justify-center shadow-sm">
-            <Sparkles className="w-4 h-4 text-white" />
+    <div className="p-5 relative rounded-2xl w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 shadow-sm hover:shadow-md transition-all duration-300">
+      {/* Simple Header - Just avatar and copy button */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
-          <div>
-            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              Learning Assistant
-            </span>
-          </div>
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            Assistant
+          </span>
         </div>
 
-        {/* Copy button with improved feedback */}
-        <Tooltip title={copied ? "Copied to clipboard!" : "Copy message"} arrow>
+        <Tooltip title={copied ? "Copied!" : "Copy"} arrow>
           <button
             type="button"
             onClick={handleCopy}
             className={`
-              p-2 rounded-lg transition-all duration-200
+              p-1.5 rounded-lg transition-all
               ${
                 copied
                   ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
@@ -121,98 +112,82 @@ export function LearningModeAssistantMessage({
             `}
             aria-label="Copy message"
           >
-            <CopyIcon size={16} />
+            <CopyIcon size={15} />
           </button>
         </Tooltip>
       </div>
 
-      {/* Message Content - Clean and readable */}
-      <div className="text-slate-700 dark:text-slate-200 text-base leading-relaxed">
+      {/* Message Content */}
+      <div className="text-slate-700 dark:text-slate-200 text-base leading-relaxed mb-4">
         <TruncatedMessage content={contentStr} />
       </div>
 
-      {/* XAI Panel - Smooth expand/collapse */}
-      {(showXAI || localXAI) && (
+      {/* Info Bar - Grade, Safety, Support all inline with Explain button */}
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700">
+        {/* Left side: All status indicators inline */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Grade Level Pill */}
+          {m.grade_level && <GradeLabel gradeLevel={m.grade_level} />}
+
+          {/* Safety Summary Pill */}
+          {safetySummary && <SafetySummary summary={safetySummary} />}
+        </div>
+
+        {/* Right side: Explain button + Regenerate */}
+        <div className="flex items-center gap-2">
+          {onRegenerate && (
+            <RegenerateButton
+              messageId={parentMessageId}
+              onRegenerate={onRegenerate}
+              isLoading={isRegenerating}
+              compact
+            />
+          )}
+
+          <button
+            onClick={handleToggleXAI}
+            disabled={isFetchingXAI}
+            className={`
+              inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
+              transition-all
+              ${
+                showXAI
+                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
+                  : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
+              }
+              ${isFetchingXAI ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+            `}
+            aria-expanded={showXAI}
+          >
+            <Brain className="w-3.5 h-3.5" />
+            <span>
+              {isFetchingXAI ? (
+                <span className="flex items-center gap-1">
+                  <span className="animate-spin text-xs">⌛</span>
+                  Loading...
+                </span>
+              ) : showXAI ? (
+                "Hide Details"
+              ) : (
+                "Explain This"
+              )}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* XAI Content - Directly expands below without extra header */}
+      {showXAI && (
         <div className="mt-4 animate-in slide-in-from-top-2 duration-200">
-          <XAIPanel
-            explanation={localXAI}
-            isOpen={showXAI}
-            onToggle={handleToggleXAI}
-          />
+          <XAIPanel explanation={localXAI} isLoading={isFetchingXAI} />
         </div>
       )}
 
-      {/* Footer Section - Clean organization of metadata */}
-      {/* Footer Section - Clean organization of metadata */}
-      {shouldShowFooter && (
-        <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-          {/* Top Row: Grade Level and Safety Summary side by side */}
-          <div className="flex items-center justify-between mb-3">
-            {/* Left side: Grade Level */}
-            {m.grade_level && <GradeLabel gradeLevel={m.grade_level} />}
-
-            {/* Right side: Safety Summary with risk info */}
-            {safetySummary && <SafetySummary summary={safetySummary} />}
-          </div>
-
-          {/* Bottom Row: Action Buttons with Explain button on the right */}
-          <div className="flex items-center justify-between">
-            {/* Left side: Regenerate button (if any) */}
-            <div>
-              {onRegenerate && (
-                <RegenerateButton
-                  messageId={parentMessageId}
-                  onRegenerate={onRegenerate}
-                  isLoading={isRegenerating}
-                />
-              )}
-            </div>
-
-            {/* Right side: Explain button */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleToggleXAI}
-                disabled={isFetchingXAI}
-                className={`
-            inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium
-            transition-all duration-200 transform hover:scale-105 active:scale-100
-            ${
-              showXAI
-                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"
-            }
-            ${isFetchingXAI ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-          `}
-                aria-expanded={showXAI}
-              >
-                <Brain className="w-4 h-4" />
-                <span>
-                  {isFetchingXAI ? (
-                    <span className="flex items-center gap-2">
-                      <span className="animate-spin">⏳</span>
-                      Loading...
-                    </span>
-                  ) : showXAI ? (
-                    <span className="flex items-center gap-1">
-                      Hide Explanation <ChevronUp className="w-3 h-3" />
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      Explain This <ChevronDown className="w-3 h-3" />
-                    </span>
-                  )}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Subtle hint for new users */}
-          {!showXAI && !safetySummary && (
-            <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-              Click "Explain This" to understand how I got this answer
-            </p>
-          )}
-        </div>
+      {/* Subtle hint for first-time users */}
+      {!showXAI && (
+        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500 text-right">
+          Click "Explain This" to see how I got this answer
+        </p>
       )}
     </div>
   );
