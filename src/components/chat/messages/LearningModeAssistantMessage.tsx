@@ -31,6 +31,12 @@ export function LearningModeAssistantMessage({
     : undefined;
   const safetySummary = m.safety_summary;
   const xaiExplanation = m.xai_explanation;
+  const showExplainControls = safetySummary != null;
+  const hasInfoBarContent =
+    Boolean(m.grade_level) ||
+    Boolean(safetySummary) ||
+    Boolean(onRegenerate) ||
+    showExplainControls;
 
   const [localXAI, setLocalXAI] = useState<any | undefined>(xaiExplanation);
   const [isFetchingXAI, setIsFetchingXAI] = useState(false);
@@ -141,62 +147,66 @@ export function LearningModeAssistantMessage({
         <TruncatedMessage content={contentStr} />
       </div>
 
-      {/* Info Bar - Grade, Safety, Support all inline with Explain button */}
-      <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700">
-        {/* Left side: All status indicators inline */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Grade Level Pill */}
-          {m.grade_level && <GradeLabel gradeLevel={m.grade_level} />}
+      {/* Info Bar - only render when it has at least one visible item */}
+      {hasInfoBarContent && (
+        <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700">
+          {/* Left side: All status indicators inline */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Grade Level Pill */}
+            {m.grade_level && <GradeLabel gradeLevel={m.grade_level} />}
 
-          {/* Safety Summary Pill */}
-          {safetySummary && <SafetySummary summary={safetySummary} />}
-        </div>
+            {/* Safety Summary Pill */}
+            {safetySummary && <SafetySummary summary={safetySummary} />}
+          </div>
 
-        {/* Right side: Explain button + Regenerate */}
-        <div className="flex items-center gap-2">
-          {onRegenerate && (
-            <RegenerateButton
-              messageId={parentMessageId}
-              onRegenerate={onRegenerate}
-              isLoading={isRegenerating}
-              compact
-            />
-          )}
+          {/* Right side: Explain button + Regenerate */}
+          <div className="flex items-center gap-2">
+            {onRegenerate && (
+              <RegenerateButton
+                messageId={parentMessageId}
+                onRegenerate={onRegenerate}
+                isLoading={isRegenerating}
+                compact
+              />
+            )}
 
-          <button
-            onClick={handleToggleXAI}
-            disabled={isFetchingXAI}
-            className={`
-              inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-              transition-all
-              ${
-                showXAI
-                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-                  : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
-              }
-              ${isFetchingXAI ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-            `}
-            aria-expanded={showXAI}
-          >
-            <Brain className="w-3.5 h-3.5" />
-            <span>
-              {isFetchingXAI ? (
-                <span className="flex items-center gap-1">
-                  <span className="animate-spin text-xs">⌛</span>
-                  Loading...
+            {showExplainControls && (
+              <button
+                onClick={handleToggleXAI}
+                disabled={isFetchingXAI}
+                className={`
+                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
+                  transition-all
+                  ${
+                    showXAI
+                      ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
+                      : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  }
+                  ${isFetchingXAI ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                `}
+                aria-expanded={showXAI}
+              >
+                <Brain className="w-3.5 h-3.5" />
+                <span>
+                  {isFetchingXAI ? (
+                    <span className="flex items-center gap-1">
+                      <span className="animate-spin text-xs">⌛</span>
+                      Loading...
+                    </span>
+                  ) : showXAI ? (
+                    "Hide Details"
+                  ) : (
+                    "Explain This"
+                  )}
                 </span>
-              ) : showXAI ? (
-                "Hide Details"
-              ) : (
-                "Explain This"
-              )}
-            </span>
-          </button>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* XAI Content - Directly expands below without extra header */}
-      {showXAI && (
+      {showExplainControls && showXAI && (
         <div className="mt-4 animate-in slide-in-from-top-2 duration-200">
           <XAIPanel
             explanation={localXAI ?? null}
@@ -207,7 +217,7 @@ export function LearningModeAssistantMessage({
       )}
 
       {/* Subtle hint for first-time users */}
-      {!showXAI && (
+      {showExplainControls && !showXAI && (
         <p className="mt-2 text-xs text-slate-400 dark:text-slate-500 text-right">
           Click "Explain This" to see how I got this answer
         </p>
