@@ -62,11 +62,16 @@ interface Explanation {
 interface XAIPanelProps {
   explanation: Explanation | null;
   isLoading?: boolean;
+  unavailableMessage?: string | null;
   isOpen?: boolean;
   onToggle?: () => void;
 }
 
-export function XAIPanel({ explanation, isLoading = false }: XAIPanelProps) {
+export function XAIPanel({
+  explanation,
+  isLoading = false,
+  unavailableMessage = null,
+}: XAIPanelProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(["sources", "concepts", "safety"]),
   );
@@ -89,7 +94,18 @@ export function XAIPanel({ explanation, isLoading = false }: XAIPanelProps) {
     );
   }
 
-  if (!explanation) return null;
+  if (!explanation) {
+    if (!unavailableMessage) return null;
+
+    return (
+      <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+        <div className="flex items-start gap-2 text-slate-700 dark:text-slate-300">
+          <Info className="w-4 h-4 mt-0.5 text-slate-500 dark:text-slate-400" />
+          <p className="text-sm leading-relaxed">{unavailableMessage}</p>
+        </div>
+      </div>
+    );
+  }
 
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections);

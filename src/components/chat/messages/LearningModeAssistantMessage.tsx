@@ -6,13 +6,7 @@ import { isTextMessage } from "@/lib/models/chat";
 import { getExplanationForMessage } from "@/lib/api/chat";
 import { RegenerateButton } from "./RegenerateButton";
 import { SafetySummary } from "./SafetySummary";
-import {
-  CopyIcon,
-  Brain,
-  Sparkles,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+import { CopyIcon, Brain, Sparkles } from "lucide-react";
 import Tooltip from "@mui/material/Tooltip";
 import { XAIPanel } from "./XAIPanel";
 
@@ -40,6 +34,9 @@ export function LearningModeAssistantMessage({
 
   const [localXAI, setLocalXAI] = useState<any | undefined>(xaiExplanation);
   const [isFetchingXAI, setIsFetchingXAI] = useState(false);
+  const [xaiUnavailableMessage, setXaiUnavailableMessage] = useState<
+    string | null
+  >(null);
   const [copied, setCopied] = useState(false);
   const [showXAI, setShowXAI] = useState(false);
 
@@ -51,13 +48,35 @@ export function LearningModeAssistantMessage({
 
     if (next && !localXAI && !isFetchingXAI) {
       setIsFetchingXAI(true);
+      setXaiUnavailableMessage(null);
       try {
         const id = message.id ?? (message as any)?.parent_msg_id;
         if (!id) throw new Error("missing message id for XAI fetch");
         const data = await getExplanationForMessage(id);
-        setLocalXAI(data.xai_explanation ?? data);
+        const explanation = data?.xai_explanation ?? data;
+        const hasSummary = Boolean(explanation?.explanation_summary);
+
+        if (hasSummary) {
+          setLocalXAI(explanation);
+        } else {
+          setLocalXAI(undefined);
+          setXaiUnavailableMessage(
+            "XAI explanation is not available for this message.",
+          );
+        }
       } catch (err) {
-        console.error("Error fetching XAI explanation", err);
+        setLocalXAI(undefined);
+
+        const rawMessage = err instanceof Error ? err.message : "";
+        const isNotAvailableError =
+          rawMessage.toLowerCase().includes("not available") ||
+          rawMessage.toLowerCase().includes("xai explanation");
+
+        setXaiUnavailableMessage(
+          isNotAvailableError
+            ? "XAI explanation is not available for this message."
+            : "Unable to load explanation right now. Please try again.",
+        );
       } finally {
         setIsFetchingXAI(false);
       }
@@ -179,7 +198,11 @@ export function LearningModeAssistantMessage({
       {/* XAI Content - Directly expands below without extra header */}
       {showXAI && (
         <div className="mt-4 animate-in slide-in-from-top-2 duration-200">
-          <XAIPanel explanation={localXAI} isLoading={isFetchingXAI} />
+          <XAIPanel
+            explanation={localXAI ?? null}
+            isLoading={isFetchingXAI}
+            unavailableMessage={xaiUnavailableMessage}
+          />
         </div>
       )}
 
