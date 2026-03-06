@@ -1687,6 +1687,16 @@ export default function ChatPage({
               }
               setEvaluationStatus("results");
             }}
+            onViewAnalytics={(session) => {
+              setSelectedFiles(session.files);
+              setEvaluationAnswerResourceIds(session.resourceIds || []);
+              setCurrentEvaluationResult(session.results);
+              setAnalyticsResults(session.results);
+              if (!evaluationSessionId && activeSessionId) {
+                setEvaluationSessionId(activeSessionId);
+              }
+              setEvaluationStatus("analytics");
+            }}
             onBack={() => setEvaluationStatus("setup")}
             onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
           />

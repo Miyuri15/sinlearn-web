@@ -5,7 +5,8 @@ import {
   FileText,
   ChevronRight,
   ArrowLeft,
-  BarChart2
+  BarChart2,
+  PieChart
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
@@ -49,6 +50,7 @@ export interface EvaluationSession {
 interface EvaluationHistoryScreenProps {
   history: EvaluationSession[];
   onSelectSession: (session: EvaluationSession) => void;
+  onViewAnalytics?: (session: EvaluationSession) => void;
   onBack: () => void;
   onStartNewAnswerEvaluation: () => void | Promise<void>;
 }
@@ -56,6 +58,7 @@ interface EvaluationHistoryScreenProps {
 export default function EvaluationHistoryScreen({
   history,
   onSelectSession,
+  onViewAnalytics,
   onBack,
   onStartNewAnswerEvaluation
 }: EvaluationHistoryScreenProps) {
@@ -130,7 +133,21 @@ export default function EvaluationHistoryScreen({
                   </div>
                 </div>
 
-                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                <div className="flex items-center gap-2">
+                  {onViewAnalytics && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewAnalytics(session);
+                      }}
+                      className="p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                      title={t("evaluation_view_analytics")}
+                    >
+                      <PieChart className="w-5 h-5" />
+                    </button>
+                  )}
+                  <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                </div>
               </div>
             </div>
           ))
