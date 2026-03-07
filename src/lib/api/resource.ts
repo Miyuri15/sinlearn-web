@@ -11,8 +11,8 @@ export const viewResource = async (resourceId: string): Promise<Blob> => {
       method: "GET",
       headers: token
         ? {
-            Authorization: `Bearer ${token}`,
-          }
+          Authorization: `Bearer ${token}`,
+        }
         : undefined,
     }
   );
@@ -34,8 +34,8 @@ export const downloadResource = async (
       method: "GET",
       headers: token
         ? {
-            Authorization: `Bearer ${token}`,
-          }
+          Authorization: `Bearer ${token}`,
+        }
         : undefined,
     }
   );
@@ -148,6 +148,14 @@ export const detachAnswerSheetFromSession = async (params: {
     `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(
       sessionId
     )}/resources/answer_script/${encodeURIComponent(resourceId)}`,
+    // The general resource detach endpoint
+    `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(
+      sessionId
+    )}/resources/${encodeURIComponent(resourceId)}`,
+    // Using "answer_sheet" instead of "answer_script"
+    `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(
+      sessionId
+    )}/resources/answer_sheet/${encodeURIComponent(resourceId)}`,
   ];
 
   let lastError: unknown = null;
@@ -163,8 +171,12 @@ export const detachAnswerSheetFromSession = async (params: {
     }
   }
 
-  // Fall back to the original error context if all alternates are missing.
-  throw (lastError ?? new ApiError("Answer sheet detach endpoint not found", { status: 404, url: primaryUrl }));
+  // Fallback to complete resource deletion if detach endpoints are not found
+  try {
+    await deleteResource(resourceId);
+  } catch (err) {
+    throw (lastError ?? err);
+  }
 };
 
 export const deleteResource = async (resourceId: string): Promise<void> => {

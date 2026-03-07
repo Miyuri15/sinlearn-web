@@ -77,6 +77,7 @@ interface DetailedResult {
   overall_feedback: string | null;
   improvement_points: string[];
   question_feedback?: any[];
+  marks_summary?: Record<string, Array<{ label: string; awarded: number; max: number; is_selected?: boolean }>>;
 }
 
 export default function EvaluationResultsScreen({
@@ -206,7 +207,8 @@ export default function EvaluationResultsScreen({
         percentage_score: resultData.percentage_score,
         overall_feedback: feedbackData.overall_feedback || null,
         improvement_points: feedbackData.improvement_points || [],
-        question_feedback: resultData.question_feedback || []
+        question_feedback: resultData.question_feedbacks || [],
+        marks_summary: resultData.marks_summary || {}
       };
 
       setDetailedResults(prev => new Map(prev).set(answerId, combined));
@@ -414,6 +416,83 @@ export default function EvaluationResultsScreen({
               {expandedId === result.answer_document_id && detailedResult && (
                 <div className="border-t border-gray-200 dark:border-[#2a2a2a] bg-gray-50/50 dark:bg-[#0C0C0C]/50">
                   <div className="p-6 space-y-8">
+                    {/* Marks Summary Section */}
+                    {detailedResult.marks_summary && Object.keys(detailedResult.marks_summary).length > 0 && (
+                      <section>
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-4 flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          {t("marks_summary") || "Marks Summary"}
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {Object.entries(detailedResult.marks_summary).map(([part, questions]) => {
+                            // Determine if selection is in play (i.e., some rows are marked not selected)
+                            const hasSelection = questions.some(q => q.is_selected === false);
+                            const selectedQuestions = hasSelection ? questions.filter(q => q.is_selected !== false) : questions;
+                            const totalAwarded = selectedQuestions.reduce((sum, q) => sum + q.awarded, 0);
+                            const totalMax = selectedQuestions.reduce((sum, q) => sum + q.max, 0);
+
+                            return (
+                              <div key={part} className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden">
+                                <div className="bg-gray-50 dark:bg-[#222] px-4 py-2 border-b border-gray-200 dark:border-[#2a2a2a] flex justify-between items-center">
+                                  <h5 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">{part}</h5>
+                                  {hasSelection && (
+                                    <span className="text-xs text-gray-400 dark:text-gray-500 italic">* best {selectedQuestions.length / 3} of {Math.round(questions.length / 3)} questions selected</span>
+                                  )}
+
+                                </div>
+                                <div className="p-0">
+                                  <table className="w-full text-sm text-left">
+                                    <thead>
+                                      <tr className="border-b border-gray-100 dark:border-[#2a2a2a] text-gray-500 dark:text-gray-400">
+                                        <th className="px-4 py-2 font-medium">{t("question") || "Question"}</th>
+                                        <th className="px-4 py-2 font-medium text-right">{t("marks") || "Marks"}</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50 dark:divide-[#2a2a2a]">
+                                      {questions.map((q, qIdx) => {
+                                        const isNotSelected = hasSelection && q.is_selected === false;
+                                        return (
+                                          <tr
+                                            key={qIdx}
+                                            className={`text-gray-700 dark:text-gray-300 ${isNotSelected ? 'opacity-40' : ''
+                                              }`}
+                                            title={isNotSelected ? 'Not counted (not in best selection)' : ''}
+                                          >
+                                            <td className="px-4 py-2">
+                                              {q.label}
+                                              {isNotSelected && <span className="ml-1 text-xs text-gray-400">✗</span>}
+                                            </td>
+                                            <td className="px-4 py-2 text-right font-semibold">
+                                              <span className={q.awarded === q.max ? "text-green-600 dark:text-green-400" : ""}>
+                                                {q.awarded}
+                                              </span>
+                                              <span className="text-gray-400 dark:text-gray-500 mx-1">/</span>
+                                              <span>{q.max}</span>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                      <tr className="bg-blue-50/30 dark:bg-blue-900/10 font-bold text-blue-700 dark:text-blue-300">
+                                        <td className="px-4 py-2">
+                                          {t("total") || "Total"}
+                                          {hasSelection && <span className="font-normal text-xs text-blue-400 ml-1">(selected)</span>}
+                                        </td>
+                                        <td className="px-4 py-2 text-right">
+                                          {Math.round(totalAwarded * 100) / 100}
+                                          <span className="text-blue-400 dark:text-blue-500 mx-1">/</span>
+                                          {totalMax}
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    )}
+
                     {/* Overall Feedback */}
                     {detailedResult.overall_feedback && (
                       <section>

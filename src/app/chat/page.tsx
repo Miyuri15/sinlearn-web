@@ -1437,9 +1437,10 @@ export default function ChatPage({
     }
 
     try {
-      if (activeSessionId) {
+      const targetSessionId = activeSessionId || evaluationSessionId;
+      if (targetSessionId) {
         await detachAnswerSheetFromSession({
-          sessionId: activeSessionId,
+          sessionId: targetSessionId,
           resourceId,
         });
       }
@@ -1776,6 +1777,16 @@ export default function ChatPage({
                 setEvaluationSessionId(activeSessionId);
               }
               setEvaluationStatus("results");
+            }}
+            onViewAnalytics={(session) => {
+              setSelectedFiles(session.files);
+              setEvaluationAnswerResourceIds(session.resourceIds || []);
+              setCurrentEvaluationResult(session.results);
+              setAnalyticsResults(session.results);
+              if (!evaluationSessionId && activeSessionId) {
+                setEvaluationSessionId(activeSessionId);
+              }
+              setEvaluationStatus("analytics");
             }}
             onBack={() => setEvaluationStatus("setup")}
             onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
