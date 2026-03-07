@@ -481,81 +481,84 @@ export function XAIPanel({
                   )}
 
                   {/* Missing Concepts Section */}
-                  {missingDetails.map((detail: SafetyDetail, idx: number) => (
-                    <div key={`missing-${idx}`} className="space-y-2 pt-2">
-                      <h5 className="text-sm font-semibold text-amber-800 dark:text-amber-200 flex items-center gap-2">
-                        <XCircle className="w-4 h-4" />
-                        Missing Concepts
-                      </h5>
-                      <p className="text-xs text-slate-600 dark:text-slate-400">
-                        {detail.explanation}
-                      </p>
+                  {missingDetails.length > 0 &&
+                    missingDetails.map((detail: SafetyDetail, idx: number) => (
+                      <div key={`missing-${idx}`} className="space-y-2 pt-2">
+                        <h5 className="text-sm font-semibold text-amber-800 dark:text-amber-200 flex items-center gap-2">
+                          <XCircle className="w-4 h-4" />
+                          Missing Concepts ({detail.concepts?.length || 0})
+                        </h5>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                          {detail.explanation}
+                        </p>
 
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {(showAllMissing
-                          ? detail.concepts
-                          : detail.concepts?.slice(0, 20)
-                        )?.map((concept: string, cidx: number) => (
-                          <Tooltip key={cidx} title="Not found in answer">
-                            <span className="text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800">
-                              {concept}
-                            </span>
-                          </Tooltip>
-                        ))}
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {(showAllMissing
+                            ? detail.concepts
+                            : detail.concepts?.slice(0, 20)
+                          )?.map((concept: string, cidx: number) => (
+                            <Tooltip key={cidx} title="Not found in answer">
+                              <span className="text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800">
+                                {concept}
+                              </span>
+                            </Tooltip>
+                          ))}
+                        </div>
+
+                        {detail.concepts && detail.concepts.length > 20 && (
+                          <button
+                            onClick={() => setShowAllMissing(!showAllMissing)}
+                            className="text-xs text-amber-600 dark:text-amber-400 font-medium hover:underline mt-2"
+                          >
+                            {showAllMissing
+                              ? "Show fewer concepts"
+                              : `Show all ${detail.concepts.length} missing concepts`}
+                          </button>
+                        )}
                       </div>
-
-                      {detail.concepts && detail.concepts.length > 20 && (
-                        <button
-                          onClick={() => setShowAllMissing(!showAllMissing)}
-                          className="text-xs text-amber-600 dark:text-amber-400 font-medium hover:underline mt-2"
-                        >
-                          {showAllMissing
-                            ? "Show fewer concepts"
-                            : `Show all ${detail.concepts.length} missing concepts`}
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    ))}
 
                   {/* Extra Concepts Section */}
-                  {extraDetails.map((detail: SafetyDetail, idx: number) => (
-                    <div key={`extra-${idx}`} className="space-y-2 pt-2">
-                      <h5 className="text-sm font-semibold text-amber-800 dark:text-amber-200 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4" />
-                        Extra Concepts Not in Sources
-                      </h5>
-                      <p className="text-xs text-slate-600 dark:text-slate-400">
-                        {detail.explanation}
-                      </p>
+                  {extraDetails.length > 0 &&
+                    extraDetails.map((detail: SafetyDetail, idx: number) => (
+                      <div key={`extra-${idx}`} className="space-y-2 pt-2">
+                        <h5 className="text-sm font-semibold text-amber-800 dark:text-amber-200 flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4" />
+                          Extra Concepts Not in Sources (
+                          {detail.concepts?.length || 0})
+                        </h5>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                          {detail.explanation}
+                        </p>
 
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {(showAllExtra
-                          ? detail.concepts
-                          : detail.concepts?.slice(0, 20)
-                        )?.map((concept: string, cidx: number) => (
-                          <Tooltip
-                            key={cidx}
-                            title="Added by AI, not in sources"
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {(showAllExtra
+                            ? detail.concepts
+                            : detail.concepts?.slice(0, 20)
+                          )?.map((concept: string, cidx: number) => (
+                            <Tooltip
+                              key={cidx}
+                              title="Added by AI, not in sources"
+                            >
+                              <span className="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full border border-purple-200 dark:border-purple-800">
+                                {concept}
+                              </span>
+                            </Tooltip>
+                          ))}
+                        </div>
+
+                        {detail.concepts && detail.concepts.length > 20 && (
+                          <button
+                            onClick={() => setShowAllExtra(!showAllExtra)}
+                            className="text-xs text-purple-600 dark:text-purple-400 font-medium hover:underline mt-2"
                           >
-                            <span className="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full border border-purple-200 dark:border-purple-800">
-                              {concept}
-                            </span>
-                          </Tooltip>
-                        ))}
+                            {showAllExtra
+                              ? "Show fewer concepts"
+                              : `Show all ${detail.concepts.length} extra concepts`}
+                          </button>
+                        )}
                       </div>
-
-                      {detail.concepts && detail.concepts.length > 20 && (
-                        <button
-                          onClick={() => setShowAllExtra(!showAllExtra)}
-                          className="text-xs text-purple-600 dark:text-purple-400 font-medium hover:underline mt-2"
-                        >
-                          {showAllExtra
-                            ? "Show fewer concepts"
-                            : `Show all ${detail.concepts.length} extra concepts`}
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </div>
