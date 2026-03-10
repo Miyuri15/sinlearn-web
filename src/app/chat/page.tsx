@@ -32,6 +32,7 @@ import UpdatedToast from "@/components/ui/updatedtoast";
 import EditModal from "@/components/ui/EditModal";
 import DeleteModal from "@/components/ui/DeleteModal";
 import useChatInit from "@/hooks/useChatInit";
+import { useProcessingProgressWS } from "@/hooks/useProcessingProgressWS";
 import {
   postMessage,
   listChatSessions,
@@ -214,6 +215,19 @@ export default function ChatPage({
   useEffect(() => {
     processingStatusRef.current = processingStatus;
   }, [processingStatus]);
+
+  // WebSocket: listen for processing_progress events from the backend
+  const { lastProgress } = useProcessingProgressWS();
+
+  useEffect(() => {
+    if (!lastProgress) return;
+    const { stage } = lastProgress;
+    if (stage === "Processing Completed") {
+      setProcessingStatus("completed");
+    } else {
+      setProcessingStatus("processing");
+    }
+  }, [lastProgress]);
 
   // Sync activeSessionId with chatId prop
   useEffect(() => {
