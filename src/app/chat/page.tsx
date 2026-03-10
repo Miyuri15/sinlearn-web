@@ -1,3 +1,5 @@
+// chat/page.tsx
+
 "use client";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -2135,6 +2137,27 @@ const handleVoiceSend = async (audioBlob: Blob) => {
                   <option value="grade_12_13">Grades 12–13</option>
                   <option value="university">University Level</option>
                 </select>
+              </div>
+            )}
+
+            {/* Processing progress banner */}
+            {isAutoProcessing && lastProgress && (
+              <div className="mb-2 px-1">
+                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  <span className="truncate font-medium">
+                    {lastProgress.stage}
+                  </span>
+                  <span className="ml-2 shrink-0 tabular-nums">
+                    {lastProgress.document_index}/{lastProgress.total_documents}{" "}
+                    · {Math.round(lastProgress.progress)}%
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                    style={{ width: `${lastProgress.progress}%` }}
+                  />
+                </div>
               </div>
             )}
 
