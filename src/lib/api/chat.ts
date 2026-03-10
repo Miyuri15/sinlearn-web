@@ -149,9 +149,8 @@ export async function postVoiceQA(params: {
   audio: Blob;
   session_id: string;
   resource_ids?: string[];
-  top_k?: number;
 }): Promise<VoiceQAResponse> {
-  const { audio, session_id, resource_ids = [], top_k = 3 } = params;
+  const { audio, session_id, resource_ids = []} = params;
 
   const formData = new FormData();
   formData.append("audio", audio, "voice.wav");
@@ -162,7 +161,31 @@ export async function postVoiceQA(params: {
   }
 
   return apiFetch<VoiceQAResponse>(
-    `${API_BASE_URL}/api/v1/voice/qa?top_k=${top_k}`,
+    `${API_BASE_URL}/api/v1/voice/qa`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+}
+
+export async function postVoiceQAFromText(params: {
+  text: string;
+  session_id: string;
+  resource_ids?: string[];
+}): Promise<VoiceQAResponse> {
+  const { text, session_id, resource_ids = []} = params;
+
+  const formData = new FormData();
+  formData.append("text", text);  // Send text instead of audio
+  formData.append("session_id", session_id);
+
+  if (resource_ids.length > 0) {
+    formData.append("resource_ids", resource_ids.join(","));
+  }
+
+  return apiFetch<VoiceQAResponse>(
+    `${API_BASE_URL}/api/v1/voice/qa-from-text`,
     {
       method: "POST",
       body: formData,
