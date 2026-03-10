@@ -1,17 +1,20 @@
+// src/components/chat/messages/LearningModeUserMessage.tsx
+
 import type { ChatMessage } from "@/lib/models/chat";
 import { MESSAGE_STYLES } from "./styles";
 import { TruncatedMessage } from "./TruncatedMessage";
 import { GradeLabel } from "./GradeLabel";
+import { ProcessingLogButton } from "./ProcessingLogButton";
 import { MessageAttachments } from "./MessageAttachments";
-import { Mic } from "lucide-react"; // Assuming you use lucide-react, or use a plain SVG
+import { Mic } from "lucide-react";
 
 export function LearningModeUserMessage({ message }: { message: ChatMessage }) {
   const m = message as any;
   const isTextMessage = typeof m.content === "string";
   const contentStr = isTextMessage ? m.content : String(m.content);
-  const isVoice = m.modality === "voice"; // Check the modality
-
+  const isVoice = m.modality === "voice";
   const resIds = m.resource_ids ?? [];
+  const hasProcessingLog = m.has_processing_log === true;
 
   return (
     <div className={MESSAGE_STYLES.userMessageWrapper}>
@@ -49,21 +52,31 @@ export function LearningModeUserMessage({ message }: { message: ChatMessage }) {
             </div>
 
             <div className="mt-2 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-4 pt-1">
+              {/* Left side: Grade Label */}
               {m.grade_level ? (
                 <GradeLabel gradeLevel={m.grade_level} />
               ) : (
                 <div />
               )}
 
-              {/* Optional: Show timestamp or duration if it's voice */}
-              {isVoice && m.created_at && (
-                <span className="text-[10px] opacity-50">
-                  {new Date(m.created_at).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              )}
+              {/* Right side: Processing Log and Timestamp */}
+              <div className="flex items-center gap-3">
+                {hasProcessingLog && (
+                  <ProcessingLogButton
+                    messageId={m.id}
+                    hasProcessingLog={hasProcessingLog}
+                  />
+                )}
+
+                {isVoice && m.created_at && (
+                  <span className="text-[10px] opacity-50">
+                    {new Date(m.created_at).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}
