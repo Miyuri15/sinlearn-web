@@ -508,6 +508,7 @@ export default function ChatPage({
     useState(0);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
@@ -1325,35 +1326,37 @@ export default function ChatPage({
     }
 
     setIsUploading(true);
+    setUploadProgress({ current: 0, total: filesToUpload.length });
+
     try {
-      const uploads = await uploadEvaluationResources({
-        chatSessionId: targetSessionId,
-        resourceType: "answer_sheet",
-        files: filesToUpload,
-      });
-
-      const byName = new Map(
-        uploads
-          .filter((u) => typeof u?.filename === "string" && !!u.filename)
-          .map((u) => [u.filename as string, u.resource_id]),
-      );
-
       const acceptedFiles: File[] = [];
       const acceptedIds: string[] = [];
 
-      filesToUpload.forEach((file, idx) => {
-        const fromName = byName.get(file.name);
-        const fallback = uploads[idx]?.resource_id;
-        const id = fromName || fallback;
-        if (id) {
-          acceptedFiles.push(file);
-          acceptedIds.push(id);
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
+        try {
+          const uploads = await uploadEvaluationResources({
+            chatSessionId: targetSessionId,
+            resourceType: "answer_sheet",
+            files: [file],
+          });
+
+          const id = uploads[0]?.resource_id;
+          if (id) {
+            acceptedFiles.push(file);
+            acceptedIds.push(id);
+          }
+          
+          setUploadProgress(prev => ({ ...prev, current: i + 1 }));
+        } catch (err) {
+          console.error(`Failed to upload file ${file.name}`, err);
+          // Continue with next file
         }
-      });
+      }
 
       if (acceptedFiles.length === 0) {
         setToastMessage(
-          "Answer sheet upload failed: no resource ids returned.",
+          "Answer sheet upload failed. Please check your connection or try again.",
         );
         setToastType("error");
         setIsToastVisible(true);
@@ -1362,7 +1365,7 @@ export default function ChatPage({
 
       if (acceptedFiles.length < filesToUpload.length) {
         setToastMessage(
-          "Some answer sheets uploaded but the server did not return resource ids for all files. Please retry the missing files.",
+          `Successfully uploaded ${acceptedFiles.length} of ${filesToUpload.length} files.`,
         );
         setToastType("warning");
         setIsToastVisible(true);
@@ -1417,6 +1420,7 @@ export default function ChatPage({
       setIsToastVisible(true);
     } finally {
       setIsUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
     }
   };
 
@@ -1479,6 +1483,7 @@ export default function ChatPage({
     }
 
     setIsUploading(true);
+    setUploadProgress({ current: 0, total: 1 });
     try {
       const oldId = answerResourceIds[index];
       const uploads = await uploadEvaluationResources({
@@ -1507,6 +1512,7 @@ export default function ChatPage({
         }
       }
 
+      setUploadProgress({ current: 1, total: 1 });
       setSelectedFiles((prev) => {
         const next = [...prev];
         next[index] = file;
@@ -1525,6 +1531,7 @@ export default function ChatPage({
       setIsToastVisible(true);
     } finally {
       setIsUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
     }
   };
 
@@ -1704,6 +1711,7 @@ export default function ChatPage({
             onReplaceFile={handleReplaceEvaluationFile}
             isProcessing={isAutoProcessing}
             isUploading={isUploading || isPaperConfigLoading}
+            uploadProgress={uploadProgress}
             hasMarks={marksConfirmed}
             rubricSet={rubricSet}
             syllabusSet={syllabusSet}

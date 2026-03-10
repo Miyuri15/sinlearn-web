@@ -38,6 +38,7 @@ interface EvaluationStartScreenProps {
   syllabusSet?: boolean;
   questionsSet?: boolean;
   processingStatus?: "idle" | "processing" | "completed" | "needs_reprocessing";
+  uploadProgress?: { current: number; total: number };
 }
 
 export default function EvaluationStartScreen({
@@ -59,7 +60,8 @@ export default function EvaluationStartScreen({
   rubricSet = false,
   syllabusSet = false,
   questionsSet = false,
-  processingStatus = "idle"
+  processingStatus = "idle",
+  uploadProgress
 }: EvaluationStartScreenProps) {
   const { t } = useTranslation("chat");
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -132,18 +134,41 @@ export default function EvaluationStartScreen({
       {/* Uploading Banner */}
       {isUploading && (
         <div
-          className="w-full bg-gray-50 dark:bg-[#111111]/50 border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-4 flex items-center gap-3"
+          className="w-full bg-gray-100 dark:bg-[#111111] border border-blue-200 dark:border-blue-900/30 rounded-xl p-5 flex items-center gap-4 shadow-sm"
           aria-live="polite"
           aria-busy="true"
         >
-          <div className="p-2 bg-gray-100 dark:bg-[#1a1a1a] rounded-full">
-            <Upload size={16} className="animate-spin" />
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-full text-blue-600">
+            <Upload size={20} className="animate-bounce" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{t("evaluation_start_uploading")}</p>
-            <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-              <div className="h-full w-1/2 bg-blue-600/70 animate-pulse" />
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                {uploadProgress && uploadProgress.total > 0
+                  ? `Uploading ${uploadProgress.current} of ${uploadProgress.total} documents...`
+                  : t("evaluation_start_uploading")}
+              </p>
+              {uploadProgress && uploadProgress.total > 0 && (
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                  {Math.round((uploadProgress.current / uploadProgress.total) * 100)}%
+                </span>
+              )}
             </div>
+            <div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-600 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(37,99,235,0.5)]" 
+                style={{ 
+                  width: uploadProgress && uploadProgress.total > 0 
+                    ? `${(uploadProgress.current / uploadProgress.total) * 100}%` 
+                    : "30%" 
+                }} 
+              />
+            </div>
+            {uploadProgress && uploadProgress.total > 0 && (
+               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                 Please wait while we process your documents for evaluation.
+               </p>
+            )}
           </div>
         </div>
       )}
