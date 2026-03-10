@@ -141,7 +141,7 @@ export default function ChatPage({
       console.log("Creating new evaluation session on demand...");
       const session = await createChatSession({
         mode: "evaluation",
-        title: "New Evaluation Chat",
+        title: t("new_evaluation_chat"),
       });
       console.log("Created session:", session.id);
 
@@ -157,7 +157,7 @@ export default function ChatPage({
         return [
           {
             id: session.id,
-            title: session.title || "New Evaluation Chat",
+            title: session.title || t("new_evaluation_chat"),
             type: "evaluation",
             time: formatDistanceToNow(new Date(), { addSuffix: true }),
           },
@@ -556,7 +556,7 @@ export default function ChatPage({
 
         const mapped = sessions.map((s) => ({
           id: s.id,
-          title: s.title || "Untitled Chat",
+          title: s.title || t("untitled_chat"),
           type: s.mode,
           time: formatDistanceToNow(new Date(s.updated_at || s.created_at), {
             addSuffix: true,
