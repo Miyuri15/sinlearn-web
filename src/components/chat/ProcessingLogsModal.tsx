@@ -72,20 +72,39 @@ export default function ProcessingLogsModal({
     return `${minutes}m ${seconds}s`;
   };
 
-  const formatTimeDifference = (timestamp: string) => {
-    if (!firstLogTimestamp) return "0s";
+  // Calculate time difference from previous step
+  const getTimeFromPreviousStep = (index: number) => {
+    if (index === 0) return "0s";
 
-    const currentTime = new Date(timestamp).getTime();
-    const diffInSeconds = Math.round((currentTime - firstLogTimestamp) / 1000);
+    const currentTime = new Date(sortedLogs[index].timestamp).getTime();
+    const previousTime = new Date(sortedLogs[index - 1].timestamp).getTime();
+    const diffInSeconds = Math.round((currentTime - previousTime) / 1000);
 
-    if (diffInSeconds === 0) return "0s";
-    if (diffInSeconds < 60) return `+${diffInSeconds}s`;
+    if (diffInSeconds < 60) return `${diffInSeconds}s`;
 
     const minutes = Math.floor(diffInSeconds / 60);
     const seconds = diffInSeconds % 60;
 
-    if (seconds === 0) return `+${minutes}m`;
-    return `+${minutes}m ${seconds}s`;
+    if (seconds === 0) return `${minutes}m`;
+    return `${minutes}m ${seconds}s`;
+  };
+
+  // Format timestamp to show actual time (HH:MM:SS)
+  const formatActualTime = (timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return timestamp;
+
+      // Format as HH:MM:SS
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+    } catch {
+      return timestamp;
+    }
   };
 
   const getStageIcon = (stage: string) => {
@@ -197,8 +216,9 @@ export default function ProcessingLogsModal({
                         {log.stage}
                       </span>
                       <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                        {/* Show time from previous step */}
                         <span className="font-mono min-w-[70px] text-right">
-                          {formatTimeDifference(log.timestamp)}
+                          {getTimeFromPreviousStep(index)}
                         </span>
                         <span className="min-w-[40px] text-right">
                           {log.progress % 1 === 0
@@ -207,7 +227,7 @@ export default function ProcessingLogsModal({
                           %
                         </span>
                         <span className="hidden sm:inline-block min-w-[100px] text-right">
-                          {formatTimestamp(log.timestamp)}
+                          {formatActualTime(log.timestamp)}
                         </span>
                       </div>
                     </div>

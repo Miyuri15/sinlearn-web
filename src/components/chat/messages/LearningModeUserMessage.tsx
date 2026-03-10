@@ -15,9 +15,11 @@ export function LearningModeUserMessage({ message }: { message: ChatMessage }) {
 
   return (
     <div className={MESSAGE_STYLES.userMessageWrapper}>
-      <div 
+      <div
         className={`${MESSAGE_STYLES.userMessageContent} ${
-          isVoice ? "border-l-4 border-blue-400 bg-blue-50/30 dark:bg-blue-900/10" : ""
+          isVoice
+            ? "border-l-4 border-blue-400 bg-blue-50/30 dark:bg-blue-900/10"
+            : ""
         }`}
       >
         {/* Voice Indicator Header */}
@@ -37,7 +39,9 @@ export function LearningModeUserMessage({ message }: { message: ChatMessage }) {
 
         {isTextMessage && (
           <div className="flex flex-col">
-            <div className={`leading-relaxed ${isVoice ? "italic text-gray-700 dark:text-gray-300" : ""}`}>
+            <div
+              className={`leading-relaxed ${isVoice ? "italic text-gray-700 dark:text-gray-300" : ""}`}
+            >
               <TruncatedMessage
                 content={contentStr}
                 expandStyle={MESSAGE_STYLES.expandButtonUser}
@@ -50,11 +54,14 @@ export function LearningModeUserMessage({ message }: { message: ChatMessage }) {
               ) : (
                 <div />
               )}
-              
+
               {/* Optional: Show timestamp or duration if it's voice */}
               {isVoice && m.created_at && (
                 <span className="text-[10px] opacity-50">
-                   {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(m.created_at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </span>
               )}
             </div>
