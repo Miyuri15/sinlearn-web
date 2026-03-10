@@ -170,6 +170,29 @@ export async function postVoiceQA(params: {
   );
 }
 
+export async function postVoiceTranscribe(audioBlob: Blob): Promise<{
+  raw: string;
+  normalized: string;
+  standard: string;
+}> {
+  const formData = new FormData();
+  formData.append('audio', audioBlob, 'voice.wav');
+
+  const response = await apiFetch<{
+    raw: string;
+    normalized: string;
+    standard: string;
+  }>(
+    `${API_BASE_URL}/api/v1/voice/transcribe`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+
+  return response;
+}
+
 export const generateMessageResponse = async (messageId: string) => {
   const message = await apiFetch<GeneratedMessageResponse>(
     `${API_BASE_URL}/api/v1/messages/${messageId}/generate`,

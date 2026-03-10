@@ -43,6 +43,7 @@ import {
   postVoiceQA,
   generateMessageResponse,
   createChatSession,
+  postVoiceTranscribe,
 } from "@/lib/api/chat";
 import {
   processMessageAttachments,
@@ -864,13 +865,14 @@ export default function ChatPage({
     void run();
   };
 
-  const handleVoiceSend = async (audioBlob: Blob) => {
+const handleVoiceSend = async (audioBlob: Blob) => {
     // Voice QA is only supported in learning mode.
     if (mode !== "learning") return;
 
     try {
       setCreating(true);
 
+      // Step 1: Upload any pending files first
       let uploadedResources: ResourceUploadResponse[] = [];
       if (pendingFiles.length > 0) {
         uploadedResources = await uploadResources(pendingFiles);
@@ -893,35 +895,109 @@ export default function ChatPage({
         }
       }
 
+      // Step 2: Show a temporary "Processing voice..." message immediately
       setIsMessageGenerating(true);
-      const data = await postVoiceQA({
-        audio: audioBlob,
-        session_id: activeSessionId ?? "undefined",
+      
+      // Store the index of this message for later updates
+      const messageIndex = learningMessages.length; // Current length before adding
+      
+      // Create a temporary user message with loading indicator
+      const tempUserMessage = {
+        role: "user",
+        modality: "voice",
+        content: "🔄 processing...", // This will be replaced
         resource_ids: uploadedResources.map((r) => r.resource_id),
-        top_k: 3,
-      });
+      } as ChatMessage;
+      
+      // Add to messages
+      setLearningMessages((prev) => [...prev, tempUserMessage]);
 
-      // Sync session if voice-first
-      if (data.session_id && !activeSessionId) {
-        setActiveSessionId(data.session_id);
-        router.replace(`/chat/${data.session_id}`);
+      // Step 3: Start transcription
+      let transcribedText = "";
+      try {
+        const transcriptionResult = await postVoiceTranscribe(audioBlob);
+        transcribedText = transcriptionResult.standard;
+        
+        // Update the message with transcribed text (THIS IS THE FINAL USER QUESTION)
+        setLearningMessages((prev) => {
+          const newMessages = [...prev];
+          newMessages[messageIndex] = {
+            role: "user",
+            modality: "voice",
+            content: transcribedText, // Use transcription result as final question
+            resource_ids: uploadedResources.map((r) => r.resource_id),
+          } as ChatMessage;
+          return newMessages;
+        });
+      } catch (transcribeError) {
+        console.error("Transcription failed", transcribeError);
+        
+        // Update to show error
+        setLearningMessages((prev) => {
+          const newMessages = [...prev];
+          newMessages[messageIndex] = {
+            role: "user",
+            modality: "voice",
+            content: "❌ Failed to transcribe audio",
+            resource_ids: uploadedResources.map((r) => r.resource_id),
+          } as ChatMessage;
+          return newMessages;
+        });
+        
+        setToastMessage("Failed to transcribe your voice");
+        setToastType("error");
+        setIsToastVisible(true);
+        return; // Stop here if transcription fails
       }
 
-      setLearningMessages((prev) => [
-        ...prev,
-        {
-          role: "user",
-          modality: "voice",
-          content: data.question,
+      // Step 4: Now call QA endpoint (don't update the user message again)
+      try {
+        const data = await postVoiceQA({
+          audio: audioBlob,
+          session_id: activeSessionId ?? "undefined",
           resource_ids: uploadedResources.map((r) => r.resource_id),
-        },
-        {
-          role: "assistant",
-          modality: "text",
-          content: data.answer,
-          safety_summary: data.safety_summary,
-        },
-      ]);
+          top_k: 3,
+        });
+
+        // Sync session if voice-first
+        if (data.session_id && !activeSessionId) {
+          setActiveSessionId(data.session_id);
+          router.replace(`/chat/${data.session_id}`);
+        }
+
+        // Step 5: ONLY add the assistant message - DON'T update the user message again
+        setLearningMessages((prev) => {
+          const newMessages = [...prev];
+          
+          // Add assistant message (user message at messageIndex remains unchanged with transcribed text)
+          newMessages.push({
+            role: "assistant",
+            modality: "text",
+            content: data.answer,
+            safety_summary: data.safety_summary,
+          } as ChatMessage);
+          
+          return newMessages;
+        });
+      } catch (qaError) {
+        console.error("QA processing failed", qaError);
+        
+        // Update the message to show QA failed, but KEEP the transcribed text
+        setLearningMessages((prev) => {
+          const newMessages = [...prev];
+          newMessages[messageIndex] = {
+            role: "user",
+            modality: "voice",
+            content: `${transcribedText} (⚠️ Failed to get answer)`,
+            resource_ids: uploadedResources.map((r) => r.resource_id),
+          } as ChatMessage;
+          return newMessages;
+        });
+        
+        setToastMessage("Failed to get answer for your question");
+        setToastType("error");
+        setIsToastVisible(true);
+      }
     } catch (error) {
       console.error(error);
       setToastMessage("Voice processing failed");
