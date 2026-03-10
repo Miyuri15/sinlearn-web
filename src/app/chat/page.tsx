@@ -59,13 +59,13 @@ import {
   getRubricById,
   listChatSessionResources,
   removeAttachedRubricFromSession,
-  processDocumentsStream,
   getPaperConfigFromOCR,
   getPaperQuestionStructure,
   confirmPaperConfig,
   mergePaperConfigWithQuestionStructure,
   startEvaluation,
   startEvaluationStream,
+  processDocumentsStreamWithProgress,
 } from "@/lib/api/evaluation";
 import { formatDistanceToNow } from "date-fns";
 import { getSelectedChatType } from "@/lib/localStore";
@@ -509,6 +509,8 @@ export default function ChatPage({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [processProgress, setProcessProgress] = useState({ current: 0, total: 0 });
+  const [answerDocumentIds, setAnswerDocumentIds] = useState<Record<string, string>>({});
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
@@ -1554,15 +1556,37 @@ export default function ChatPage({
     }
 
     setProcessingStatus("processing");
+    setProcessProgress({ current: 0, total: answerResourceIds.length });
     // Re-processing invalidates any previous confirmation.
     setMarksConfirmed(false);
     try {
       // Mobile parity: process one answer sheet at a time.
-      for (const resourceId of answerResourceIds) {
-        await processDocumentsStream({
-          chat_session_id: targetSessionId,
-          answer_resource_ids: [resourceId],
+      for (let i = 0; i < answerResourceIds.length; i++) {
+        const resourceId = answerResourceIds[i];
+        await processDocumentsStreamWithProgress({
+          body: {
+            chat_session_id: targetSessionId,
+            answer_resource_ids: [resourceId],
+          },
+          onEvent: (evt) => {
+            try {
+              const data = typeof evt.raw === "string" && evt.raw.trim().startsWith("{") 
+                ? JSON.parse(evt.raw) 
+                : null;
+              
+              if (data && data.answer_document_id) {
+                console.log(`Captured answer_document_id: ${data.answer_document_id} for resource: ${resourceId}`);
+                setAnswerDocumentIds(prev => ({
+                  ...prev,
+                  [resourceId]: data.answer_document_id
+                }));
+              }
+            } catch (e) {
+              // Ignore parse errors for non-json lines
+            }
+          }
         });
+        setProcessProgress(prev => ({ ...prev, current: i + 1 }));
       }
 
       setProcessingStatus("completed");
@@ -1577,6 +1601,8 @@ export default function ChatPage({
       setToastMessage("Failed to process documents. Please try again.");
       setToastType("error");
       setIsToastVisible(true);
+    } finally {
+      setProcessProgress({ current: 0, total: 0 });
     }
   };
 
@@ -1710,8 +1736,10 @@ export default function ChatPage({
             onRemoveFile={handleRemoveEvaluationFile}
             onReplaceFile={handleReplaceEvaluationFile}
             isProcessing={isAutoProcessing}
-            isUploading={isUploading || isPaperConfigLoading}
+            isUploading={isUploading}
+            isPaperConfigLoading={isPaperConfigLoading}
             uploadProgress={uploadProgress}
+            processProgress={processProgress}
             hasMarks={marksConfirmed}
             rubricSet={rubricSet}
             syllabusSet={syllabusSet}
@@ -1733,6 +1761,7 @@ export default function ChatPage({
               onViewResults={() => {
                 setEvaluationStatus("results");
               }}
+              answerDocumentIdMap={answerDocumentIds}
             />
           ) : (
             <div style={{ padding: 40, textAlign: "center" }}>

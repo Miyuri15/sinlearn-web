@@ -760,6 +760,75 @@ export type ProcessDocumentsRequest = {
   answer_resource_ids: string[];
 };
 
+export async function processDocumentsStreamWithProgress(params: {
+  body: ProcessDocumentsRequest;
+  onEvent: (evt: StreamProgressEvent) => void;
+  signal?: AbortSignal;
+}): Promise<any> {
+  const { body, onEvent, signal } = params;
+  const token = getAccessToken();
+
+  const res = await fetch(`${API_BASE_URL}/api/v1/evaluation/process-documents/stream`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || "Failed to process documents");
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) {
+    const text = await res.text();
+    onEvent({ raw: text, step: guessStepFromLine(text) });
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      const payload = trimmed.startsWith("data:")
+        ? trimmed.slice("data:".length).trim()
+        : trimmed;
+
+      onEvent({ raw: payload, step: guessStepFromLine(payload) });
+    }
+  }
+
+  const finalText = buffer.trim();
+  if (finalText) {
+    onEvent({ raw: finalText, step: guessStepFromLine(finalText) });
+    try {
+      return JSON.parse(finalText);
+    } catch {
+      return finalText;
+    }
+  }
+
+  return null;
+}
+
 export async function processDocumentsStream(
   body: ProcessDocumentsRequest
 ): Promise<string> {
@@ -779,7 +848,6 @@ export async function processDocumentsStream(
     throw new Error(text || "Failed to process documents");
   }
 
-  // Web client treats it as plain text (mobile parity).
   return await res.text();
 }
 
