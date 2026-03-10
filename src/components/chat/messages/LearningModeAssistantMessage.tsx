@@ -1,3 +1,4 @@
+// components/LearningModeAssistantMessage.tsx
 import type { ChatMessage } from "@/lib/models/chat";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TruncatedMessage } from "./TruncatedMessage";
@@ -29,12 +30,18 @@ export function LearningModeAssistantMessage({
   const parentMessageId = isTextMessage(message)
     ? (message.parent_msg_id ?? message.id)
     : undefined;
+
+  // Check if this is an answerable question that should show safety/XAI
   const safetySummary = m.safety_summary;
   const xaiExplanation = m.xai_explanation;
+
+  // Only show explain controls if we have safety data AND this is an answerable question
+  // If safetySummary is null or undefined, it's an unanswerable question
   const showExplainControls = safetySummary != null;
+
   const hasInfoBarContent =
     Boolean(m.grade_level) ||
-    Boolean(safetySummary) ||
+    safetySummary != null ||
     Boolean(onRegenerate) ||
     showExplainControls;
 
@@ -155,8 +162,8 @@ export function LearningModeAssistantMessage({
             {/* Grade Level Pill */}
             {m.grade_level && <GradeLabel gradeLevel={m.grade_level} />}
 
-            {/* Safety Summary Pill */}
-            {safetySummary && <SafetySummary summary={safetySummary} />}
+            {/* Safety Summary Pill - only show for answerable questions */}
+            {safetySummary != null && <SafetySummary summary={safetySummary} />}
           </div>
 
           {/* Right side: Explain button + Regenerate */}
@@ -170,6 +177,7 @@ export function LearningModeAssistantMessage({
               />
             )}
 
+            {/* Explain button - only show for answerable questions */}
             {showExplainControls && (
               <button
                 onClick={handleToggleXAI}
@@ -205,7 +213,7 @@ export function LearningModeAssistantMessage({
         </div>
       )}
 
-      {/* XAI Content - Directly expands below without extra header */}
+      {/* XAI Content - only show for answerable questions */}
       {showExplainControls && showXAI && (
         <div className="mt-4 animate-in slide-in-from-top-2 duration-200">
           <XAIPanel
@@ -216,7 +224,7 @@ export function LearningModeAssistantMessage({
         </div>
       )}
 
-      {/* Subtle hint for first-time users */}
+      {/* Subtle hint for first-time users - only for answerable questions */}
       {showExplainControls && !showXAI && (
         <p className="mt-2 text-xs text-slate-400 dark:text-slate-500 text-right">
           Click "Explain This" to see how I got this answer
