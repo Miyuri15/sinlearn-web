@@ -56,7 +56,7 @@ export type TextMessage = {
   grade_level?: string;
   parent_msg_id?: string;
   safety_summary?: SafetySummary;
-  // 👆 existing fields remain exactly as they were
+  has_processing_log?: boolean;
 };
 
 // Add this new type - extending TextMessage for assistant messages with XAI

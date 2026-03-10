@@ -1,7 +1,14 @@
 // components/chat/ProcessingLogsModal.tsx
 "use client";
 
-import { X, CheckCircle2, Clock, AlertCircle, FileText } from "lucide-react";
+import {
+  X,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  FileText,
+  Timer,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatDistanceToNow } from "date-fns";
 
@@ -38,6 +45,48 @@ export default function ProcessingLogsModal({
   const sortedLogs = [...logs].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
   );
+
+  // Get the first and last log timestamps
+  const firstLogTimestamp =
+    sortedLogs.length > 0 ? new Date(sortedLogs[0].timestamp).getTime() : null;
+
+  const lastLogTimestamp =
+    sortedLogs.length > 0
+      ? new Date(sortedLogs[sortedLogs.length - 1].timestamp).getTime()
+      : null;
+
+  // Calculate total processing time
+  const formatTotalTime = () => {
+    if (!firstLogTimestamp || !lastLogTimestamp) return "0s";
+
+    const totalSeconds = Math.round(
+      (lastLogTimestamp - firstLogTimestamp) / 1000,
+    );
+
+    if (totalSeconds < 60) return `${totalSeconds}s`;
+
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (seconds === 0) return `${minutes}m`;
+    return `${minutes}m ${seconds}s`;
+  };
+
+  const formatTimeDifference = (timestamp: string) => {
+    if (!firstLogTimestamp) return "0s";
+
+    const currentTime = new Date(timestamp).getTime();
+    const diffInSeconds = Math.round((currentTime - firstLogTimestamp) / 1000);
+
+    if (diffInSeconds === 0) return "0s";
+    if (diffInSeconds < 60) return `+${diffInSeconds}s`;
+
+    const minutes = Math.floor(diffInSeconds / 60);
+    const seconds = diffInSeconds % 60;
+
+    if (seconds === 0) return `+${minutes}m`;
+    return `+${minutes}m ${seconds}s`;
+  };
 
   const getStageIcon = (stage: string) => {
     if (stage.includes("Completed") || stage === "Processing Completed") {
@@ -117,9 +166,24 @@ export default function ProcessingLogsModal({
             </button>
           </div>
 
+          {/* Total Time Banner */}
+          {sortedLogs.length > 0 && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 px-5 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+                  <Timer className="h-4 w-4" />
+                  <span className="font-medium">Total Processing Time:</span>
+                </div>
+                <span className="text-sm font-mono font-semibold text-blue-700 dark:text-blue-300">
+                  {formatTotalTime()}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto px-5 py-4">
             <div className="space-y-3">
-              {sortedLogs.map((log) => (
+              {sortedLogs.map((log, index) => (
                 <div
                   key={log.id}
                   className="relative flex gap-3 pb-3 border-l-2 border-gray-200 dark:border-[#2a2a2a] pl-4 last:border-l-2 last:pb-0"
@@ -133,16 +197,39 @@ export default function ProcessingLogsModal({
                         {log.stage}
                       </span>
                       <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                        <span>
+                        <span className="font-mono min-w-[70px] text-right">
+                          {formatTimeDifference(log.timestamp)}
+                        </span>
+                        <span className="min-w-[40px] text-right">
                           {log.progress % 1 === 0
                             ? log.progress
                             : log.progress.toFixed(2)}
                           %
                         </span>
-                        <span>{formatTimestamp(log.timestamp)}</span>
+                        <span className="hidden sm:inline-block min-w-[100px] text-right">
+                          {formatTimestamp(log.timestamp)}
+                        </span>
                       </div>
                     </div>
                     {log.details && formatDetails(log.details)}
+
+                    {/* Show page progress in a more visual way if available */}
+                    {log.details?.current_page && log.details?.total_pages && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full"
+                            style={{
+                              width: `${(log.details.current_page / log.details.total_pages) * 100}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Page {log.details.current_page} of{" "}
+                          {log.details.total_pages}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
