@@ -107,6 +107,7 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
 
   const [uploadedSyllabi, setUploadedSyllabi] = useState<SyllabusItemType[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [hydrationDone, setHydrationDone] = useState(false);
 
   const normalizeResourceType = (value: unknown): string => {
@@ -257,11 +258,26 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
 
         try {
           setIsUploading(true);
+          setUploadProgress(15);
+          
+          const progressInterval = setInterval(() => {
+            setUploadProgress(prev => {
+              if (prev >= 85) {
+                clearInterval(progressInterval);
+                return prev;
+              }
+              return prev + 5;
+            });
+          }, 400);
+
           const uploads = await uploadEvaluationResources({
             chatSessionId: targetSessionId,
             resourceType: "syllabus",
             files: [file],
           });
+
+          clearInterval(progressInterval);
+          setUploadProgress(100);
 
           const newResourceId = uploads[0]?.resource_id;
           if (!newResourceId) {
@@ -427,8 +443,17 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
               </span>
 
               {isUploading && (
-                <div className="mt-3 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-                  <div className="h-full w-1/2 bg-blue-600/70 animate-pulse" />
+                <div className="mt-4 space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-blue-600 font-medium">Uploading document...</span>
+                    <span className="text-blue-600 font-bold">{uploadProgress}%</span>
+                  </div>
+                  <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-600 transition-all duration-300 ease-out" 
+                      style={{ width: `${uploadProgress}%` }} 
+                    />
+                  </div>
                 </div>
               )}
             </div>

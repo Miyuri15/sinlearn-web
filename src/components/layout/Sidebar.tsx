@@ -54,10 +54,17 @@ export default function Sidebar({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [loadingChatId, setLoadingChatId] = useState<string | null>(null);
   const router = useRouter();
-  const { t } = useTranslation("common");
+  const { t: tCommon } = useTranslation("common");
+  const { t: tChat } = useTranslation("chat");
+
+  const translateTitle = (title: string) => {
+    if (title === "New Evaluation Chat") return tChat("new_evaluation_chat");
+    if (title === "Untitled Chat") return tChat("untitled_chat");
+    return title;
+  };
 
   const filteredChats = chats.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase()),
+    translateTitle(c.title).toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleChatClick = (chat: ChatItem) => {
@@ -128,7 +135,7 @@ export default function Sidebar({
 
             {isOpen && (
               <span className="font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap opacity-100 transition-opacity delay-100">
-                {t("chat_history")}
+                {tCommon("chat_history")}
               </span>
             )}
           </div>
@@ -152,7 +159,7 @@ export default function Sidebar({
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
               <input
                 type="text"
-                placeholder={t("chat_history") + "..."}
+                placeholder={tCommon("chat_history") + "..."}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-gray-400"
@@ -164,7 +171,7 @@ export default function Sidebar({
           <div className="space-y-2">
             <ActionButton
               icon={<BookOpen className="w-4 h-4" />}
-              label={t("new_learning_chat")}
+              label={tCommon("new_learning_chat")}
               isOpen={isOpen}
               chatType="learning"
               onNewChat={onNewLearningChat}
@@ -172,7 +179,7 @@ export default function Sidebar({
             />
             <ActionButton
               icon={<ClipboardCheck className="w-4 h-4" />}
-              label={t("new_evaluation_chat")}
+              label={tCommon("new_evaluation_chat")}
               isOpen={isOpen}
               chatType="evaluation"
               onNewChat={onNewEvaluationChat}
@@ -232,7 +239,7 @@ export default function Sidebar({
                               : "text-gray-700 dark:text-gray-200"
                           }`}
                         >
-                          {chat.title}
+                          {translateTitle(chat.title)}
                         </span>
                         <span className="text-[10px] text-gray-400 dark:text-gray-500">
                           {chat.time}
@@ -251,7 +258,7 @@ export default function Sidebar({
                             onEditChat?.(chat);
                           }}
                           className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
-                          title={t("rename_chat")}
+                          title={tCommon("rename_chat")}
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -263,7 +270,7 @@ export default function Sidebar({
                             onDeleteChat?.(chat);
                           }}
                           className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
-                          title={t("delete_chat")}
+                          title={tCommon("delete_chat")}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -284,13 +291,13 @@ export default function Sidebar({
           <div className="space-y-1">
             <FooterButton
               icon={<Settings className="w-4 h-4" />}
-              label={t("settings_text")}
+              label={tCommon("settings_text")}
               isOpen={isOpen}
               onClick={() => router.push("/settings")}
             />
             <FooterButton
               icon={<LogOut className="w-4 h-4" />}
-              label={t("logout")}
+              label={tCommon("logout")}
               isOpen={isOpen}
               onClick={() => setIsLogoutModalOpen(true)}
               isDestructive

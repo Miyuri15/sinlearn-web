@@ -13,6 +13,7 @@ interface EvaluationProgressScreenProps {
   hasRubric: boolean;
   onViewResults: () => void;
   onStartNewAnswerEvaluation: () => void | Promise<void>;
+  answerDocumentIdMap?: Record<string, string>;
 }
 
 type FileStatus = "pending" | "processing" | "completed" | "failed";
@@ -46,6 +47,7 @@ export default function EvaluationProgressScreen({
   hasRubric,
   onViewResults,
   onStartNewAnswerEvaluation,
+  answerDocumentIdMap = {},
 }: EvaluationProgressScreenProps) {
   const { t } = useTranslation("chat");
   const [filesProgress, setFilesProgress] = useState<FileProgress[]>([]);
@@ -61,18 +63,20 @@ export default function EvaluationProgressScreen({
     // Fetch answer documents and start evaluation streams
     const initializeAndStartEvaluation = async () => {
       try {
-        // Fetch answer documents for this evaluation session
-        const answerDocuments = await getAnswerDocuments(evaluationSessionId);
-
-        if (!isMounted) return;
-
         // Create a map from resource_id to answer_document_id
-        const resourceToAnswerMap = new Map<string, string>();
-        answerDocuments.forEach((doc: any) => {
-          if (doc.resource_id && doc.id) {
-            resourceToAnswerMap.set(doc.resource_id, doc.id);
-          }
-        });
+        const resourceToAnswerMap = new Map<string, string>(Object.entries(answerDocumentIdMap));
+        
+        // If we don't have all IDs yet, fetch them from the server as fallback
+        const needsFetch = answerResourceIds.some(rid => !resourceToAnswerMap.has(rid));
+        
+        if (needsFetch) {
+          const answerDocuments = await getAnswerDocuments(evaluationSessionId);
+          answerDocuments.forEach((doc: any) => {
+            if (doc.resource_id && doc.id) {
+              resourceToAnswerMap.set(doc.resource_id, doc.id);
+            }
+          });
+        }
 
         // Initialize progress for each answer using resource IDs for display
         const initial = answerResourceIds.map((resourceId, idx) => ({

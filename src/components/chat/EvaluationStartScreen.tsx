@@ -33,11 +33,14 @@ interface EvaluationStartScreenProps {
   onViewHistory: () => void;
   isProcessing?: boolean;
   isUploading?: boolean;
+  isPaperConfigLoading?: boolean;
   hasMarks?: boolean;
   rubricSet?: boolean;
   syllabusSet?: boolean;
   questionsSet?: boolean;
   processingStatus?: "idle" | "processing" | "completed" | "needs_reprocessing";
+  uploadProgress?: { current: number; total: number };
+  processProgress?: { current: number; total: number };
 }
 
 export default function EvaluationStartScreen({
@@ -55,11 +58,14 @@ export default function EvaluationStartScreen({
   onReplaceFile,
   isProcessing = false,
   isUploading = false,
+  isPaperConfigLoading = false,
   hasMarks = false,
   rubricSet = false,
   syllabusSet = false,
   questionsSet = false,
-  processingStatus = "idle"
+  processingStatus = "idle",
+  uploadProgress,
+  processProgress
 }: EvaluationStartScreenProps) {
   const { t } = useTranslation("chat");
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -104,7 +110,7 @@ export default function EvaluationStartScreen({
     { labelKey: "evaluation_start_step_questions", icon: HelpCircle, action: onOpenQuestions, status: questionsSet ? "completed" : "pending", disabled: isUploading },
     { labelKey: "evaluation_start_step_answers", icon: FileInput, action: triggerFileUpload, status: uploadedFiles.length > 0 ? "completed" : "pending", disabled: isUploading },
     { labelKey: "evaluation_start_step_process", icon: Settings, action: isReadyToProcess ? onProcess : () => {}, status: isProcessingCompleted ? "completed" : "pending", disabled: !isReadyToProcess || isUploading },
-    { labelKey: "evaluation_start_step_marks", icon: Edit3, action: isProcessingCompleted ? onOpenMarks : () => {}, status: hasMarks ? "completed" : "pending", disabled: !isProcessingCompleted || isUploading },
+    { labelKey: "evaluation_start_step_marks", icon: Edit3, action: isProcessingCompleted ? onOpenMarks : () => {}, status: isPaperConfigLoading ? "loading" : (hasMarks ? "completed" : "pending"), disabled: !isProcessingCompleted || isUploading || isPaperConfigLoading },
     { labelKey: "evaluation_start_step_send", icon: Send, action: onStartEvaluation, status: "pending", disabled: !isProcessingCompleted || !hasMarks || isUploading },
   ];
 
@@ -129,21 +135,84 @@ export default function EvaluationStartScreen({
         {t("evaluation_start_title")}
       </h1>
 
-      {/* Uploading Banner */}
-      {isUploading && (
+      {/* Uploading Banner - Only show for real answer sheet uploads, not background config loading */}
+      {isUploading && !isPaperConfigLoading && (
         <div
-          className="w-full bg-gray-50 dark:bg-[#111111]/50 border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-4 flex items-center gap-3"
+          className="w-full bg-gray-100 dark:bg-[#111111] border border-blue-200 dark:border-blue-900/30 rounded-xl p-5 flex items-center gap-4 shadow-sm animate-in fade-in slide-in-from-top-4"
           aria-live="polite"
           aria-busy="true"
         >
-          <div className="p-2 bg-gray-100 dark:bg-[#1a1a1a] rounded-full">
-            <Upload size={16} className="animate-spin" />
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-full text-blue-600">
+            <Upload size={20} className="animate-bounce" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{t("evaluation_start_uploading")}</p>
-            <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-              <div className="h-full w-1/2 bg-blue-600/70 animate-pulse" />
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                {uploadProgress && uploadProgress.total > 0
+                  ? `Uploading ${uploadProgress.current} of ${uploadProgress.total} documents...`
+                  : t("evaluation_start_uploading")}
+              </p>
+              {uploadProgress && uploadProgress.total > 0 && (
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                  {Math.round((uploadProgress.current / uploadProgress.total) * 100)}%
+                </span>
+              )}
             </div>
+            <div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-600 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(37,99,235,0.5)]" 
+                style={{ 
+                  width: uploadProgress && uploadProgress.total > 0 
+                    ? `${(uploadProgress.current / uploadProgress.total) * 100}%` 
+                    : "30%" 
+                }} 
+              />
+            </div>
+            {uploadProgress && uploadProgress.total > 0 && (
+               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                 Please wait while we process your documents for evaluation.
+               </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Processing Banner */}
+      {processingStatus === "processing" && (
+        <div
+          className="w-full bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/30 rounded-xl p-5 flex items-center gap-4 shadow-sm"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-full text-blue-600">
+            <Sparkles size={20} className="animate-pulse" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                {processProgress && processProgress.total > 0
+                  ? `Processing ${processProgress.current} of ${processProgress.total} documents...`
+                  : t("evaluation_start_processing")}
+              </p>
+              {processProgress && processProgress.total > 0 && (
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                  {Math.round((processProgress.current / processProgress.total) * 100)}%
+                </span>
+              )}
+            </div>
+            <div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-600 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(37,99,235,0.5)]" 
+                style={{ 
+                  width: processProgress && processProgress.total > 0 
+                    ? `${(processProgress.current / processProgress.total) * 100}%` 
+                    : "10%" 
+                }} 
+              />
+            </div>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Analyzing student answers and mapping to the rubric. This may take a few moments.
+            </p>
           </div>
         </div>
       )}

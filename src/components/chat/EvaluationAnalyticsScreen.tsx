@@ -49,36 +49,6 @@ export default function EvaluationAnalyticsScreen({
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const skillLabel = (name: string) => {
-    const key = name.toLowerCase();
-    const map: Record<string, string> = {
-      knowledge: "evaluation_analytics_skill_knowledge",
-      application: "evaluation_analytics_skill_application",
-      analysis: "evaluation_analytics_skill_analysis",
-      evaluation: "evaluation_analytics_skill_evaluation",
-    };
-    return t(map[key] ?? name);
-  };
-
-  const topicLabel = (topic: string) => {
-    const key = topic.toLowerCase();
-    const map: Record<string, string> = {
-      definitions: "evaluation_analytics_topic_definitions",
-      calculation: "evaluation_analytics_topic_calculation",
-      "essay/analysis": "evaluation_analytics_topic_essay_analysis",
-    };
-    return t(map[key] ?? topic);
-  };
-
-  const difficultyLabel = (difficulty: string) => {
-    const key = difficulty.toLowerCase();
-    const map: Record<string, string> = {
-      easy: "evaluation_analytics_difficulty_easy",
-      medium: "evaluation_analytics_difficulty_medium",
-      hard: "evaluation_analytics_difficulty_hard",
-    };
-    return t(map[key] ?? difficulty);
-  };
 
   useEffect(() => {
     if (!evaluationSessionId || initialResults) return;
@@ -138,8 +108,6 @@ export default function EvaluationAnalyticsScreen({
         lowestScore: 0,
         passRate: 0,
         gradeDistribution: [],
-        cognitiveSkills: [],
-        questionAnalysis: []
       };
     }
 
@@ -172,51 +140,6 @@ export default function EvaluationAnalyticsScreen({
       { grade: "F", count: gradeCounts["F"] || 0, color: "bg-red-500" },
     ].filter(g => g.count > 0 || ["A", "B", "C", "S", "F"].includes(g.grade));
 
-    // Question Performance Analysis from Detailed Results
-    const questionPerformance: any[] = [];
-    if (detailedResults.length > 0) {
-      const qMap = new Map<string, { totalScore: number, maxScore: number, count: number }>();
-
-      detailedResults.forEach(res => {
-        if (res.question_feedback && Array.isArray(res.question_feedback)) {
-          res.question_feedback.forEach((q: any) => {
-            const label = q.question_label || "Unknown";
-            const existing = qMap.get(label) || { totalScore: 0, maxScore: q.max_score || 0, count: 0 };
-            qMap.set(label, {
-              totalScore: existing.totalScore + (q.score || 0),
-              maxScore: Math.max(existing.maxScore, q.max_score || 0),
-              count: existing.count + 1
-            });
-          });
-        }
-      });
-
-      Array.from(qMap.entries()).forEach(([label, data], idx) => {
-        const avg = data.totalScore / data.count;
-        const percentage = (avg / data.maxScore) * 100;
-        let difficulty = "Medium";
-        if (percentage > 80) difficulty = "Easy";
-        else if (percentage < 40) difficulty = "Hard";
-
-        questionPerformance.push({
-          id: idx + 1,
-          label: label,
-          topic: label, // Use label as topic if topic not available
-          avgScore: Math.round(avg * 10) / 10,
-          maxScore: data.maxScore,
-          difficulty: difficulty
-        });
-      });
-    }
-
-    // Cognitive Skills mapping (best effort estimate from average score)
-    const cognitiveSkills = [
-      { name: "Knowledge", score: Math.min(100, Math.round(averageScore * 1.05)), status: averageScore > 70 ? "strong" : "average" },
-      { name: "Application", score: averageScore, status: averageScore > 60 ? "average" : "weak" },
-      { name: "Analysis", score: Math.max(0, Math.round(averageScore * 0.9)), status: averageScore > 65 ? "average" : "weak" },
-      { name: "Evaluation", score: Math.max(0, Math.round(averageScore * 0.8)), status: averageScore > 75 ? "strong" : "weak" },
-    ];
-
     return {
       totalStudents,
       averageScore,
@@ -224,12 +147,6 @@ export default function EvaluationAnalyticsScreen({
       lowestScore,
       passRate,
       gradeDistribution,
-      cognitiveSkills,
-      questionAnalysis: questionPerformance.length > 0 ? questionPerformance : [
-        { id: 1, topic: "Definitions", avgScore: Math.round(averageScore * 0.8) / 10, maxScore: 10, difficulty: "Easy" },
-        { id: 2, topic: "Calculation", avgScore: Math.round(averageScore * 0.7) / 10 * 2, maxScore: 20, difficulty: "Medium" },
-        { id: 3, topic: "Essay/Analysis", avgScore: Math.round(averageScore * 0.6) / 10 * 2, maxScore: 20, difficulty: "Hard" },
-      ]
     };
   }, [results, answerSheets, detailedResults]);
 
@@ -331,9 +248,9 @@ export default function EvaluationAnalyticsScreen({
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Grade Distribution */}
-        <div className="bg-white dark:bg-[#111111] p-6 rounded-xl border border-gray-200 dark:border-[#2a2a2a] lg:col-span-2">
+        <div className="bg-white dark:bg-[#111111] p-6 rounded-xl border border-gray-200 dark:border-[#2a2a2a]">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
             <PieChart className="w-5 h-5 text-gray-500" />
             {t("evaluation_analytics_grade_distribution")}
@@ -359,92 +276,8 @@ export default function EvaluationAnalyticsScreen({
             ))}
           </div>
         </div>
-
-        {/* Cognitive Skills Analysis */}
-        <div className="bg-white dark:bg-[#111111] p-6 rounded-xl border border-gray-200 dark:border-[#2a2a2a]">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-gray-500" />
-            {t("evaluation_analytics_cognitive_skills")}
-          </h3>
-          <div className="space-y-4">
-            {analytics.cognitiveSkills.map((skill) => (
-              <div key={skill.name} className="p-3 rounded-lg bg-gray-50 dark:bg-[#1a1a1a] border border-gray-100 dark:border-[#333]">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{skillLabel(skill.name)}</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${skill.status === 'strong' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                    skill.status === 'average' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
-                    {skill.score}%
-                  </span>
-                </div>
-                <div className="h-1.5 w-full bg-gray-200 dark:bg-[#333] rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${skill.status === 'strong' ? 'bg-green-500' :
-                      skill.status === 'average' ? 'bg-yellow-500' :
-                        'bg-red-500'
-                      }`}
-                    style={{ width: `${skill.score}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
-      {/* Question Analysis Table */}
-      <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-[#2a2a2a] overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-[#2a2a2a]">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-gray-500" />
-            {t("evaluation_analytics_question_performance")}
-          </h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 dark:bg-[#1a1a1a] text-gray-500 dark:text-gray-400">
-              <tr>
-                <th className="px-6 py-4 font-medium">{t("evaluation_analytics_table_question")}</th>
-                <th className="px-6 py-4 font-medium">{t("evaluation_analytics_table_topic")}</th>
-                <th className="px-6 py-4 font-medium">{t("evaluation_analytics_table_difficulty")}</th>
-                <th className="px-6 py-4 font-medium">{t("evaluation_analytics_table_avg_score")}</th>
-                <th className="px-6 py-4 font-medium">{t("evaluation_analytics_table_performance")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-[#2a2a2a]">
-              {analytics.questionAnalysis.map((q) => (
-                <tr key={q.id} className="hover:bg-gray-50 dark:hover:bg-[#1a1a1a]/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">Q{q.id}</td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{topicLabel(q.topic)}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${q.difficulty === 'Easy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                      q.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                        'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                      }`}>
-                      {difficultyLabel(q.difficulty)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">
-                    {q.avgScore} <span className="text-gray-400 text-xs font-normal">/ {q.maxScore}</span>
-                  </td>
-                  <td className="px-6 py-4 w-48">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 flex-1 bg-gray-100 dark:bg-[#333] rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-indigo-500 rounded-full"
-                          style={{ width: `${(q.avgScore / q.maxScore) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-500">{Math.round((q.avgScore / q.maxScore) * 100)}%</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       {/* Download Modal */}
       {isDownloadModalOpen && (
