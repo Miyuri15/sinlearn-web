@@ -47,6 +47,7 @@ import {
   generateMessageResponse,
   createChatSession,
   postVoiceTranscribe,
+  postVoiceQAFromText,
 } from "@/lib/api/chat";
 import {
   processMessageAttachments,
@@ -676,12 +677,12 @@ export default function ChatPage({
             : paperConfig.length > 0
               ? { paperConfig }
               : {
-                  totalMarks,
-                  mainQuestions,
-                  requiredQuestions,
-                  subQuestions,
-                  subQuestionMarks,
-                };
+                totalMarks,
+                mainQuestions,
+                requiredQuestions,
+                subQuestions,
+                subQuestionMarks,
+              };
 
           // If we are starting evaluation, add the files to the message
           const fileMessages = selectedFiles.map((file) => ({
@@ -736,12 +737,12 @@ export default function ChatPage({
             : paperConfig.length > 0
               ? { paperConfig }
               : {
-                  totalMarks,
-                  mainQuestions,
-                  requiredQuestions,
-                  subQuestions,
-                  subQuestionMarks,
-                };
+                totalMarks,
+                mainQuestions,
+                requiredQuestions,
+                subQuestions,
+                subQuestionMarks,
+              };
 
           const resourceAttachments = uploadedResources.map((item, index) => ({
             resource_id: item.resource_id,
@@ -807,7 +808,7 @@ export default function ChatPage({
             console.error("Failed to process attachments", err);
             setToastMessage(
               (err instanceof Error ? err.message : null) ||
-                "Failed to process attachments.",
+              "Failed to process attachments.",
             );
             setToastType("error");
             setIsToastVisible(true);
@@ -881,7 +882,7 @@ export default function ChatPage({
     void run();
   };
 
-const handleVoiceSend = async (audioBlob: Blob) => {
+  const handleVoiceSend = async (audioBlob: Blob) => {
     // Voice QA is only supported in learning mode.
     if (mode !== "learning") return;
 
@@ -913,41 +914,41 @@ const handleVoiceSend = async (audioBlob: Blob) => {
 
       // Step 2: Show a temporary "Processing voice..." message immediately
       setIsMessageGenerating(true);
-      
+
       // Store the index of this message for later updates
       const messageIndex = learningMessages.length; // Current length before adding
-      
+
       // Create a temporary user message with loading indicator
       const tempUserMessage = {
         role: "user",
         modality: "voice",
-        content: "🔄 processing...", // This will be replaced
+        content: "🔄 Processing voice...", // Will be replaced with transcription
         resource_ids: uploadedResources.map((r) => r.resource_id),
       } as ChatMessage;
-      
+
       // Add to messages
       setLearningMessages((prev) => [...prev, tempUserMessage]);
 
-      // Step 3: Start transcription
+      // Step 3: Transcribe the audio (ONCE)
       let transcribedText = "";
       try {
         const transcriptionResult = await postVoiceTranscribe(audioBlob);
         transcribedText = transcriptionResult.standard;
-        
-        // Update the message with transcribed text (THIS IS THE FINAL USER QUESTION)
+
+        // Update the message with transcribed text - THIS IS THE FINAL USER QUESTION
         setLearningMessages((prev) => {
           const newMessages = [...prev];
           newMessages[messageIndex] = {
             role: "user",
             modality: "voice",
-            content: transcribedText, // Use transcription result as final question
+            content: transcribedText,
             resource_ids: uploadedResources.map((r) => r.resource_id),
           } as ChatMessage;
           return newMessages;
         });
       } catch (transcribeError) {
         console.error("Transcription failed", transcribeError);
-        
+
         // Update to show error
         setLearningMessages((prev) => {
           const newMessages = [...prev];
@@ -959,20 +960,31 @@ const handleVoiceSend = async (audioBlob: Blob) => {
           } as ChatMessage;
           return newMessages;
         });
-        
+
         setToastMessage("Failed to transcribe your voice");
         setToastType("error");
         setIsToastVisible(true);
         return; // Stop here if transcription fails
       }
 
-      // Step 4: Now call QA endpoint (don't update the user message again)
+      // Step 4: Add a temporary assistant "thinking" message
+      const thinkingIndex = learningMessages.length; // Current length after user message
+
+      setLearningMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          modality: "text",
+          content: "🤔 Thinking...",
+        } as ChatMessage,
+      ]);
+
+      // Step 5: Call QA endpoint with the TRANSCRIBED TEXT (not audio)
       try {
-        const data = await postVoiceQA({
-          audio: audioBlob,
+        const data = await postVoiceQAFromText({
+          text: transcribedText, // Use the transcribed text instead of audio
           session_id: activeSessionId ?? "undefined",
           resource_ids: uploadedResources.map((r) => r.resource_id),
-          top_k: 3,
         });
 
         // Sync session if voice-first
@@ -981,35 +993,34 @@ const handleVoiceSend = async (audioBlob: Blob) => {
           router.replace(`/chat/${data.session_id}`);
         }
 
-        // Step 5: ONLY add the assistant message - DON'T update the user message again
+        // Step 6: Replace the thinking message with the actual answer
         setLearningMessages((prev) => {
           const newMessages = [...prev];
-          
-          // Add assistant message (user message at messageIndex remains unchanged with transcribed text)
+          // Remove the thinking message and add the real assistant message
+          newMessages.pop(); // Remove thinking message
           newMessages.push({
             role: "assistant",
             modality: "text",
             content: data.answer,
             safety_summary: data.safety_summary,
           } as ChatMessage);
-          
           return newMessages;
         });
       } catch (qaError) {
         console.error("QA processing failed", qaError);
-        
-        // Update the message to show QA failed, but KEEP the transcribed text
+
+        // Replace thinking message with error, but KEEP the transcribed text
         setLearningMessages((prev) => {
           const newMessages = [...prev];
-          newMessages[messageIndex] = {
-            role: "user",
-            modality: "voice",
-            content: `${transcribedText} (⚠️ Failed to get answer)`,
-            resource_ids: uploadedResources.map((r) => r.resource_id),
-          } as ChatMessage;
+          newMessages.pop(); // Remove thinking message
+          newMessages.push({
+            role: "assistant",
+            modality: "text",
+            content: "❌ Failed to generate answer. Please try again.",
+          } as ChatMessage);
           return newMessages;
         });
-        
+
         setToastMessage("Failed to get answer for your question");
         setToastType("error");
         setIsToastVisible(true);
@@ -1025,6 +1036,7 @@ const handleVoiceSend = async (audioBlob: Blob) => {
       clearPendingFiles();
     }
   };
+
 
   const handleStartEvaluationProcess = async () => {
     if (mode !== "evaluation") return;
@@ -1085,9 +1097,9 @@ const handleVoiceSend = async (audioBlob: Blob) => {
       const avgScore =
         results.length > 0
           ? Math.round(
-              results.reduce((acc, curr) => acc + curr.overallScore, 0) /
-                results.length,
-            )
+            results.reduce((acc, curr) => acc + curr.overallScore, 0) /
+            results.length,
+          )
           : 0;
 
       const newSession: EvaluationSession = {
@@ -1706,8 +1718,8 @@ const handleVoiceSend = async (audioBlob: Blob) => {
       return (
         <div className="flex-1 overflow-y-auto p-6 space-y-4 w-full max-w-[320px] min-[350]:max-w-[380] min-[425]:max-w-[425] sm:max-w-full bg-gray-100 dark:bg-[#0C0C0C] custom-scrollbar">
           {learningMessages.length === 0 &&
-          !isAutoProcessing &&
-          !isMessageGenerating ? (
+            !isAutoProcessing &&
+            !isMessageGenerating ? (
             <EmptyState
               title={t("start_conversation")}
               subtitle={t("start_learning_conversation_sub")}
@@ -2054,9 +2066,8 @@ const handleVoiceSend = async (audioBlob: Blob) => {
 
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${
-          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
-        }`}
+        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+          }`}
       >
         {/* HEADER COMPONENT */}
         <Header
@@ -2215,9 +2226,8 @@ const handleVoiceSend = async (audioBlob: Blob) => {
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <SyllabusPanelpage
           onClose={toggleSyllabus}
@@ -2238,9 +2248,8 @@ const handleVoiceSend = async (audioBlob: Blob) => {
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <QuestionsPanelpage
           onClose={toggleQuestions}
