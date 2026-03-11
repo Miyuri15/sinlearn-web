@@ -69,7 +69,6 @@ export function useProcessingProgressWS(enabled = true): {
       if (!mountedRef.current) return;
       setConnectionStatus("connected");
       reconnectDelayRef.current = 1000; // reset back-off on successful connect
-      console.log("[useProcessingProgressWS] WebSocket connected:", url);
     };
 
     ws.onmessage = (event: MessageEvent) => {

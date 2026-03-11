@@ -101,11 +101,18 @@ const SyllabusItem = ({
   </div>
 );
 
-const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequireSession }: SyllabusPanelProps) => {
+const SyllabusPanelpage = ({
+  onClose,
+  onSyllabusChange,
+  chatSessionId,
+  onRequireSession,
+}: SyllabusPanelProps) => {
   const { t } = useTranslation("syllabus");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [uploadedSyllabi, setUploadedSyllabi] = useState<SyllabusItemType[]>([]);
+  const [uploadedSyllabi, setUploadedSyllabi] = useState<SyllabusItemType[]>(
+    [],
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [hydrationDone, setHydrationDone] = useState(false);
@@ -133,7 +140,9 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
 
     const run = async () => {
       try {
-        const resources = (await listChatSessionResources(chatSessionId)) as SessionResourceSummary[];
+        const resources = (await listChatSessionResources(
+          chatSessionId,
+        )) as SessionResourceSummary[];
         const syllabi = (resources || []).filter((r) => {
           const type = normalizeResourceType(r.resource_type || r.type);
           if (type) return type === "syllabus" || type === "syllabi";
@@ -144,7 +153,8 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
         if (syllabi.length === 0) return;
 
         const hydrated: SyllabusItemType[] = syllabi.map((r, idx: number) => {
-          const filename: string = getResourceFilename(r) || `Syllabus ${idx + 1}`;
+          const filename: string =
+            getResourceFilename(r) || `Syllabus ${idx + 1}`;
           const ext = filename.split(".").pop()?.toLowerCase();
           return {
             id: idx + 1,
@@ -183,7 +193,7 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
   });
   const [viewingPDF, setViewingPDF] = useState<{
     fileName: string;
-    fileUrl: string;
+    resourceId: string;
   } | null>(null);
 
   const showToast = (message: string, type: "success" | "error") => {
@@ -210,7 +220,8 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
 
       // Server error: bubble up backend details (helps diagnose 500s)
       if (error.status >= 500) {
-        const suffix = detailsText && detailsText !== msg ? ` Details: ${detailsText}` : "";
+        const suffix =
+          detailsText && detailsText !== msg ? ` Details: ${detailsText}` : "";
         return basePrefix + `Server error (${error.status}) from API.` + suffix;
       }
 
@@ -236,7 +247,9 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
     return basePrefix + "Upload failed.";
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const files = event.target.files;
     if (files && files.length > 0) {
       const file = files[0];
@@ -259,9 +272,9 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
         try {
           setIsUploading(true);
           setUploadProgress(15);
-          
+
           const progressInterval = setInterval(() => {
-            setUploadProgress(prev => {
+            setUploadProgress((prev) => {
               if (prev >= 85) {
                 clearInterval(progressInterval);
                 return prev;
@@ -309,7 +322,10 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
           };
 
           setUploadedSyllabi((prev) => [...prev, newSyllabus]);
-          showToast(t("upload_success", { title: newSyllabus.title }), "success");
+          showToast(
+            t("upload_success", { title: newSyllabus.title }),
+            "success",
+          );
 
           // Auto-close panel after successful upload
           setTimeout(() => {
@@ -361,21 +377,26 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
 
   const handleViewSyllabus = (id: number) => {
     const syllabus = uploadedSyllabi.find((s) => s.id === id);
-    if (syllabus && syllabus.fileType === "pdf" && syllabus.fileUrl) {
-      setViewingPDF({
-        fileName: `${syllabus.title}.pdf`,
-        fileUrl: syllabus.fileUrl,
-      });
-    } else if (syllabus && syllabus.fileType !== "pdf") {
+    if (!syllabus) return;
+
+    console.log("Viewing syllabus", syllabus);
+
+    console.log("Resource ID for viewing:", syllabus.resourceId);
+
+    if (syllabus.fileType !== "pdf") {
       showToast(
         t("preview_not_available", {
           fileType: syllabus.fileType?.toUpperCase(),
         }),
-        "error"
+        "error",
       );
-    } else if (syllabus && syllabus.fileType === "pdf" && !syllabus.fileUrl) {
-      showToast(t("preview_not_available"), "error");
+      return;
     }
+
+    setViewingPDF({
+      fileName: `${syllabus.title}.pdf`,
+      resourceId: syllabus.resourceId || "",
+    });
   };
 
   return (
@@ -425,10 +446,11 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
                 if (isUploading) return;
                 fileInputRef.current?.click();
               }}
-              className={`border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center transition duration-150 ${isUploading
+              className={`border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center transition duration-150 ${
+                isUploading
                   ? "cursor-not-allowed opacity-70"
                   : "cursor-pointer hover:border-blue-500 dark:hover:border-blue-500"
-                }`}
+              }`}
             >
               <div className="flex justify-center mb-2">
                 <Image
@@ -445,13 +467,17 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
               {isUploading && (
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-blue-600 font-medium">Uploading document...</span>
-                    <span className="text-blue-600 font-bold">{uploadProgress}%</span>
+                    <span className="text-blue-600 font-medium">
+                      Uploading document...
+                    </span>
+                    <span className="text-blue-600 font-bold">
+                      {uploadProgress}%
+                    </span>
                   </div>
                   <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-blue-600 transition-all duration-300 ease-out" 
-                      style={{ width: `${uploadProgress}%` }} 
+                    <div
+                      className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
                 </div>
@@ -515,7 +541,7 @@ const SyllabusPanelpage = ({ onClose, onSyllabusChange, chatSessionId, onRequire
       {viewingPDF && (
         <PDFViewer
           fileName={viewingPDF.fileName}
-          fileUrl={viewingPDF.fileUrl}
+          resourceId={viewingPDF.resourceId}
           onClose={() => setViewingPDF(null)}
         />
       )}

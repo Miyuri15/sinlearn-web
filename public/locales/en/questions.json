@@ -13,5 +13,5 @@
   "delete_success": "Question \"{title}\" deleted.",
   "upload_success": "Question document \"{title}\" uploaded successfully.",
   "invalid_file_type": "Invalid file type. Only PDF, DOC, or DOCX are allowed.",
-  "preview_not_available": "Preview not available for {fileType} files. Please download to view."
+  "preview_not_available": "Preview is not available for {fileType} files. Please download to view."
 }
