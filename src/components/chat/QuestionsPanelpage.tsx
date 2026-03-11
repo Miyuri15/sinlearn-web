@@ -105,7 +105,12 @@ const QuestionItem = ({
   </div>
 );
 
-const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequireSession }: QuestionsPanelProps) => {
+const QuestionsPanelpage = ({
+  onClose,
+  onQuestionsChange,
+  chatSessionId,
+  onRequireSession,
+}: QuestionsPanelProps) => {
   const { t } = useTranslation("questions");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedQuestion, setUploadedQuestion] =
@@ -139,24 +144,38 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequi
       try {
         const details = await getChatSessionDetails(chatSessionId);
         const qp = details?.question_paper;
-        let filename: string | undefined = qp?.filename || qp?.file_name || qp?.name;
+        let filename: string | undefined =
+          qp?.filename || qp?.file_name || qp?.name;
 
         // Prefer session resources list for stable resource_id + filename.
         let resourceId: string | undefined = qp?.resource_id || qp?.id;
         try {
-          const resources = (await listChatSessionResources(chatSessionId)) as SessionResourceSummary[];
+          const resources = (await listChatSessionResources(
+            chatSessionId,
+          )) as SessionResourceSummary[];
           const fromList = (resources || []).find((r) => {
             const type = normalizeResourceType(r.resource_type || r.type);
             if (type) {
-              return type === "question_paper" || type === "questionpaper" || type === "question" || type === "questions";
+              return (
+                type === "question_paper" ||
+                type === "questionpaper" ||
+                type === "question" ||
+                type === "questions"
+              );
             }
             const f = getResourceFilename(r).toLowerCase();
-            return /\bmodel\b|\bquestion\b|\bqp\b|\bquestion[_\s-]?paper\b|\bmodel[_\s-]?paper\b/.test(f);
+            return /\bmodel\b|\bquestion\b|\bqp\b|\bquestion[_\s-]?paper\b|\bmodel[_\s-]?paper\b/.test(
+              f,
+            );
           });
           resourceId = resourceId || fromList?.resource_id || fromList?.id;
-          filename = filename || (fromList ? getResourceFilename(fromList) : undefined);
+          filename =
+            filename || (fromList ? getResourceFilename(fromList) : undefined);
         } catch (e) {
-          console.warn("Failed to list session resources for question paper", e);
+          console.warn(
+            "Failed to list session resources for question paper",
+            e,
+          );
         }
 
         if (!filename) return;
@@ -195,7 +214,7 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequi
   });
   const [viewingPDF, setViewingPDF] = useState<{
     fileName: string;
-    fileUrl: string;
+    resourceId: string;
   } | null>(null);
 
   const showToast = (message: string, type: "success" | "error") => {
@@ -221,7 +240,8 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequi
       })();
 
       if (error.status >= 500) {
-        const suffix = detailsText && detailsText !== msg ? ` Details: ${detailsText}` : "";
+        const suffix =
+          detailsText && detailsText !== msg ? ` Details: ${detailsText}` : "";
         return basePrefix + `Server error (${error.status}) from API.` + suffix;
       }
 
@@ -247,7 +267,9 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequi
     return basePrefix + "Upload failed.";
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const files = event.target.files;
     if (files && files.length > 0) {
       const file = files[0];
@@ -258,7 +280,7 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequi
       if (fileExt && validExtensions.includes(fileExt)) {
         let targetSessionId = chatSessionId;
         if (!targetSessionId && onRequireSession) {
-            targetSessionId = await onRequireSession();
+          targetSessionId = await onRequireSession();
         }
 
         let uploadedResourceId: string | undefined;
@@ -274,7 +296,7 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequi
           setUploadProgress(15);
 
           const progressInterval = setInterval(() => {
-            setUploadProgress(prev => {
+            setUploadProgress((prev) => {
               if (prev >= 85) {
                 clearInterval(progressInterval);
                 return prev;
@@ -343,7 +365,7 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequi
 
         setUploadedQuestion(newQuestion);
         showToast(t("upload_success", { title: newQuestion.title }), "success");
-        
+
         // Auto-close panel after successful upload
         setTimeout(() => {
           onClose();
@@ -381,27 +403,30 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequi
   };
 
   const handleViewQuestion = () => {
-    if (
-      uploadedQuestion &&
-      uploadedQuestion.fileType === "pdf" &&
-      uploadedQuestion.fileUrl
-    ) {
-      setViewingPDF({
-        fileName: `${uploadedQuestion.title}.pdf`,
-        fileUrl: uploadedQuestion.fileUrl,
-      });
-    } else if (uploadedQuestion && uploadedQuestion.fileType !== "pdf") {
+    if (!uploadedQuestion) {
+      showToast(t("preview_not_available"), "error");
+      return;
+    }
+
+    if (uploadedQuestion.fileType !== "pdf") {
       showToast(
         t("preview_not_available", {
           fileType: uploadedQuestion.fileType?.toUpperCase(),
         }),
-        "error"
+        "error",
       );
-    } else if (uploadedQuestion && uploadedQuestion.fileType === "pdf" && !uploadedQuestion.fileUrl) {
-      showToast(t("preview_not_available"), "error");
-    } else {
-      showToast(t("preview_not_available"), "error");
+      return;
     }
+
+    if (!uploadedQuestion.resourceId) {
+      showToast(t("preview_not_available"), "error");
+      return;
+    }
+
+    setViewingPDF({
+      fileName: `${uploadedQuestion.title}.pdf`,
+      resourceId: uploadedQuestion.resourceId,
+    });
   };
 
   return (
@@ -473,13 +498,17 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequi
               {isUploading && (
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-blue-600 font-medium">Uploading document...</span>
-                    <span className="text-blue-600 font-bold">{uploadProgress}%</span>
+                    <span className="text-blue-600 font-medium">
+                      Uploading document...
+                    </span>
+                    <span className="text-blue-600 font-bold">
+                      {uploadProgress}%
+                    </span>
                   </div>
                   <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-blue-600 transition-all duration-300 ease-out" 
-                      style={{ width: `${uploadProgress}%` }} 
+                    <div
+                      className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
                 </div>
@@ -541,7 +570,7 @@ const QuestionsPanelpage = ({ onClose, onQuestionsChange, chatSessionId, onRequi
       {viewingPDF && (
         <PDFViewer
           fileName={viewingPDF.fileName}
-          fileUrl={viewingPDF.fileUrl}
+          resourceId={viewingPDF.resourceId}
           onClose={() => setViewingPDF(null)}
         />
       )}
