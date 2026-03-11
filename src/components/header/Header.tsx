@@ -143,7 +143,7 @@ export default function Header({
                       ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
                       : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
                 }`}
-                title="Rubric"
+                title={t("evaluation_start_step_rubric")}
               >
                 <FileText className="w-5 h-5" />
                 {activeStep === "rubric" && (
@@ -159,7 +159,7 @@ export default function Header({
                       ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
                       : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
                 }`}
-                title="Syllabus"
+                title={t("evaluation_start_step_syllabus")}
               >
                 <Book className="w-5 h-5" />
                 {activeStep === "syllabus" && (
@@ -175,7 +175,7 @@ export default function Header({
                       ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
                       : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
                 }`}
-                title="Questions"
+                title={t("evaluation_start_step_questions")}
               >
                 <HelpCircle className="w-5 h-5" />
                 {activeStep === "questions" && (
@@ -249,10 +249,10 @@ export default function Header({
                     ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800"
                     : "hover:bg-gray-50 dark:hover:bg-[#222] text-gray-600 dark:text-gray-400 border border-transparent hover:border-gray-200 dark:hover:border-[#333]"
                 }`}
-                title="Rubric"
+                title={t("evaluation_start_step_rubric")}
               >
                 <FileText className="w-5 h-5" />
-                <span className="text-sm font-medium">Rubric</span>
+                <span className="text-sm font-medium">{t("evaluation_start_step_rubric")}</span>
               </button>
 
               <button
@@ -262,10 +262,10 @@ export default function Header({
                     ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800"
                     : "hover:bg-gray-50 dark:hover:bg-[#222] text-gray-600 dark:text-gray-400 border border-transparent hover:border-gray-200 dark:hover:border-[#333]"
                 }`}
-                title="Syllabus"
+                title={t("evaluation_start_step_syllabus")}
               >
                 <Book className="w-5 h-5" />
-                <span className="text-sm font-medium">Syllabus</span>
+                <span className="text-sm font-medium">{t("evaluation_start_step_syllabus")}</span>
               </button>
 
               <button
@@ -275,10 +275,10 @@ export default function Header({
                     ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800"
                     : "hover:bg-gray-50 dark:hover:bg-[#222] text-gray-600 dark:text-gray-400 border border-transparent hover:border-gray-200 dark:hover:border-[#333]"
                 }`}
-                title="Questions"
+                title={t("evaluation_start_step_questions")}
               >
                 <HelpCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">Questions</span>
+                <span className="text-sm font-medium">{t("evaluation_start_step_questions")}</span>
               </button>
             </div>
           )}

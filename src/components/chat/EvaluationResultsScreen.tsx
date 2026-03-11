@@ -7,11 +7,14 @@ import {
   MessageSquare,
   CheckCircle,
   AlertCircle,
+  XCircle,
   Clock,
   Loader2
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
+import ReactMarkdown from "react-markdown";
+import clsx from "clsx";
 import {
   getEvaluationSessionResults,
   getEvaluationResult,
@@ -500,8 +503,8 @@ export default function EvaluationResultsScreen({
                           <MessageSquare className="w-4 h-4" />
                           {t("evaluation_results_overall_feedback")}
                         </h4>
-                        <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg border border-blue-100 dark:border-blue-900/30 text-gray-700 dark:text-gray-300 leading-relaxed">
-                          {detailedResult.overall_feedback}
+                        <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg border border-blue-100 dark:border-blue-900/30 text-gray-700 dark:text-gray-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown>{detailedResult.overall_feedback}</ReactMarkdown>
                         </div>
                       </section>
                     )}
@@ -537,10 +540,24 @@ export default function EvaluationResultsScreen({
                               className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-4 space-y-4"
                             >
                               <div className="flex justify-between items-start">
-                                <span className="font-medium text-gray-900 dark:text-gray-100">
-                                  {q.question_label || `Question ${idx + 1}`}
-                                </span>
-                                <span className="text-sm font-semibold bg-gray-100 dark:bg-[#222] px-2 py-1 rounded text-gray-700 dark:text-gray-300">
+                                <div className="flex items-center gap-2">
+                                  {q.score / q.max_score >= 0.75 ? (
+                                    <CheckCircle className="w-4 h-4 text-green-500" />
+                                  ) : q.score / q.max_score >= 0.4 ? (
+                                    <AlertCircle className="w-4 h-4 text-amber-500" />
+                                  ) : (
+                                    <XCircle className="w-4 h-4 text-red-500" />
+                                  )}
+                                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                                    {q.question_label || `Question ${idx + 1}`}
+                                  </span>
+                                </div>
+                                <span className={clsx(
+                                  "text-sm font-semibold px-2 py-1 rounded",
+                                  q.score / q.max_score >= 0.75 ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400" :
+                                    q.score / q.max_score >= 0.4 ? "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400" :
+                                      "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+                                )}>
                                   {q.score} / {q.max_score}
                                 </span>
                               </div>
@@ -551,9 +568,9 @@ export default function EvaluationResultsScreen({
                                   <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
                                     {t("evaluation_results_feedback")}
                                   </h5>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                                    {q.feedback}
-                                  </p>
+                                  <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                                    <ReactMarkdown>{q.feedback}</ReactMarkdown>
+                                  </div>
                                 </div>
                               )}
                             </div>
