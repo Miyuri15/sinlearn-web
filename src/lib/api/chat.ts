@@ -1,3 +1,5 @@
+// lib/api/chat.ts
+
 import { ApiError, apiFetch } from "./client";
 import { API_BASE_URL } from "../config";
 import type { SafetySummary } from "../models/chat";
@@ -199,19 +201,16 @@ export async function postVoiceTranscribe(audioBlob: Blob): Promise<{
   standard: string;
 }> {
   const formData = new FormData();
-  formData.append('audio', audioBlob, 'voice.wav');
+  formData.append("audio", audioBlob, "voice.wav");
 
   const response = await apiFetch<{
     raw: string;
     normalized: string;
     standard: string;
-  }>(
-    `${API_BASE_URL}/api/v1/voice/transcribe`,
-    {
-      method: "POST",
-      body: formData,
-    },
-  );
+  }>(`${API_BASE_URL}/api/v1/voice/transcribe`, {
+    method: "POST",
+    body: formData,
+  });
 
   return response;
 }
@@ -236,4 +235,13 @@ export const getExplanationForMessage = async (messageId: string) => {
   return apiFetch<any>(`${API_BASE_URL}/api/v1/messages/${messageId}/xai`, {
     method: "GET",
   });
+};
+
+export const getMessageAttchmentLog = async (messageId: string) => {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/messages/${messageId}/processing-logs`,
+    {
+      method: "GET",
+    },
+  );
 };
