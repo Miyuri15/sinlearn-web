@@ -755,6 +755,46 @@ export async function confirmPaperConfig(params: {
   );
 }
 
+export type StartEvaluationRequest = {
+  chat_session_id: string;
+  answer_resource_ids: string[];
+  run_grading?: boolean;
+};
+
+export interface MarkingReferenceResponse {
+  id: string;
+  evaluation_session_id: string;
+  question_id?: string;
+  sub_question_id?: string;
+  question_number: string;
+  question_text: string;
+  reference_answer: string;
+  is_approved: boolean;
+}
+
+export async function getMarkingScheme(sessionId: string): Promise<MarkingReferenceResponse[]> {
+  return apiFetch<MarkingReferenceResponse[]>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(sessionId)}/marking-scheme`
+  );
+}
+
+export async function updateMarkingReference(referenceId: string, answer: string): Promise<MarkingReferenceResponse> {
+  return apiFetch<MarkingReferenceResponse>(
+    `${API_BASE_URL}/api/v1/evaluation/marking-scheme/${encodeURIComponent(referenceId)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ reference_answer: answer }),
+    }
+  );
+}
+
+export async function approveMarkingScheme(sessionId: string): Promise<void> {
+  await apiFetch<void>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(sessionId)}/marking-scheme/approve`,
+    { method: "POST" }
+  );
+}
+
 export type ProcessDocumentsRequest = {
   chat_session_id: string;
   answer_resource_ids: string[];
@@ -851,11 +891,6 @@ export async function processDocumentsStream(
   return await res.text();
 }
 
-export type StartEvaluationRequest = {
-  chat_session_id: string;
-  answer_resource_ids: string[];
-};
-
 export type EvaluationProgressStep =
   | "evaluating_answer_sheets"
   | "calculating_marks"
@@ -879,11 +914,11 @@ function guessStepFromLine(line: string): EvaluationProgressStep | undefined {
 }
 
 export async function startEvaluationStream(params: {
-  body: StartEvaluationRequest;
+  payload: StartEvaluationRequest;
   onEvent: (evt: StreamProgressEvent) => void;
   signal?: AbortSignal;
 }): Promise<any> {
-  const { body, onEvent, signal } = params;
+  const { payload, onEvent, signal } = params;
   const token = getAccessToken();
 
   const res = await fetch(`${API_BASE_URL}/api/v1/evaluation/start/stream`, {
@@ -892,7 +927,7 @@ export async function startEvaluationStream(params: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
     signal,
   });
 
@@ -930,11 +965,11 @@ export async function startEvaluationStream(params: {
       if (!trimmed) continue;
 
       // SSE-like: "data: ..."
-      const payload = trimmed.startsWith("data:")
+      const data = trimmed.startsWith("data:")
         ? trimmed.slice("data:".length).trim()
         : trimmed;
 
-      onEvent({ raw: payload, step: guessStepFromLine(payload) });
+      onEvent({ raw: data, step: guessStepFromLine(data) });
     }
   }
 
@@ -952,10 +987,10 @@ export async function startEvaluationStream(params: {
   return null;
 }
 
-export async function startEvaluation(body: StartEvaluationRequest): Promise<any> {
+export async function startEvaluation(params: StartEvaluationRequest): Promise<any> {
   return apiFetch<any>(`${API_BASE_URL}/api/v1/evaluation/start`, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify(params),
   });
 }
 

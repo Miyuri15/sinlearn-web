@@ -14,6 +14,7 @@ import EvaluationAnalyticsScreen from "@/components/chat/EvaluationAnalyticsScre
 import EvaluationHistoryScreen, {
   EvaluationSession,
 } from "@/components/chat/EvaluationHistoryScreen";
+import MarkingSchemeReviewScreen from "@/components/chat/MarkingSchemeReviewScreen";
 import Sidebar from "@/components/layout/Sidebar";
 import RubricSidebar from "@/components/chat/RubricSidebar";
 import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
@@ -183,7 +184,7 @@ export default function ChatPage({
   // Evaluation specific states
   const [isEvaluationStarted, setIsEvaluationStarted] = useState(false);
   const [evaluationStatus, setEvaluationStatus] = useState<
-    "setup" | "in_progress" | "results" | "analytics" | "history"
+    "setup" | "reference_review" | "in_progress" | "results" | "analytics" | "history"
   >("setup");
   const [evaluationHistory, setEvaluationHistory] = useState<
     EvaluationSession[]
@@ -1062,24 +1063,50 @@ export default function ChatPage({
     try {
       setIsAutoProcessing(true);
 
-      // Mobile parity: start evaluation one answer sheet at a time.
-      // Capture the evaluation session ID from the first response
-      let capturedEvaluationSessionId: string | null = null;
+      // 1. Initialize evaluation session WITHOUT starting grading
+      const firstResourceId = answerResourceIds[0];
+      const response = await startEvaluation({
+        chat_session_id: sessionId,
+        answer_resource_ids: answerResourceIds,
+        run_grading: false,
+      });
 
-      for (const resourceId of answerResourceIds) {
-        const response = await startEvaluation({
-          chat_session_id: sessionId,
-          answer_resource_ids: [resourceId],
-        });
-
-        // Extract evaluation session ID from the response
-        if (!capturedEvaluationSessionId && response?.id) {
-          capturedEvaluationSessionId = response.id;
-        }
+      const capturedEvaluationSessionId = response?.id;
+      if (!capturedEvaluationSessionId) {
+        throw new Error("Failed to initialize evaluation session");
       }
 
-      // Create a new evaluation session entry in history (one per Send).
-      // Note: UI currently uses mock results, so we generate and persist them here.
+      setEvaluationSessionId(capturedEvaluationSessionId);
+      setEvaluationAnswerResourceIds(answerResourceIds);
+      
+      // 2. Switch to Reference Review screen
+      setEvaluationStatus("reference_review");
+      setIsEvaluationStarted(true);
+
+    } catch (error) {
+      console.error("Failed to start evaluation process", error);
+      setToastMessage("Failed to initialize evaluation. Please try again.");
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setIsAutoProcessing(false);
+    }
+  };
+
+  const handleConfirmMarkingScheme = async () => {
+    if (!evaluationSessionId) return;
+
+    try {
+      setIsAutoProcessing(true);
+
+      // Trigger the actual grading process
+      await startEvaluation({
+        chat_session_id: activeSessionId!,
+        answer_resource_ids: evaluationAnswerResourceIds,
+        run_grading: true,
+      });
+
+      // Create a new evaluation session entry in history.
       const results = selectedFiles.map((f) => generateMockResult(f.name));
       const avgScore =
         results.length > 0
@@ -1093,22 +1120,18 @@ export default function ChatPage({
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         timestamp: Date.now(),
         files: [...selectedFiles],
-        resourceIds: [...answerResourceIds],
+        resourceIds: [...evaluationAnswerResourceIds],
         results,
         averageScore: avgScore,
       };
 
-      // Use the captured evaluation session ID, not the chat session ID
-      setEvaluationSessionId(capturedEvaluationSessionId || sessionId);
-      setEvaluationAnswerResourceIds(answerResourceIds);
       setEvaluationHistory((prev) => [newSession, ...prev]);
       setCurrentEvaluationResult(results);
-
-      setIsEvaluationStarted(true);
       setEvaluationStatus("in_progress");
+
     } catch (error) {
-      console.error("Failed to start evaluation", error);
-      setToastMessage("Failed to start evaluation");
+      console.error("Failed to confirm marking scheme", error);
+      setToastMessage("Failed to start grading. Please try again.");
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1833,6 +1856,14 @@ export default function ChatPage({
             syllabusSet={syllabusSet}
             questionsSet={questionsSet}
             processingStatus={processingStatus}
+          />
+        )}
+
+        {evaluationStatus === "reference_review" && evaluationSessionId && (
+          <MarkingSchemeReviewScreen
+            evaluationSessionId={evaluationSessionId}
+            onApprove={handleConfirmMarkingScheme}
+            onCancel={() => setEvaluationStatus("setup")}
           />
         )}
 
