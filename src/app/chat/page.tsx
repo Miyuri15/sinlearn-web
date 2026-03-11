@@ -33,6 +33,7 @@ import EmptyState from "@/components/chat/EmptyState";
 import UpdatedToast from "@/components/ui/updatedtoast";
 import EditModal from "@/components/ui/EditModal";
 import DeleteModal from "@/components/ui/DeleteModal";
+import ProcessingLogsModal from "@/components/chat/ProcessingLogsModal";
 import useChatInit from "@/hooks/useChatInit";
 import { useProcessingProgressWS } from "@/hooks/useProcessingProgressWS";
 import {
@@ -220,7 +221,8 @@ export default function ChatPage({
   }, [processingStatus]);
 
   // WebSocket: listen for processing_progress events from the backend
-  const { lastProgress } = useProcessingProgressWS();
+  const { lastProgress, progressLog } = useProcessingProgressWS();
+  const [isProgressLogModalOpen, setIsProgressLogModalOpen] = useState(false);
 
   useEffect(() => {
     if (!lastProgress) return;
@@ -677,12 +679,12 @@ export default function ChatPage({
             : paperConfig.length > 0
               ? { paperConfig }
               : {
-                totalMarks,
-                mainQuestions,
-                requiredQuestions,
-                subQuestions,
-                subQuestionMarks,
-              };
+                  totalMarks,
+                  mainQuestions,
+                  requiredQuestions,
+                  subQuestions,
+                  subQuestionMarks,
+                };
 
           // If we are starting evaluation, add the files to the message
           const fileMessages = selectedFiles.map((file) => ({
@@ -737,12 +739,12 @@ export default function ChatPage({
             : paperConfig.length > 0
               ? { paperConfig }
               : {
-                totalMarks,
-                mainQuestions,
-                requiredQuestions,
-                subQuestions,
-                subQuestionMarks,
-              };
+                  totalMarks,
+                  mainQuestions,
+                  requiredQuestions,
+                  subQuestions,
+                  subQuestionMarks,
+                };
 
           const resourceAttachments = uploadedResources.map((item, index) => ({
             resource_id: item.resource_id,
@@ -808,7 +810,7 @@ export default function ChatPage({
             console.error("Failed to process attachments", err);
             setToastMessage(
               (err instanceof Error ? err.message : null) ||
-              "Failed to process attachments.",
+                "Failed to process attachments.",
             );
             setToastType("error");
             setIsToastVisible(true);
@@ -1037,7 +1039,6 @@ export default function ChatPage({
     }
   };
 
-
   const handleStartEvaluationProcess = async () => {
     if (mode !== "evaluation") return;
 
@@ -1097,9 +1098,9 @@ export default function ChatPage({
       const avgScore =
         results.length > 0
           ? Math.round(
-            results.reduce((acc, curr) => acc + curr.overallScore, 0) /
-            results.length,
-          )
+              results.reduce((acc, curr) => acc + curr.overallScore, 0) /
+                results.length,
+            )
           : 0;
 
       const newSession: EvaluationSession = {
@@ -1718,8 +1719,8 @@ export default function ChatPage({
       return (
         <div className="flex-1 overflow-y-auto p-6 space-y-4 w-full max-w-[320px] min-[350]:max-w-[380] min-[425]:max-w-[425] sm:max-w-full bg-gray-100 dark:bg-[#0C0C0C] custom-scrollbar">
           {learningMessages.length === 0 &&
-            !isAutoProcessing &&
-            !isMessageGenerating ? (
+          !isAutoProcessing &&
+          !isMessageGenerating ? (
             <EmptyState
               title={t("start_conversation")}
               subtitle={t("start_learning_conversation_sub")}
@@ -2066,8 +2067,9 @@ export default function ChatPage({
 
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
-          }`}
+        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${
+          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+        }`}
       >
         {/* HEADER COMPONENT */}
         <Header
@@ -2158,10 +2160,19 @@ export default function ChatPage({
                   <span className="truncate font-medium">
                     {lastProgress.stage}
                   </span>
-                  <span className="ml-2 shrink-0 tabular-nums">
-                    {lastProgress.document_index}/{lastProgress.total_documents}{" "}
-                    · {Math.round(lastProgress.progress)}%
-                  </span>
+                  <div className="flex items-center gap-2 ml-2 shrink-0">
+                    <span className="tabular-nums">
+                      {lastProgress.document_index}/
+                      {lastProgress.total_documents} ·{" "}
+                      {Math.round(lastProgress.progress)}%
+                    </span>
+                    <button
+                      onClick={() => setIsProgressLogModalOpen(true)}
+                      className="underline hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      Details
+                    </button>
+                  </div>
                 </div>
                 <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
@@ -2171,6 +2182,13 @@ export default function ChatPage({
                 </div>
               </div>
             )}
+
+            <ProcessingLogsModal
+              isOpen={isProgressLogModalOpen}
+              logs={progressLog}
+              filename="Document Processing"
+              onClose={() => setIsProgressLogModalOpen(false)}
+            />
 
             <InputBar
               isRecording={isRecording}
@@ -2226,8 +2244,9 @@ export default function ChatPage({
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isSyllabusOpen ? "translate-x-0" : "translate-x-full"
-          }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+        }`}
       >
         <SyllabusPanelpage
           onClose={toggleSyllabus}
@@ -2248,8 +2267,9 @@ export default function ChatPage({
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isQuestionsOpen ? "translate-x-0" : "translate-x-full"
-          }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
+          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+        }`}
       >
         <QuestionsPanelpage
           onClose={toggleQuestions}

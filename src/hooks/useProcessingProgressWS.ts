@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAccessToken } from "@/lib/localStore";
 import { API_BASE_URL } from "@/lib/config";
+import type { ProcessingLogEntry } from "@/components/chat/ProcessingLogsModal";
 
 export interface ProcessingProgressMessage {
   type: "processing_progress";
@@ -31,11 +32,19 @@ export type WSConnectionStatus =
 export function useProcessingProgressWS(enabled = true): {
   connectionStatus: WSConnectionStatus;
   lastProgress: ProcessingProgressMessage | null;
+  progressLog: ProcessingLogEntry[];
+  clearProgressLog: () => void;
 } {
   const [connectionStatus, setConnectionStatus] =
     useState<WSConnectionStatus>("disconnected");
   const [lastProgress, setLastProgress] =
     useState<ProcessingProgressMessage | null>(null);
+  const [progressLog, setProgressLog] = useState<ProcessingLogEntry[]>([]);
+
+  // Track the current job so we can reset the log when a new job starts
+  const currentMessageIdRef = useRef<string | null>(null);
+  // Track last stage+progress to deduplicate repeated identical messages
+  const lastEntryKeyRef = useRef<string>("");
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -68,7 +77,35 @@ export function useProcessingProgressWS(enabled = true): {
       try {
         const data = JSON.parse(event.data as string);
         if (data?.type === "processing_progress") {
-          setLastProgress(data as ProcessingProgressMessage);
+          const msg = data as ProcessingProgressMessage;
+          setLastProgress(msg);
+
+          // Deduplicate: skip if same stage+progress as the last logged entry
+          const entryKey = `${msg.stage}|${msg.progress}`;
+          if (entryKey === lastEntryKeyRef.current) return;
+          lastEntryKeyRef.current = entryKey;
+
+          // If a new job starts (different message_id), clear the previous log
+          if (
+            currentMessageIdRef.current !== null &&
+            currentMessageIdRef.current !== msg.message_id
+          ) {
+            setProgressLog([]);
+          }
+          currentMessageIdRef.current = msg.message_id;
+
+          const entry: ProcessingLogEntry = {
+            id: `${msg.message_id}-${msg.stage}-${msg.progress}`,
+            resource_id: msg.resource_id,
+            user_id: "",
+            session_id: "",
+            message_id: msg.message_id,
+            stage: msg.stage,
+            progress: msg.progress,
+            details: msg.details,
+            timestamp: new Date().toISOString(),
+          };
+          setProgressLog((prev) => [...prev, entry]);
         }
       } catch {
         // Ignore non-JSON frames
@@ -109,5 +146,14 @@ export function useProcessingProgressWS(enabled = true): {
     };
   }, [connect, enabled]);
 
-  return { connectionStatus, lastProgress };
+  return {
+    connectionStatus,
+    lastProgress,
+    progressLog,
+    clearProgressLog: () => {
+      setProgressLog([]);
+      lastEntryKeyRef.current = "";
+      currentMessageIdRef.current = null;
+    },
+  };
 }

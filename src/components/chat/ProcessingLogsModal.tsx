@@ -9,6 +9,7 @@ import {
   FileText,
   Timer,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDistanceToNow } from "date-fns";
 
@@ -38,6 +39,14 @@ export default function ProcessingLogsModal({
   onClose,
 }: Readonly<ProcessingLogsModalProps>) {
   const { t } = useTranslation("chat");
+  const scrollBottomRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to latest entry whenever logs change
+  useEffect(() => {
+    if (isOpen) {
+      scrollBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [isOpen, logs.length]);
 
   if (!isOpen) return null;
 
@@ -260,6 +269,7 @@ export default function ProcessingLogsModal({
                 No processing logs available
               </p>
             )}
+            <div ref={scrollBottomRef} />
           </div>
 
           <div className="flex justify-end border-t border-gray-200 px-5 py-4 dark:border-[#2a2a2a]">
