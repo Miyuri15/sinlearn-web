@@ -106,6 +106,38 @@ export default function EvaluationResultsScreen({
 
   // Fetch results summary on mount
   useEffect(() => {
+    // If results are passed as props (e.g. from history), use them directly
+    if (propResults && propResults.length > 0) {
+      const normalizedSummary: ResultSummary[] = propResults.map(r => ({
+        answer_document_id: r.answer_document_id || r.id || r.fileName,
+        student_identifier: r.student_identifier || r.fileName || r.id,
+        total_score: r.total_score || r.overallScore || 0,
+        percentage_score: r.percentage_score ?? r.overallScore ?? null,
+        overall_feedback: typeof r.overall_feedback === 'string' ? r.overall_feedback : (r.overallFeedback?.en || null),
+        evaluated_at: r.evaluated_at || new Date().toISOString()
+      }));
+
+      setResultsSummary(normalizedSummary);
+      
+      // Also populate detailed results so they are available immediately
+      const newDetailed = new Map<string, DetailedResult>();
+      propResults.forEach(r => {
+        const id = r.answer_document_id || r.id || r.fileName;
+        newDetailed.set(id, {
+          answer_document_id: id,
+          total_score: r.total_score || r.overallScore || 0,
+          percentage_score: r.percentage_score ?? r.overallScore ?? null,
+          overall_feedback: typeof r.overall_feedback === 'string' ? r.overall_feedback : (r.overallFeedback?.en || null),
+          improvement_points: r.improvement_points || [],
+          question_feedback: r.question_feedback || r.questions || [],
+          marks_summary: r.marks_summary || {}
+        });
+      });
+      setDetailedResults(newDetailed);
+      setIsLoading(false);
+      return;
+    }
+
     if (!evaluationSessionId) return;
 
     const fetchResults = async () => {
@@ -167,7 +199,7 @@ export default function EvaluationResultsScreen({
     };
 
     fetchResults();
-  }, [evaluationSessionId, answerResourceIds, answerSheets]);
+  }, [evaluationSessionId, answerResourceIds, answerSheets, propResults]);
 
   // Fetch detailed result when expanding
   const toggleExpand = async (answerId: string) => {
