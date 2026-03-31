@@ -42,6 +42,11 @@ export default function EvaluationMarkingSchemaModal({
     [questions]
   );
 
+  const formatPages = (pages: Array<number | string> | undefined) => {
+    if (!pages || pages.length === 0) return null;
+    return pages.map((page) => String(page)).join(", ");
+  };
+
   const handleQuestionChange = (questionId: string, value: string) => {
     setQuestions((prev) =>
       prev.map((question) =>
@@ -197,6 +202,35 @@ export default function EvaluationMarkingSchemaModal({
                       </p>
                     </div>
                   </div>
+
+                  {(question.sourceLessons?.length ||
+                    question.sourcePages?.length ||
+                    question.sourceNotes?.length) ? (
+                    <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-900/15 dark:text-blue-100">
+                      <p className="font-semibold">Extracted from source material</p>
+                      {question.sourceLessons?.length ? (
+                        <p className="mt-2 leading-6">
+                          <span className="font-medium">Lessons:</span>{" "}
+                          {question.sourceLessons.join(", ")}
+                        </p>
+                      ) : null}
+                      {question.sourcePages?.length ? (
+                        <p className="mt-1 leading-6">
+                          <span className="font-medium">Pages:</span>{" "}
+                          {formatPages(question.sourcePages)}
+                        </p>
+                      ) : null}
+                      {question.sourceNotes?.length ? (
+                        <div className="mt-2 space-y-1">
+                          {question.sourceNotes.map((note, noteIndex) => (
+                            <p key={`${question.id}-note-${noteIndex}`} className="leading-6">
+                              {note}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
                     Extracted reference

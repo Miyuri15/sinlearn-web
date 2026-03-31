@@ -775,6 +775,30 @@ function normalizeMarkingSchemaQuestion(
   payload: any,
   index: number
 ): MarkingSchemaQuestion {
+  const rawLessons = Array.isArray(payload?.source_lessons)
+    ? payload.source_lessons
+    : Array.isArray(payload?.sourceLessons)
+      ? payload.sourceLessons
+      : Array.isArray(payload?.lessons)
+        ? payload.lessons
+        : [];
+
+  const rawPages = Array.isArray(payload?.source_pages)
+    ? payload.source_pages
+    : Array.isArray(payload?.sourcePages)
+      ? payload.sourcePages
+      : Array.isArray(payload?.pages)
+        ? payload.pages
+        : [];
+
+  const rawNotes = Array.isArray(payload?.source_notes)
+    ? payload.source_notes
+    : Array.isArray(payload?.sourceNotes)
+      ? payload.sourceNotes
+      : Array.isArray(payload?.notes)
+        ? payload.notes
+        : [];
+
   return {
     id: String(
       payload?.id ??
@@ -814,6 +838,11 @@ function normalizeMarkingSchemaQuestion(
           : undefined,
     partName:
       payload?.part_name ?? payload?.partName ?? payload?.paper_part ?? undefined,
+    sourceLessons: rawLessons.map((item: unknown) => String(item)),
+    sourcePages: rawPages.map((item: unknown) =>
+      typeof item === "number" ? item : String(item)
+    ),
+    sourceNotes: rawNotes.map((item: unknown) => String(item)),
   };
 }
 
@@ -886,6 +915,9 @@ export async function saveSessionMarkingSchema(params: {
           reference_text: question.referenceText,
           max_marks: question.maxMarks,
           part_name: question.partName,
+          source_lessons: question.sourceLessons,
+          source_pages: question.sourcePages,
+          source_notes: question.sourceNotes,
         })),
       }),
     }
@@ -914,6 +946,9 @@ export async function confirmSessionMarkingSchema(params: {
           reference_text: question.referenceText,
           max_marks: question.maxMarks,
           part_name: question.partName,
+          source_lessons: question.sourceLessons,
+          source_pages: question.sourcePages,
+          source_notes: question.sourceNotes,
         })),
       }),
     }

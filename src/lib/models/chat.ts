@@ -55,6 +55,9 @@ export interface MarkingSchemaQuestion {
   referenceText: string;
   maxMarks?: number;
   partName?: string;
+  sourceLessons?: string[];
+  sourcePages?: Array<number | string>;
+  sourceNotes?: string[];
 }
 
 export interface MarkingSchema {
