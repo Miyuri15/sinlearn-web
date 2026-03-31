@@ -121,6 +121,7 @@
     "evaluation_start_step_answers": "Answers",
     "evaluation_start_step_process": "Process",
     "evaluation_start_step_marks": "Marks",
+    "evaluation_start_step_schema": "Schema",
     "evaluation_start_step_send": "Send",
     "new_evaluation_chat": "New Evaluation Chat",
     "untitled_chat": "Untitled Chat",

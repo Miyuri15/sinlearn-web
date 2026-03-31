@@ -7,6 +7,7 @@ import {
   FileInput, 
   Settings, 
   Edit3, 
+  ScrollText,
   Send, 
   RefreshCw, 
   X, 
@@ -23,6 +24,7 @@ interface EvaluationStartScreenProps {
   onOpenSyllabus: () => void;
   onOpenQuestions: () => void;
   onOpenMarks: () => void;
+  onOpenMarkingSchema: () => void;
   onClearAnswerSheets: () => void | Promise<void>;
   onUploadAnswers: (files: File[]) => void | Promise<void>;
   onProcess: () => void | Promise<void>;
@@ -34,7 +36,9 @@ interface EvaluationStartScreenProps {
   isProcessing?: boolean;
   isUploading?: boolean;
   isPaperConfigLoading?: boolean;
+  isMarkingSchemaLoading?: boolean;
   hasMarks?: boolean;
+  hasMarkingSchema?: boolean;
   rubricSet?: boolean;
   syllabusSet?: boolean;
   questionsSet?: boolean;
@@ -48,6 +52,7 @@ export default function EvaluationStartScreen({
   onOpenSyllabus,
   onOpenQuestions,
   onOpenMarks,
+  onOpenMarkingSchema,
   onClearAnswerSheets,
   onUploadAnswers,
   onProcess,
@@ -59,7 +64,9 @@ export default function EvaluationStartScreen({
   isProcessing = false,
   isUploading = false,
   isPaperConfigLoading = false,
+  isMarkingSchemaLoading = false,
   hasMarks = false,
+  hasMarkingSchema = false,
   rubricSet = false,
   syllabusSet = false,
   questionsSet = false,
@@ -111,7 +118,14 @@ export default function EvaluationStartScreen({
     { labelKey: "evaluation_start_step_answers", icon: FileInput, action: triggerFileUpload, status: uploadedFiles.length > 0 ? "completed" : "pending", disabled: isUploading },
     { labelKey: "evaluation_start_step_process", icon: Settings, action: isReadyToProcess ? onProcess : () => {}, status: isProcessingCompleted ? "completed" : "pending", disabled: !isReadyToProcess || isUploading },
     { labelKey: "evaluation_start_step_marks", icon: Edit3, action: isProcessingCompleted ? onOpenMarks : () => {}, status: isPaperConfigLoading ? "loading" : (hasMarks ? "completed" : "pending"), disabled: !isProcessingCompleted || isUploading || isPaperConfigLoading },
-    { labelKey: "evaluation_start_step_send", icon: Send, action: onStartEvaluation, status: "pending", disabled: !isProcessingCompleted || !hasMarks || isUploading },
+    {
+      labelKey: "evaluation_start_step_schema",
+      icon: ScrollText,
+      action: isProcessingCompleted && hasMarks ? onOpenMarkingSchema : () => {},
+      status: isMarkingSchemaLoading ? "loading" : (hasMarkingSchema ? "completed" : "pending"),
+      disabled: !isProcessingCompleted || !hasMarks || isUploading || isMarkingSchemaLoading
+    },
+    { labelKey: "evaluation_start_step_send", icon: Send, action: onStartEvaluation, status: "pending", disabled: !isProcessingCompleted || !hasMarks || !hasMarkingSchema || isUploading },
   ];
 
   return (
