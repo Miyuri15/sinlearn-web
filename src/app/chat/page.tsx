@@ -583,8 +583,13 @@ export default function ChatPage({
     const loadChats = async () => {
       try {
         const sessions = await listChatSessions();
+        const sortedSessions = [...sessions].sort(
+          (a, b) =>
+            new Date(b.updated_at || b.created_at).getTime() -
+            new Date(a.updated_at || a.created_at).getTime(),
+        );
 
-        const mapped = sessions.map((s) => ({
+        const mapped = sortedSessions.map((s) => ({
           id: s.id,
           title: s.title || t("untitled_chat"),
           type: s.mode,
@@ -594,6 +599,16 @@ export default function ChatPage({
         }));
 
         setChats(mapped);
+
+        // On the root /chat route, automatically load the most recent real session
+        // instead of leaving the user on the empty non-session screen.
+        if (!chatId && mapped.length > 0) {
+          const latest = mapped[0];
+          setChatType(latest.type);
+          setActiveSessionId(latest.id);
+          router.replace(`/chat/${latest.id}`);
+          return;
+        }
 
         // If we are on a specific chat URL, keep chatType in sync with its real session mode.
         if (
@@ -614,7 +629,7 @@ export default function ChatPage({
     };
 
     loadChats();
-  }, [chatId]);
+  }, [chatId, router, t]);
 
   useEffect(() => {
     // ✅ If URL contains a real UUID chatId, use it

@@ -42,10 +42,70 @@ export default function EvaluationMarkingSchemaModal({
     [questions]
   );
 
-  const formatPages = (pages: Array<number | string> | undefined) => {
-    if (!pages || pages.length === 0) return null;
-    return pages.map((page) => String(page)).join(", ");
+  const parseQuestionNumber = (value: string) => {
+    const normalized = String(value || "").trim();
+    const match = normalized.match(/^(\d+)(?:\s*[\(\.]?\s*([a-zA-Z0-9]+)\)?)?/);
+
+    if (!match) {
+      return {
+        main: Number.MAX_SAFE_INTEGER,
+        sub: normalized.toLowerCase(),
+      };
+    }
+
+    const main = Number(match[1]);
+    const rawSub = match[2] ?? "";
+    const numericSub = Number(rawSub);
+
+    return {
+      main,
+      sub: Number.isFinite(numericSub) && rawSub !== "" ? numericSub : rawSub.toLowerCase(),
+    };
   };
+
+  const orderedSections = useMemo(() => {
+    const partOrderValue = (partName?: string) => {
+      const normalized = String(partName || "").toLowerCase();
+      if (normalized.includes("paper_i") || normalized.includes("paper i")) return 1;
+      if (normalized.includes("paper_ii") || normalized.includes("paper ii")) return 2;
+      if (normalized.includes("paper_iii") || normalized.includes("paper iii")) return 3;
+      return 99;
+    };
+
+    const groups = new Map<string, MarkingSchemaQuestion[]>();
+
+    for (const question of questions) {
+      const key = question.partName || "Other";
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)?.push(question);
+    }
+
+    return Array.from(groups.entries())
+      .sort((a, b) => {
+        const partDiff = partOrderValue(a[0]) - partOrderValue(b[0]);
+        if (partDiff !== 0) return partDiff;
+        return a[0].localeCompare(b[0]);
+      })
+      .map(([partName, items]) => ({
+        partName,
+        questions: [...items].sort((a, b) => {
+          const aParsed = parseQuestionNumber(a.questionNumber);
+          const bParsed = parseQuestionNumber(b.questionNumber);
+
+          if (aParsed.main !== bParsed.main) {
+            return aParsed.main - bParsed.main;
+          }
+
+          if (typeof aParsed.sub === "number" && typeof bParsed.sub === "number") {
+            return aParsed.sub - bParsed.sub;
+          }
+
+          return String(aParsed.sub).localeCompare(String(bParsed.sub));
+        }),
+      }));
+  }, [questions]);
 
   const handleQuestionChange = (questionId: string, value: string) => {
     setQuestions((prev) =>
@@ -176,103 +236,84 @@ export default function EvaluationMarkingSchemaModal({
               </Button>
             </div>
           ) : (
-            <div className="space-y-4 pb-4">
-              {questions.map((question, index) => (
-                <div
-                  key={question.id}
-                  className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-[#2a2a2a] dark:bg-[#141414]"
-                >
-                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-teal-700 dark:bg-teal-900/20 dark:text-teal-300">
-                          {question.partName || "Question"}
-                        </span>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {question.questionNumber}
-                        </span>
-                        {typeof question.maxMarks === "number" ? (
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {question.maxMarks} marks
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="text-sm leading-6 text-gray-700 dark:text-gray-200">
-                        {question.questionText || `Question ${index + 1}`}
-                      </p>
-                    </div>
+            <div className="space-y-6 pb-4">
+              {orderedSections.map((section) => (
+                <div key={section.partName} className="space-y-4">
+                  <div className="sticky top-0 z-10 -mx-1 rounded-2xl bg-gray-100/95 px-4 py-3 backdrop-blur dark:bg-[#181818]/95">
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-700 dark:text-gray-200">
+                      {section.partName}
+                    </h3>
                   </div>
 
-                  {(question.sourceLessons?.length ||
-                    question.sourcePages?.length ||
-                    question.sourceNotes?.length) ? (
-                    <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-900/15 dark:text-blue-100">
-                      <p className="font-semibold">Extracted from source material</p>
-                      {question.sourceLessons?.length ? (
-                        <p className="mt-2 leading-6">
-                          <span className="font-medium">Lessons:</span>{" "}
-                          {question.sourceLessons.join(", ")}
-                        </p>
-                      ) : null}
-                      {question.sourcePages?.length ? (
-                        <p className="mt-1 leading-6">
-                          <span className="font-medium">Pages:</span>{" "}
-                          {formatPages(question.sourcePages)}
-                        </p>
-                      ) : null}
-                      {question.sourceNotes?.length ? (
-                        <div className="mt-2 space-y-1">
-                          {question.sourceNotes.map((note, noteIndex) => (
-                            <p key={`${question.id}-note-${noteIndex}`} className="leading-6">
-                              {note}
-                            </p>
-                          ))}
+                  {section.questions.map((question, index) => (
+                    <div
+                      key={question.id}
+                      className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-[#2a2a2a] dark:bg-[#141414]"
+                    >
+                      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-teal-700 dark:bg-teal-900/20 dark:text-teal-300">
+                              {question.partName || "Question"}
+                            </span>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                              {question.questionNumber}
+                            </span>
+                            {typeof question.maxMarks === "number" ? (
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {question.maxMarks} marks
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="text-sm leading-6 text-gray-700 dark:text-gray-200">
+                            {question.questionText || `Question ${index + 1}`}
+                          </p>
                         </div>
-                      ) : null}
-                    </div>
-                  ) : null}
+                      </div>
 
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
-                    Extracted reference
-                  </label>
-                  <div
-                    className="
-                      relative
-                      [&_ul]:!bottom-full
-                      [&_ul]:!top-auto
-                      [&_ul]:!mb-2
-                      [&_ul]:!z-50
-                      [&_ul]:shadow-lg
-                      [&_ul]:rounded-lg
-                      [&_ul]:!border-gray-200
-                      dark:[&_ul]:!bg-[#1F1F1F]
-                      dark:[&_ul]:!border-[#333]
-                      dark:[&_ul]:!text-gray-200
-                    "
-                  >
-                    <ReactTransliterate
-                      value={question.referenceText}
-                      onChangeText={(text) => {
-                        handleQuestionChange(question.id, text);
-                      }}
-                      lang="si"
-                      renderComponent={(props) => (
-                        <textarea
-                          {...props}
-                          onPaste={(event) =>
-                            handlePaste(
-                              event,
-                              question.id,
-                              question.referenceText
-                            )
-                          }
-                          className="min-h-[148px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-6 text-gray-800 outline-none transition focus:border-teal-500 focus:bg-white dark:border-[#2a2a2a] dark:bg-[#101010] dark:text-gray-100 dark:focus:border-teal-400"
-                          placeholder="Reference points for this question will appear here."
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+                        Extracted reference
+                      </label>
+                      <div
+                        className="
+                          relative
+                          [&_ul]:!bottom-full
+                          [&_ul]:!top-auto
+                          [&_ul]:!mb-2
+                          [&_ul]:!z-50
+                          [&_ul]:shadow-lg
+                          [&_ul]:rounded-lg
+                          [&_ul]:!border-gray-200
+                          dark:[&_ul]:!bg-[#1F1F1F]
+                          dark:[&_ul]:!border-[#333]
+                          dark:[&_ul]:!text-gray-200
+                        "
+                      >
+                        <ReactTransliterate
+                          value={question.referenceText}
+                          onChangeText={(text) => {
+                            handleQuestionChange(question.id, text);
+                          }}
+                          lang="si"
+                          renderComponent={(props) => (
+                            <textarea
+                              {...props}
+                              onPaste={(event) =>
+                                handlePaste(
+                                  event,
+                                  question.id,
+                                  question.referenceText
+                                )
+                              }
+                              className="min-h-[148px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-6 text-gray-800 outline-none transition focus:border-teal-500 focus:bg-white dark:border-[#2a2a2a] dark:bg-[#101010] dark:text-gray-100 dark:focus:border-teal-400"
+                              placeholder="Reference points for this question will appear here."
+                            />
+                          )}
+                          containerStyles={{ width: "100%", position: "relative" }}
                         />
-                      )}
-                      containerStyles={{ width: "100%", position: "relative" }}
-                    />
-                  </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
