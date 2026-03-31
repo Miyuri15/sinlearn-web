@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import InputBar from "@/components/chat/InputBar";
 import EvaluationInputs from "@/components/chat/EvaluationInputs";
+import EvaluationMarkingSchemaModal from "@/components/chat/EvaluationMarkingSchemaModal";
 import EvaluationMarksModal from "@/components/chat/EvaluationMarksModal";
 import EvaluationStartScreen from "@/components/chat/EvaluationStartScreen";
 import EvaluationProgressScreen from "@/components/chat/EvaluationProgressScreen";
@@ -26,7 +27,7 @@ import SessionResourcesModal, {
 } from "@/components/chat/SessionResourcesModal";
 import Header from "@/components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
-import { ChatMessage, PaperPart } from "@/lib/models/chat";
+import { ChatMessage, MarkingSchema, PaperPart } from "@/lib/models/chat";
 import MessagesList from "@/components/chat/MessagesList";
 import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
@@ -69,7 +70,11 @@ import {
   getPaperConfigFromOCR,
   getPaperQuestionStructure,
   confirmPaperConfig,
+  confirmSessionMarkingSchema,
+  deleteSessionMarkingSchema,
+  getSessionMarkingSchema,
   mergePaperConfigWithQuestionStructure,
+  saveSessionMarkingSchema,
   startEvaluation,
   startEvaluationStream,
   processDocumentsStreamWithProgress,
@@ -524,7 +529,12 @@ export default function ChatPage({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [answerResourceIds, setAnswerResourceIds] = useState<string[]>([]);
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
+  const [isMarkingSchemaModalOpen, setIsMarkingSchemaModalOpen] = useState(false);
   const [marksConfirmed, setMarksConfirmed] = useState(false);
+  const [markingSchema, setMarkingSchema] = useState<MarkingSchema | null>(null);
+  const [isMarkingSchemaLoading, setIsMarkingSchemaLoading] = useState(false);
+  const [isMarkingSchemaSubmitting, setIsMarkingSchemaSubmitting] = useState(false);
+  const [markingSchemaConfirmed, setMarkingSchemaConfirmed] = useState(false);
   const [evaluationUploadedFilesCount, setEvaluationUploadedFilesCount] =
     useState(0);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -574,8 +584,13 @@ export default function ChatPage({
     const loadChats = async () => {
       try {
         const sessions = await listChatSessions();
+        const sortedSessions = [...sessions].sort(
+          (a, b) =>
+            new Date(b.updated_at || b.created_at).getTime() -
+            new Date(a.updated_at || a.created_at).getTime(),
+        );
 
-        const mapped = sessions.map((s) => ({
+        const mapped = sortedSessions.map((s) => ({
           id: s.id,
           title: s.title || t("untitled_chat"),
           type: s.mode,
@@ -585,6 +600,16 @@ export default function ChatPage({
         }));
 
         setChats(mapped);
+
+        // On the root /chat route, automatically load the most recent real session
+        // instead of leaving the user on the empty non-session screen.
+        if (!chatId && mapped.length > 0) {
+          const latest = mapped[0];
+          setChatType(latest.type);
+          setActiveSessionId(latest.id);
+          router.replace(`/chat/${latest.id}`);
+          return;
+        }
 
         // If we are on a specific chat URL, keep chatType in sync with its real session mode.
         if (
@@ -605,7 +630,7 @@ export default function ChatPage({
     };
 
     loadChats();
-  }, [chatId]);
+  }, [chatId, router, t]);
 
   useEffect(() => {
     // ✅ If URL contains a real UUID chatId, use it
@@ -1070,6 +1095,14 @@ export default function ChatPage({
       return;
     }
 
+    if (!markingSchemaConfirmed) {
+      await handleOpenMarkingSchema();
+      setToastMessage("Review and confirm the marking schema before grading.");
+      setToastType("warning");
+      setIsToastVisible(true);
+      return;
+    }
+
     if (answerResourceIds.length === 0) {
       setToastMessage("Please upload answer sheets before sending.");
       setToastType("warning");
@@ -1171,6 +1204,8 @@ export default function ChatPage({
     setAnswerResourceIds([]);
     setEvaluationUploadedFilesCount(0);
     setProcessingStatus("idle");
+    setMarksConfirmed(false);
+    resetMarkingSchemaState();
 
     // Best-effort server cleanup so answer sheets don't rehydrate after relogin
     if (!sessionId) return;
@@ -1374,6 +1409,7 @@ export default function ChatPage({
     if (processingStatus === "completed") {
       setProcessingStatus("needs_reprocessing");
       setMarksConfirmed(false);
+      resetMarkingSchemaState();
     }
   };
 
@@ -1383,6 +1419,7 @@ export default function ChatPage({
     if (processingStatus === "completed") {
       setProcessingStatus("needs_reprocessing");
       setMarksConfirmed(false);
+      resetMarkingSchemaState();
     }
   };
 
@@ -1419,6 +1456,7 @@ export default function ChatPage({
     if (processingStatus === "completed") {
       setProcessingStatus("needs_reprocessing");
       setMarksConfirmed(false);
+      resetMarkingSchemaState();
     }
 
     const MAX_ANSWER_SHEETS = 10;
@@ -1566,6 +1604,7 @@ export default function ChatPage({
       if (processingStatus === "completed") {
         setProcessingStatus("needs_reprocessing");
         setMarksConfirmed(false);
+        resetMarkingSchemaState();
       }
       return;
     }
@@ -1595,6 +1634,7 @@ export default function ChatPage({
     if (processingStatus === "completed") {
       setProcessingStatus("needs_reprocessing");
       setMarksConfirmed(false);
+      resetMarkingSchemaState();
     }
   };
 
@@ -1602,6 +1642,7 @@ export default function ChatPage({
     if (processingStatus === "completed") {
       setProcessingStatus("needs_reprocessing");
       setMarksConfirmed(false);
+      resetMarkingSchemaState();
     }
 
     const targetSessionId = activeSessionId ?? (await ensureSessionId());
@@ -1687,6 +1728,7 @@ export default function ChatPage({
     setProcessProgress({ current: 0, total: answerResourceIds.length });
     // Re-processing invalidates any previous confirmation.
     setMarksConfirmed(false);
+    resetMarkingSchemaState();
     try {
       // Mobile parity: process one answer sheet at a time.
       for (let i = 0; i < answerResourceIds.length; i++) {
@@ -1720,6 +1762,7 @@ export default function ChatPage({
       setProcessingStatus("completed");
       // After processing completes, marks must be (re)confirmed.
       setMarksConfirmed(false);
+      resetMarkingSchemaState();
       setToastMessage("Documents processed successfully.");
       setToastType("success");
       setIsToastVisible(true);
@@ -1749,22 +1792,71 @@ export default function ChatPage({
     setPendingFiles([]);
   };
 
+  const resetMarkingSchemaState = useCallback(() => {
+    setMarkingSchema(null);
+    setMarkingSchemaConfirmed(false);
+    setIsMarkingSchemaModalOpen(false);
+  }, []);
+
+  const handleOpenMarkingSchema = useCallback(async () => {
+    const sessionId = activeSessionId ?? (await ensureSessionId());
+    if (!sessionId) {
+      setToastMessage("Please create an evaluation chat first.");
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    if (!marksConfirmed) {
+      setToastMessage("Confirm the paper config before reviewing the marking schema.");
+      setToastType("warning");
+      setIsToastVisible(true);
+      return;
+    }
+
+    try {
+      setIsMarkingSchemaLoading(true);
+      setIsMarkingSchemaModalOpen(true);
+      const schema = await getSessionMarkingSchema(sessionId);
+      setMarkingSchema(schema);
+      setMarkingSchemaConfirmed(Boolean(schema.isConfirmed));
+    } catch (error) {
+      console.error("Failed to load marking schema", error);
+      setToastMessage("Failed to load the marking schema.");
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setIsMarkingSchemaLoading(false);
+    }
+  }, [
+    activeSessionId,
+    ensureSessionId,
+    marksConfirmed,
+    setIsToastVisible,
+    setToastMessage,
+    setToastType,
+  ]);
+
   useEffect(() => {
     if (chatId) {
       console.log("Loaded chat:", chatId);
       // Reset file count when loading a new chat
       setEvaluationUploadedFilesCount(0);
       setAnswerResourceIds([]);
+      setMarksConfirmed(false);
+      resetMarkingSchemaState();
     }
-  }, [chatId]);
+  }, [chatId, resetMarkingSchemaState]);
 
   // Reset file count when evaluation messages are cleared
   useEffect(() => {
     if (mode === "evaluation" && evaluationMessages.length === 0) {
       setEvaluationUploadedFilesCount(0);
       setAnswerResourceIds([]);
+      setMarksConfirmed(false);
+      resetMarkingSchemaState();
     }
-  }, [mode, evaluationMessages.length]);
+  }, [mode, evaluationMessages.length, resetMarkingSchemaState]);
 
   const renderMessageArea = () => {
     if (isInitializing || isLoadingMessages) {
@@ -1855,6 +1947,7 @@ export default function ChatPage({
                 setIsEvaluationModalOpen(true);
               }
             }}
+            onOpenMarkingSchema={handleOpenMarkingSchema}
             onClearAnswerSheets={handleStartNewAnswerEvaluation}
             onUploadAnswers={handleFileUpload}
             onProcess={handleProcessEvaluation}
@@ -1866,9 +1959,11 @@ export default function ChatPage({
             isProcessing={isAutoProcessing}
             isUploading={isUploading}
             isPaperConfigLoading={isPaperConfigLoading}
+            isMarkingSchemaLoading={isMarkingSchemaLoading}
             uploadProgress={uploadProgress}
             processProgress={processProgress}
             hasMarks={marksConfirmed}
+            hasMarkingSchema={markingSchemaConfirmed}
             rubricSet={rubricSet}
             syllabusSet={syllabusSet}
             questionsSet={questionsSet}
@@ -2177,6 +2272,7 @@ export default function ChatPage({
               await confirmPaperConfig({ chatSessionId: sessionId, config });
               setPaperConfig(config);
               setMarksConfirmed(true);
+              resetMarkingSchemaState();
               setToastMessage("Paper config confirmed.");
               setToastType("success");
               setIsToastVisible(true);
@@ -2189,6 +2285,103 @@ export default function ChatPage({
             }
           }}
           initialConfig={paperConfig}
+        />
+
+        <EvaluationMarkingSchemaModal
+          open={isMarkingSchemaModalOpen}
+          schema={markingSchema}
+          loading={isMarkingSchemaLoading}
+          saving={isMarkingSchemaSubmitting}
+          onClose={() => setIsMarkingSchemaModalOpen(false)}
+          onRefresh={handleOpenMarkingSchema}
+          onSave={async (questions) => {
+            const sessionId = await ensureSessionId();
+            if (!sessionId) {
+              setToastMessage("Please create an evaluation chat first.");
+              setToastType("error");
+              setIsToastVisible(true);
+              return;
+            }
+
+            try {
+              setIsMarkingSchemaSubmitting(true);
+              const savedSchema = await saveSessionMarkingSchema({
+                sessionId,
+                questions,
+              });
+              setMarkingSchema(savedSchema);
+              setMarkingSchemaConfirmed(false);
+              setToastMessage("Marking schema draft saved.");
+              setToastType("success");
+              setIsToastVisible(true);
+            } catch (error) {
+              console.error("Failed to save marking schema", error);
+              setToastMessage("Failed to save the marking schema.");
+              setToastType("error");
+              setIsToastVisible(true);
+              throw error;
+            } finally {
+              setIsMarkingSchemaSubmitting(false);
+            }
+          }}
+          onConfirm={async (questions) => {
+            const sessionId = await ensureSessionId();
+            if (!sessionId) {
+              setToastMessage("Please create an evaluation chat first.");
+              setToastType("error");
+              setIsToastVisible(true);
+              return;
+            }
+
+            try {
+              setIsMarkingSchemaSubmitting(true);
+              const confirmedSchema = await confirmSessionMarkingSchema({
+                sessionId,
+                questions,
+              });
+              setMarkingSchema(confirmedSchema);
+              setMarkingSchemaConfirmed(true);
+              setIsMarkingSchemaModalOpen(false);
+              setToastMessage("Marking schema confirmed. You can now start grading.");
+              setToastType("success");
+              setIsToastVisible(true);
+            } catch (error) {
+              console.error("Failed to confirm marking schema", error);
+              setToastMessage("Failed to confirm the marking schema.");
+              setToastType("error");
+              setIsToastVisible(true);
+              throw error;
+            } finally {
+              setIsMarkingSchemaSubmitting(false);
+            }
+          }}
+          onDelete={async () => {
+            const sessionId = await ensureSessionId();
+            if (!sessionId) {
+              setToastMessage("Please create an evaluation chat first.");
+              setToastType("error");
+              setIsToastVisible(true);
+              return;
+            }
+
+            try {
+              setIsMarkingSchemaSubmitting(true);
+              await deleteSessionMarkingSchema(sessionId);
+              setMarkingSchema(null);
+              setMarkingSchemaConfirmed(false);
+              setToastMessage("Marking schema deleted. Open the schema step to regenerate it.");
+              setToastType("success");
+              setIsToastVisible(true);
+            } catch (error) {
+              console.error("Failed to delete marking schema", error);
+              setToastMessage("Failed to delete the marking schema.");
+              setToastType("error");
+              setIsToastVisible(true);
+              throw error;
+            } finally {
+              setIsMarkingSchemaSubmitting(false);
+            }
+          }}
         />
 
         {/* INPUT AREA */}
