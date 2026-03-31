@@ -47,6 +47,26 @@ export interface PaperPart {
   questions: Question[];
 }
 
+export interface MarkingSchemaQuestion {
+  id: string;
+  questionId?: string;
+  questionNumber: string;
+  questionText: string;
+  referenceText: string;
+  maxMarks?: number;
+  partName?: string;
+}
+
+export interface MarkingSchema {
+  id?: string;
+  sessionId: string;
+  resourceId?: string | null;
+  isConfirmed: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  questions: MarkingSchemaQuestion[];
+}
+
 export type TextMessage = {
   id?: string;
   role: "user" | "assistant";
