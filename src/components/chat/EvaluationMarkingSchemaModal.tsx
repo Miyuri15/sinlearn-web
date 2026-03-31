@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, FileText, RefreshCw, Trash2, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import type { MarkingSchema, MarkingSchemaQuestion } from "@/lib/models/chat";
+import { ReactTransliterate } from "react-transliterate";
+import "react-transliterate/dist/index.css";
 
 interface EvaluationMarkingSchemaModalProps {
   open: boolean;
@@ -50,12 +52,34 @@ export default function EvaluationMarkingSchemaModal({
     );
   };
 
+  const handlePaste = (
+    event: React.ClipboardEvent<HTMLTextAreaElement>,
+    questionId: string,
+    currentValue: string
+  ) => {
+    event.preventDefault();
+    const pastedText = event.clipboardData.getData("text");
+    const target = event.currentTarget;
+    const start = target.selectionStart ?? currentValue.length;
+    const end = target.selectionEnd ?? currentValue.length;
+    const nextValue =
+      currentValue.slice(0, start) + pastedText + currentValue.slice(end);
+
+    handleQuestionChange(questionId, nextValue);
+
+    requestAnimationFrame(() => {
+      const cursorPosition = start + pastedText.length;
+      target.selectionStart = cursorPosition;
+      target.selectionEnd = cursorPosition;
+    });
+  };
+
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
-      <div className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-[#2a2a2a] dark:bg-[#111111]">
-        <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5 dark:border-[#2a2a2a]">
+      <div className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-[#2a2a2a] dark:bg-[#111111]">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-4 dark:border-[#2a2a2a]">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-teal-700 dark:text-teal-300">
               <FileText className="h-5 w-5" />
@@ -64,12 +88,13 @@ export default function EvaluationMarkingSchemaModal({
               </span>
             </div>
             <div>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 Review extracted references before grading
               </h2>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Edit the extracted reference points question by question, save them
-                for this session, then confirm to unlock grading.
+                Review and edit the extracted references question by question,
+                save your changes for this session, then confirm the schema to
+                start grading.
               </p>
             </div>
           </div>
@@ -83,8 +108,23 @@ export default function EvaluationMarkingSchemaModal({
           </button>
         </div>
 
-        <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-[#2a2a2a] dark:bg-[#161616]">
-          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 text-sm text-teal-900 dark:border-teal-900/40 dark:bg-teal-900/15 dark:text-teal-100">
+            <p className="font-semibold">How to review the marking schema</p>
+            <p className="mt-2 leading-6">
+              Read each extracted reference, fix anything that looks incomplete or
+              incorrect, then use <span className="font-semibold">Save changes</span>
+              to keep your edits. Grading will stay locked until you press
+              <span className="font-semibold"> Confirm schema</span>.
+            </p>
+            <p className="mt-2 leading-6">
+              You can type in English letters and they will be converted into
+              Sinhala while typing. If you paste text, it will be kept exactly as
+              pasted.
+            </p>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
             <span className="rounded-full bg-white px-3 py-1 font-medium dark:bg-[#111111]">
               {completedCount}/{questions.length} references ready
             </span>
@@ -97,10 +137,9 @@ export default function EvaluationMarkingSchemaModal({
               </span>
             ) : null}
           </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          {loading ? (
+          <div className="mt-5">
+            {loading ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-gray-500 dark:text-gray-400">
               <RefreshCw className="h-8 w-8 animate-spin" />
               <div>
@@ -132,7 +171,7 @@ export default function EvaluationMarkingSchemaModal({
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 pb-4">
               {questions.map((question, index) => (
                 <div
                   key={question.id}
@@ -162,21 +201,53 @@ export default function EvaluationMarkingSchemaModal({
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
                     Extracted reference
                   </label>
-                  <textarea
-                    value={question.referenceText}
-                    onChange={(event) =>
-                      handleQuestionChange(question.id, event.target.value)
-                    }
-                    className="min-h-[148px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-6 text-gray-800 outline-none transition focus:border-teal-500 focus:bg-white dark:border-[#2a2a2a] dark:bg-[#101010] dark:text-gray-100 dark:focus:border-teal-400"
-                    placeholder="Reference points for this question will appear here."
-                  />
+                  <div
+                    className="
+                      relative
+                      [&_ul]:!bottom-full
+                      [&_ul]:!top-auto
+                      [&_ul]:!mb-2
+                      [&_ul]:!z-50
+                      [&_ul]:shadow-lg
+                      [&_ul]:rounded-lg
+                      [&_ul]:!border-gray-200
+                      dark:[&_ul]:!bg-[#1F1F1F]
+                      dark:[&_ul]:!border-[#333]
+                      dark:[&_ul]:!text-gray-200
+                    "
+                  >
+                    <ReactTransliterate
+                      value={question.referenceText}
+                      onChangeText={(text) => {
+                        handleQuestionChange(question.id, text);
+                      }}
+                      lang="si"
+                      renderComponent={(props) => (
+                        <textarea
+                          {...props}
+                          onPaste={(event) =>
+                            handlePaste(
+                              event,
+                              question.id,
+                              question.referenceText
+                            )
+                          }
+                          className="min-h-[148px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-6 text-gray-800 outline-none transition focus:border-teal-500 focus:bg-white dark:border-[#2a2a2a] dark:bg-[#101010] dark:text-gray-100 dark:focus:border-teal-400"
+                          placeholder="Reference points for this question will appear here."
+                        />
+                      )}
+                      containerStyles={{ width: "100%", position: "relative" }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
           )}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-[#2a2a2a] dark:bg-[#161616]">
+        <div className="border-t border-gray-200 bg-gray-50 px-6 py-3 dark:border-[#2a2a2a] dark:bg-[#161616]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="secondary"
@@ -204,7 +275,7 @@ export default function EvaluationMarkingSchemaModal({
               onClick={() => onSave(questions)}
               disabled={loading || saving || questions.length === 0}
             >
-              {saving ? "Saving..." : "Save draft"}
+              {saving ? "Saving..." : "Save changes"}
             </Button>
             <Button
               onClick={() => onConfirm(questions)}
@@ -213,6 +284,7 @@ export default function EvaluationMarkingSchemaModal({
             >
               {saving ? "Saving..." : "Confirm schema"}
             </Button>
+          </div>
           </div>
         </div>
       </div>
