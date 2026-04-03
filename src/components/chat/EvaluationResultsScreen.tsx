@@ -22,6 +22,7 @@ import {
   generateEvaluationFeedback,
   getAnswerDocuments
 } from "@/lib/api/evaluation";
+import { ApiError } from "@/lib/api/client";
 
 // Mock data generator for demonstration (kept for backward compatibility)
 export const generateMockResult = (fileName: string) => ({
@@ -66,6 +67,7 @@ interface EvaluationResultsScreenProps {
 
 interface ResultSummary {
   answer_document_id: string;
+  backend_answer_document_id?: string | null;
   student_identifier: string;
   total_score: number;
   percentage_score: number | null;
@@ -75,12 +77,166 @@ interface ResultSummary {
 
 interface DetailedResult {
   answer_document_id: string;
+  backend_answer_document_id?: string | null;
   total_score: number;
   percentage_score: number | null;
   overall_feedback: string | null;
   improvement_points: string[];
   question_feedback?: any[];
   marks_summary?: Record<string, Array<{ label: string; awarded: number; max: number; is_selected?: boolean }>>;
+  isHydratedFromProps?: boolean;
+}
+
+type NormalizedQuestionFeedback = {
+  id: string;
+  label: string;
+  mainQuestionKey: string;
+  subLabel: string | null;
+  paperPart: string;
+  score: number;
+  maxScore: number | null;
+  feedback: string | null;
+  isLeaf: boolean;
+};
+
+const SUB_QUESTION_PATTERN = /^(\d+)\s*(?:[.)-]?\s*)?\(?([a-zA-Z])\)?$/;
+const SUB_QUESTION_BRACKET_PATTERN = /(?:^|\b)(\d+)\s*[\(\[]\s*([\p{L}\d]+)\s*[\)\]]\s*$/u;
+const SUB_QUESTION_SEPARATED_PATTERN = /(?:^|\b)(\d+)\s*[.\-]\s*([\p{L}\d]+)\s*$/u;
+const MAIN_QUESTION_PATTERN = /(\d+)/;
+
+function toNumeric(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function parseQuestionLabel(rawLabel: string): {
+  displayLabel: string;
+  mainQuestionKey: string;
+  subLabel: string | null;
+} {
+  const label = rawLabel.trim();
+  const subMatch =
+    label.match(SUB_QUESTION_PATTERN) ||
+    label.match(SUB_QUESTION_BRACKET_PATTERN) ||
+    label.match(SUB_QUESTION_SEPARATED_PATTERN);
+  if (subMatch) {
+    const main = subMatch[1];
+    const sub = subMatch[2].toLowerCase();
+    return {
+      displayLabel: `${main}(${sub})`,
+      mainQuestionKey: main,
+      subLabel: sub,
+    };
+  }
+
+  const mainMatch = label.match(MAIN_QUESTION_PATTERN);
+  if (mainMatch) {
+    const main = mainMatch[1];
+    return {
+      displayLabel: label,
+      mainQuestionKey: main,
+      subLabel: null,
+    };
+  }
+
+  return {
+    displayLabel: label,
+    mainQuestionKey: label || "unknown",
+    subLabel: null,
+  };
+}
+
+function normalizeQuestionFeedback(rawItems: any[]): NormalizedQuestionFeedback[] {
+  return (rawItems || []).map((item: any, idx: number) => {
+    const backendLabel =
+      item?.question_label ||
+      item?.questionNumber ||
+      item?.question_number ||
+      item?.label ||
+      `Question ${idx + 1}`;
+
+    const parsed = parseQuestionLabel(String(backendLabel));
+
+    return {
+      id: String(item?.id ?? `q-${idx}`),
+      label:
+        item?.question_label ||
+        item?.questionNumber ||
+        item?.question_number ||
+        item?.label ||
+        `Question ${idx + 1}`,
+      mainQuestionKey: String(item?.main_question_key || parsed.mainQuestionKey || "unknown"),
+      subLabel: item?.sub_label
+        ? String(item.sub_label).toLowerCase()
+        : parsed.subLabel,
+      paperPart: String(item?.paper_part_display || item?.paper_part || "Other"),
+      score: toNumeric(item?.score ?? item?.awarded_marks) ?? 0,
+      maxScore: toNumeric(item?.max_score ?? item?.max_marks),
+      feedback: typeof item?.feedback === "string" ? item.feedback : null,
+      isLeaf: item?.is_leaf !== false,
+    };
+  });
+}
+
+function hasRealBackendQuestionFeedback(items: any[] | undefined): boolean {
+  return Array.isArray(items) && items.some(
+    (item) =>
+      item?.paper_part ||
+      item?.paper_part_display ||
+      item?.question_label ||
+      item?.main_question_key ||
+      item?.max_marks !== undefined
+  );
+}
+
+function hasUsableDetailedFeedback(detail: DetailedResult | undefined): boolean {
+  if (!detail) return false;
+  if (detail.isHydratedFromProps) {
+    return hasRealBackendQuestionFeedback(detail.question_feedback);
+  }
+  return true;
+}
+
+function formatEvaluationError(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    if (typeof error.details === "string" && error.details.trim()) {
+      return error.details;
+    }
+
+    if (error.details && typeof error.details === "object") {
+      const details = error.details as Record<string, unknown>;
+      const detailMessage =
+        (typeof details.detail === "string" && details.detail) ||
+        (typeof details.message === "string" && details.message);
+
+      if (detailMessage) return detailMessage;
+
+      try {
+        return JSON.stringify(details);
+      } catch {
+        return error.message || fallback;
+      }
+    }
+  }
+
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+
+  try {
+    const serialized = JSON.stringify(error);
+    return serialized && serialized !== "{}" ? serialized : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export default function EvaluationResultsScreen({
@@ -106,42 +262,73 @@ export default function EvaluationResultsScreen({
 
   // Fetch results summary on mount
   useEffect(() => {
-    // If results are passed as props (e.g. from history), use them directly
-    if (propResults && propResults.length > 0) {
-      const normalizedSummary: ResultSummary[] = propResults.map(r => ({
-        answer_document_id: r.answer_document_id || r.id || r.fileName,
-        student_identifier: r.student_identifier || r.fileName || r.id,
-        total_score: r.total_score || r.overallScore || 0,
-        percentage_score: r.percentage_score ?? r.overallScore ?? null,
-        overall_feedback: typeof r.overall_feedback === 'string' ? r.overall_feedback : (r.overallFeedback?.en || null),
-        evaluated_at: r.evaluated_at || new Date().toISOString()
-      }));
+    const hydrateFromProps = () => {
+      if (!propResults || propResults.length === 0) return;
+
+      const normalizedSummary: ResultSummary[] = propResults.map((r, idx) => {
+        const backendId =
+          (typeof r.answer_document_id === "string" && r.answer_document_id) ||
+          (typeof r.answerDocumentId === "string" && r.answerDocumentId) ||
+          null;
+        const localId =
+          backendId ||
+          `prop-${idx}-${String(r.id || r.fileName || r.student_identifier || "result")}`;
+
+        return {
+          answer_document_id: localId,
+          backend_answer_document_id: backendId,
+          student_identifier: r.student_identifier || r.fileName || r.id,
+          total_score: r.total_score || r.overallScore || 0,
+          percentage_score: r.percentage_score ?? r.overallScore ?? null,
+          overall_feedback: typeof r.overall_feedback === 'string' ? r.overall_feedback : (r.overallFeedback?.en || null),
+          evaluated_at: r.evaluated_at || new Date().toISOString()
+        };
+      });
 
       setResultsSummary(normalizedSummary);
-      
-      // Also populate detailed results so they are available immediately
+
       const newDetailed = new Map<string, DetailedResult>();
-      propResults.forEach(r => {
-        const id = r.answer_document_id || r.id || r.fileName;
-        newDetailed.set(id, {
-          answer_document_id: id,
+      propResults.forEach((r, idx) => {
+        const backendId =
+          (typeof r.answer_document_id === "string" && r.answer_document_id) ||
+          (typeof r.answerDocumentId === "string" && r.answerDocumentId) ||
+          null;
+        const localId =
+          backendId ||
+          `prop-${idx}-${String(r.id || r.fileName || r.student_identifier || "result")}`;
+        const questionFeedback = r.question_feedback || r.question_feedbacks || r.questions || [];
+
+        newDetailed.set(localId, {
+          answer_document_id: localId,
+          backend_answer_document_id: backendId,
           total_score: r.total_score || r.overallScore || 0,
           percentage_score: r.percentage_score ?? r.overallScore ?? null,
           overall_feedback: typeof r.overall_feedback === 'string' ? r.overall_feedback : (r.overallFeedback?.en || null),
           improvement_points: r.improvement_points || [],
-          question_feedback: r.question_feedback || r.questions || [],
-          marks_summary: r.marks_summary || {}
+          question_feedback: questionFeedback,
+          marks_summary: r.marks_summary || {},
+          isHydratedFromProps: true,
         });
       });
       setDetailedResults(newDetailed);
       setIsLoading(false);
+    };
+
+    // If results are passed as props (e.g. from history), use them directly
+    if (propResults && propResults.length > 0) {
+      hydrateFromProps();
+      if (!evaluationSessionId) return;
+    }
+
+    if (!evaluationSessionId) {
+      setIsLoading(false);
       return;
     }
 
-    if (!evaluationSessionId) return;
-
     const fetchResults = async () => {
-      setIsLoading(true);
+      if (!propResults || propResults.length === 0) {
+        setIsLoading(true);
+      }
       setError(null);
       try {
         // 1. Fetch all results for the session
@@ -189,10 +376,17 @@ export default function EvaluationResultsScreen({
           ? (data || []).filter((r: ResultSummary) => mappedAnswerIds.includes(r.answer_document_id))
           : (data || []); // Fallback to all results if no filtering or mapping fails
 
-        setResultsSummary(filtered);
+        setResultsSummary(
+          (filtered || []).map((r: ResultSummary) => ({
+            ...r,
+            backend_answer_document_id: r.answer_document_id,
+          }))
+        );
       } catch (err) {
         console.error("Failed to fetch evaluation results:", err);
-        setError(err instanceof Error ? err.message : "Failed to load results");
+        if (!propResults || propResults.length === 0) {
+          setError(formatEvaluationError(err, "Failed to load results"));
+        }
       } finally {
         setIsLoading(false);
       }
@@ -213,48 +407,60 @@ export default function EvaluationResultsScreen({
     // expansion happens via "View Feedback" button now
   };
 
-  const handleViewFeedback = async (answerId: string) => {
-    if (expandedId === answerId) {
+  const handleViewFeedback = async (summary: ResultSummary) => {
+    const rowId = summary.answer_document_id;
+    const backendAnswerId = summary.backend_answer_document_id || summary.answer_document_id;
+
+    if (expandedId === rowId) {
       setExpandedId(null);
       return;
     }
 
     // If we already have the detailed result, just expand
-    if (detailedResults.has(answerId)) {
-      setExpandedId(answerId);
+    const existingDetail = detailedResults.get(rowId);
+    if (hasUsableDetailedFeedback(existingDetail)) {
+      setExpandedId(rowId);
       return;
     }
 
-    setGeneratingFeedback(prev => new Set(prev).add(answerId));
+    if (!summary.backend_answer_document_id) {
+      setError("Detailed feedback is still syncing. Please wait a moment and try again.");
+      return;
+    }
+
+    setError(null);
+    setGeneratingFeedback(prev => new Set(prev).add(rowId));
     try {
       // First generate the feedback
-      await generateEvaluationFeedback(answerId);
+      await generateEvaluationFeedback(backendAnswerId);
 
       // Then fetch result and feedback details
       const [resultData, feedbackData] = await Promise.all([
-        getEvaluationResult(answerId),
-        getEvaluationAnswerFeedback(answerId)
+        getEvaluationResult(backendAnswerId),
+        getEvaluationAnswerFeedback(backendAnswerId)
       ]);
 
       const combined: DetailedResult = {
-        answer_document_id: answerId,
+        answer_document_id: rowId,
+        backend_answer_document_id: backendAnswerId,
         total_score: resultData.total_score || 0,
-        percentage_score: resultData.percentage_score,
+        percentage_score: resultData.percentage_score ?? null,
         overall_feedback: feedbackData.overall_feedback || null,
         improvement_points: feedbackData.improvement_points || [],
         question_feedback: resultData.question_feedbacks || [],
-        marks_summary: resultData.marks_summary || {}
+        marks_summary: resultData.marks_summary || {},
+        isHydratedFromProps: false,
       };
 
-      setDetailedResults(prev => new Map(prev).set(answerId, combined));
-      setExpandedId(answerId);
+      setDetailedResults(prev => new Map(prev).set(rowId, combined));
+      setExpandedId(rowId);
     } catch (err) {
-      console.error(`Failed to generate/fetch feedback for answer ${answerId}:`, err);
-      setError(err instanceof Error ? err.message : "Failed to generate feedback");
+      console.error(`Failed to generate/fetch feedback for answer ${backendAnswerId}:`, err);
+      setError(formatEvaluationError(err, "Failed to generate feedback"));
     } finally {
       setGeneratingFeedback(prev => {
         const next = new Set(prev);
-        next.delete(answerId);
+        next.delete(rowId);
         return next;
       });
     }
@@ -416,7 +622,7 @@ export default function EvaluationResultsScreen({
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleViewFeedback(result.answer_document_id);
+                        handleViewFeedback(result);
                       }}
                       disabled={generatingFeedback.has(result.answer_document_id)}
                       className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap min-w-[120px]"
@@ -529,87 +735,188 @@ export default function EvaluationResultsScreen({
                     )}
 
                     {/* Overall Feedback */}
-                    {detailedResult.overall_feedback && (
-                      <section>
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <MessageSquare className="w-4 h-4" />
-                          {t("evaluation_results_overall_feedback")}
-                        </h4>
-                        <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg border border-blue-100 dark:border-blue-900/30 text-gray-700 dark:text-gray-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
-                          <ReactMarkdown>{detailedResult.overall_feedback}</ReactMarkdown>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* Improvement Points */}
-                    {detailedResult.improvement_points && detailedResult.improvement_points.length > 0 && (
-                      <section>
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4" />
-                          {t("evaluation_results_improvement_points")}
-                        </h4>
-                        <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-lg border border-amber-100 dark:border-amber-900/30">
-                          <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-2">
-                            {detailedResult.improvement_points.map((point, idx) => (
-                              <li key={idx}>{point}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* Question-wise Breakdown */}
                     {detailedResult.question_feedback && detailedResult.question_feedback.length > 0 && (
-                      <section>
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-4 flex items-center gap-2">
-                          <BarChart2 className="w-4 h-4" />
-                          {t("evaluation_results_question_wise_breakdown")}
-                        </h4>
-                        <div className="space-y-4">
-                          {detailedResult.question_feedback.map((q: any, idx: number) => (
-                            <div
-                              key={idx}
-                              className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-4 space-y-4"
-                            >
-                              <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2">
-                                  {q.score / q.max_score >= 0.75 ? (
-                                    <CheckCircle className="w-4 h-4 text-green-500" />
-                                  ) : q.score / q.max_score >= 0.4 ? (
-                                    <AlertCircle className="w-4 h-4 text-amber-500" />
-                                  ) : (
-                                    <XCircle className="w-4 h-4 text-red-500" />
-                                  )}
-                                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                                    {q.question_label || `Question ${idx + 1}`}
-                                  </span>
-                                </div>
-                                <span className={clsx(
-                                  "text-sm font-semibold px-2 py-1 rounded",
-                                  q.score / q.max_score >= 0.75 ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400" :
-                                    q.score / q.max_score >= 0.4 ? "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400" :
-                                      "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400"
-                                )}>
-                                  {q.score} / {q.max_score}
-                                </span>
-                              </div>
+                    <section>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <BarChart2 className="w-4 h-4" />
+                        {t("evaluation_results_question_wise_breakdown")}
+                      </h4>
 
-                              {/* Feedback */}
-                              {q.feedback && (
-                                <div className="pt-2 border-t border-gray-100 dark:border-[#2a2a2a]">
-                                  <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                                    {t("evaluation_results_feedback")}
+                      <div className="space-y-6">
+                        {(() => {
+                          const normalized = normalizeQuestionFeedback(detailedResult.question_feedback || []);
+
+                          const getPerformanceClass = (score: number, maxScore: number | null) => {
+                            if (!maxScore || maxScore <= 0) {
+                              return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300";
+                            }
+                            const ratio = score / maxScore;
+                            if (ratio >= 0.75) return "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400";
+                            if (ratio >= 0.4) return "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400";
+                            return "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400";
+                          };
+
+                          const getPerformanceIcon = (score: number, maxScore: number | null) => {
+                            if (!maxScore || maxScore <= 0) {
+                              return <MessageSquare className="w-4 h-4 text-slate-500" />;
+                            }
+                            const ratio = score / maxScore;
+                            if (ratio >= 0.75) return <CheckCircle className="w-4 h-4 text-green-500" />;
+                            if (ratio >= 0.4) return <AlertCircle className="w-4 h-4 text-amber-500" />;
+                            return <XCircle className="w-4 h-4 text-red-500" />;
+                          };
+
+                          const paperGroups = normalized.reduce((acc, item) => {
+                            const key = item.paperPart || "Other";
+                            if (!acc[key]) acc[key] = [];
+                            acc[key].push(item);
+                            return acc;
+                          }, {} as Record<string, NormalizedQuestionFeedback[]>);
+
+                          return Object.entries(paperGroups).map(([paperPart, items]) => {
+                            const grouped: Array<
+                              | { type: "single"; item: NormalizedQuestionFeedback }
+                              | { type: "main"; mainQuestion: string; items: NormalizedQuestionFeedback[] }
+                            > = [];
+
+                            const groupedMainIndex = new Map<string, number>();
+
+                            for (const current of items) {
+                              const hasSub = Boolean(current.subLabel);
+
+                              if (!hasSub) {
+                                grouped.push({ type: "single", item: current });
+                                continue;
+                              }
+
+                              const groupKey = `${paperPart}::${current.mainQuestionKey}`;
+                              const existingIndex = groupedMainIndex.get(groupKey);
+
+                              if (existingIndex !== undefined) {
+                                const existingGroup = grouped[existingIndex];
+                                if (existingGroup?.type === "main") {
+                                  existingGroup.items.push(current);
+                                }
+                                continue;
+                              }
+
+                              grouped.push({
+                                type: "main",
+                                mainQuestion: current.mainQuestionKey,
+                                items: [current],
+                              });
+                              groupedMainIndex.set(groupKey, grouped.length - 1);
+                            }
+
+                            return (
+                              <div
+                                key={paperPart}
+                                className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-xl overflow-hidden"
+                              >
+                                <div className="px-4 py-3 border-b border-gray-200 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1c1c1c]">
+                                  <h5 className="text-sm font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wide">
+                                    {paperPart}
                                   </h5>
-                                  <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
-                                    <ReactMarkdown>{q.feedback}</ReactMarkdown>
-                                  </div>
                                 </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    )}
+
+                                <div className="p-4 space-y-4">
+                                  {grouped.map((group, idx) => {
+                                    if (group.type === "single") {
+                                      const q = group.item;
+                                      return (
+                                        <div
+                                          key={`single-${paperPart}-${q.id}-${idx}`}
+                                          className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg p-4 space-y-4"
+                                        >
+                                          <div className="flex justify-between items-start gap-3">
+                                            <div className="flex items-center gap-2">
+                                              {getPerformanceIcon(q.score, q.maxScore)}
+                                              <span className="font-medium text-gray-900 dark:text-gray-100">
+                                                {q.label}
+                                              </span>
+                                            </div>
+                                            <span
+                                              className={clsx(
+                                                "text-sm font-semibold px-2 py-1 rounded",
+                                                getPerformanceClass(q.score, q.maxScore)
+                                              )}
+                                            >
+                                              {q.maxScore !== null ? `${q.score} / ${q.maxScore}` : `${q.score}`}
+                                            </span>
+                                          </div>
+
+                                          {q.feedback && (
+                                            <div className="pt-2 border-t border-gray-100 dark:border-[#2a2a2a]">
+                                              <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                                                {t("evaluation_results_feedback")}
+                                              </h5>
+                                              <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                                                <ReactMarkdown>{q.feedback}</ReactMarkdown>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <div
+                                        key={`main-${paperPart}-${group.mainQuestion}-${idx}`}
+                                        className="bg-white dark:bg-[#161616] border border-gray-200 dark:border-[#2a2a2a] rounded-lg overflow-hidden"
+                                      >
+                                        <details open className="group">
+                                          <summary className="px-4 py-3 border-b border-gray-100 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1c1c1c] cursor-pointer list-none flex items-center justify-between">
+                                            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                              Question {group.mainQuestion}
+                                            </span>
+                                            <ChevronDown className="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180" />
+                                          </summary>
+
+                                          <div className="p-4 space-y-4">
+                                            {group.items.map((q, subIdx) => (
+                                              <div
+                                                key={`sub-${paperPart}-${q.id}-${subIdx}`}
+                                                className="rounded-md border border-gray-100 dark:border-[#2a2a2a] p-3"
+                                              >
+                                                <div className="flex justify-between items-start gap-3">
+                                                  <div className="flex items-center gap-2">
+                                                    {getPerformanceIcon(q.score, q.maxScore)}
+                                                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                                                      {q.label}
+                                                    </span>
+                                                  </div>
+                                                  <span
+                                                    className={clsx(
+                                                      "text-xs font-semibold px-2 py-1 rounded whitespace-nowrap",
+                                                      getPerformanceClass(q.score, q.maxScore)
+                                                    )}
+                                                  >
+                                                    {q.maxScore !== null ? `${q.score} / ${q.maxScore}` : `${q.score}`}
+                                                  </span>
+                                                </div>
+
+                                                {q.feedback && (
+                                                  <div className="mt-3 pt-2 border-t border-gray-100 dark:border-[#2a2a2a]">
+                                                    <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                                                      <ReactMarkdown>{q.feedback}</ReactMarkdown>
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </details>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </section>
+                  )}
                   </div>
                 </div>
               )}
