@@ -152,7 +152,7 @@ export async function postVoiceQA(params: {
   session_id: string;
   resource_ids?: string[];
 }): Promise<VoiceQAResponse> {
-  const { audio, session_id, resource_ids = []} = params;
+  const { audio, session_id, resource_ids = [] } = params;
 
   const formData = new FormData();
   formData.append("audio", audio, "voice.wav");
@@ -176,7 +176,7 @@ export async function postVoiceQAFromText(params: {
   session_id: string;
   resource_ids?: string[];
 }): Promise<VoiceQAResponse> {
-  const { text, session_id, resource_ids = []} = params;
+  const { text, session_id, resource_ids = [] } = params;
 
   const formData = new FormData();
   formData.append("text", text);  // Send text instead of audio
@@ -195,13 +195,21 @@ export async function postVoiceQAFromText(params: {
   );
 }
 
-export async function postVoiceTranscribe(audioBlob: Blob): Promise<{
+export async function postVoiceTranscribe(
+  audioBlob: Blob,
+  resourceIds?: string // Added optional parameter
+): Promise<{
   raw: string;
   normalized: string;
   standard: string;
 }> {
   const formData = new FormData();
   formData.append("audio", audioBlob, "voice.wav");
+
+  // Append resource_ids if they exist to provide context hints to the backend
+  if (resourceIds) {
+    formData.append("resource_ids", resourceIds);
+  }
 
   const response = await apiFetch<{
     raw: string;
@@ -210,11 +218,12 @@ export async function postVoiceTranscribe(audioBlob: Blob): Promise<{
   }>(`${API_BASE_URL}/api/v1/voice/transcribe`, {
     method: "POST",
     body: formData,
+    // Note: Do not set Content-Type header manually when using FormData; 
+    // the browser needs to set the boundary automatically.
   });
 
   return response;
 }
-
 export const generateMessageResponse = async (messageId: string) => {
   const message = await apiFetch<GeneratedMessageResponse>(
     `${API_BASE_URL}/api/v1/messages/${messageId}/generate`,

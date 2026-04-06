@@ -682,12 +682,12 @@ export default function ChatPage({
             : paperConfig.length > 0
               ? { paperConfig }
               : {
-                  totalMarks,
-                  mainQuestions,
-                  requiredQuestions,
-                  subQuestions,
-                  subQuestionMarks,
-                };
+                totalMarks,
+                mainQuestions,
+                requiredQuestions,
+                subQuestions,
+                subQuestionMarks,
+              };
 
           // If we are starting evaluation, add the files to the message
           const fileMessages = selectedFiles.map((file) => ({
@@ -742,12 +742,12 @@ export default function ChatPage({
             : paperConfig.length > 0
               ? { paperConfig }
               : {
-                  totalMarks,
-                  mainQuestions,
-                  requiredQuestions,
-                  subQuestions,
-                  subQuestionMarks,
-                };
+                totalMarks,
+                mainQuestions,
+                requiredQuestions,
+                subQuestions,
+                subQuestionMarks,
+              };
 
           const resourceAttachments = uploadedResources.map((item, index) => ({
             resource_id: item.resource_id,
@@ -813,7 +813,7 @@ export default function ChatPage({
             console.error("Failed to process attachments", err);
             setToastMessage(
               (err instanceof Error ? err.message : null) ||
-                "Failed to process attachments.",
+              "Failed to process attachments.",
             );
             setToastType("error");
             setIsToastVisible(true);
@@ -937,17 +937,25 @@ export default function ChatPage({
       // Step 3: Transcribe the audio (ONCE)
       let transcribedText = "";
       try {
-        const transcriptionResult = await postVoiceTranscribe(audioBlob);
+        // Get the IDs of the files currently attached/pending
+        const currentResourceIds = uploadedResources.map((r) => r.resource_id);
+
+        // UPDATED CALL: Pass the resource IDs string to the transcribe endpoint
+        const transcriptionResult = await postVoiceTranscribe(
+          audioBlob,
+          currentResourceIds.join(",")
+        );
+
         transcribedText = transcriptionResult.standard;
 
-        // Update the message with transcribed text - THIS IS THE FINAL USER QUESTION
+        // Update message with corrected transcription
         setLearningMessages((prev) => {
           const newMessages = [...prev];
           newMessages[messageIndex] = {
             role: "user",
             modality: "voice",
             content: transcribedText,
-            resource_ids: uploadedResources.map((r) => r.resource_id),
+            resource_ids: currentResourceIds,
           } as ChatMessage;
           return newMessages;
         });
@@ -1101,9 +1109,9 @@ export default function ChatPage({
       const avgScore =
         results.length > 0
           ? Math.round(
-              results.reduce((acc, curr) => acc + curr.overallScore, 0) /
-                results.length,
-            )
+            results.reduce((acc, curr) => acc + curr.overallScore, 0) /
+            results.length,
+          )
           : 0;
 
       const newSession: EvaluationSession = {
@@ -1453,7 +1461,7 @@ export default function ChatPage({
             acceptedFiles.push(file);
             acceptedIds.push(id);
           }
-          
+
           setUploadProgress(prev => ({ ...prev, current: i + 1 }));
         } catch (err) {
           console.error(`Failed to upload file ${file.name}`, err);
@@ -1675,10 +1683,10 @@ export default function ChatPage({
           },
           onEvent: (evt) => {
             try {
-              const data = typeof evt.raw === "string" && evt.raw.trim().startsWith("{") 
-                ? JSON.parse(evt.raw) 
+              const data = typeof evt.raw === "string" && evt.raw.trim().startsWith("{")
+                ? JSON.parse(evt.raw)
                 : null;
-              
+
               if (data && data.answer_document_id) {
                 console.log(`Captured answer_document_id: ${data.answer_document_id} for resource: ${resourceId}`);
                 setAnswerDocumentIds(prev => ({
@@ -1752,8 +1760,8 @@ export default function ChatPage({
       return (
         <div className="flex-1 overflow-y-auto p-6 space-y-4 w-full max-w-[320px] min-[350]:max-w-[380] min-[425]:max-w-[425] sm:max-w-full bg-gray-100 dark:bg-[#0C0C0C] custom-scrollbar">
           {learningMessages.length === 0 &&
-          !isAutoProcessing &&
-          !isMessageGenerating ? (
+            !isAutoProcessing &&
+            !isMessageGenerating ? (
             <EmptyState
               title={t("start_conversation")}
               subtitle={t("start_learning_conversation_sub")}
@@ -2104,9 +2112,8 @@ export default function ChatPage({
 
       {/* MAIN AREA */}
       <div
-        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${
-          isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
-        }`}
+        className={`flex flex-col flex-1 h-full transition-[margin,width] duration-300 ${isAnyRightPanelOpen ? RIGHT_PANEL_MARGIN_CLASS : ""
+          }`}
       >
         {/* HEADER COMPONENT */}
         <Header
@@ -2281,9 +2288,8 @@ export default function ChatPage({
       {/* RIGHT SLIDE SIDEBARS */}
       {/* SYLLABUS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isSyllabusOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isSyllabusOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <SyllabusPanelpage
           onClose={toggleSyllabus}
@@ -2304,9 +2310,8 @@ export default function ChatPage({
 
       {/* QUESTIONS PANEL */}
       <div
-        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${
-          isQuestionsOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed right-0 top-0 h-full transition-transform duration-300 z-10 ${RIGHT_PANEL_WIDTH_CLASS} border-l border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] ${isQuestionsOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         <QuestionsPanelpage
           onClose={toggleQuestions}
