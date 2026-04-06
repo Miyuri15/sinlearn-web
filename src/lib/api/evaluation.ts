@@ -1,7 +1,13 @@
 import { API_BASE_URL } from "../config";
 import { getAccessToken } from "../localStore";
 import { apiFetch } from "./client";
-import type { PaperPart, Question, SubQuestion } from "@/lib/models/chat";
+import type {
+  MarkingSchema,
+  MarkingSchemaQuestion,
+  PaperPart,
+  Question,
+  SubQuestion,
+} from "@/lib/models/chat";
 
 export type EvaluationResourceType =
   | "question_paper"
@@ -14,6 +20,16 @@ export type UploadedResource = {
   size_bytes?: number;
   mime_type?: string;
 };
+
+function coerceBoolean(value: unknown, fallback = false): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return fallback;
+}
 
 function extractUploads(payload: any): UploadedResource[] {
   if (!payload) return [];
@@ -755,6 +771,168 @@ export async function confirmPaperConfig(params: {
   );
 }
 
+function normalizeMarkingSchemaQuestion(
+  payload: any,
+  index: number
+): MarkingSchemaQuestion {
+  return {
+    id: String(
+      payload?.id ??
+        payload?.question_id ??
+        payload?.questionId ??
+        `schema-question-${index}`
+    ),
+    questionId:
+      payload?.question_id ?? payload?.questionId ?? payload?.target_question_id,
+    questionNumber: String(
+      payload?.question_number ??
+        payload?.questionNumber ??
+        payload?.display_number ??
+        payload?.label ??
+        `Q${index + 1}`
+    ),
+    questionText: String(
+      payload?.question_text ??
+        payload?.questionText ??
+        payload?.text ??
+        payload?.question ??
+        ""
+    ),
+    referenceText: String(
+      payload?.reference_text ??
+        payload?.referenceText ??
+        payload?.reference ??
+        payload?.marking_reference ??
+        payload?.content ??
+        ""
+    ),
+    maxMarks:
+      typeof payload?.max_marks === "number"
+        ? payload.max_marks
+        : typeof payload?.maxMarks === "number"
+          ? payload.maxMarks
+          : undefined,
+    partName:
+      payload?.part_name ?? payload?.partName ?? payload?.paper_part ?? undefined,
+  };
+}
+
+function normalizeMarkingSchema(payload: any, sessionId: string): MarkingSchema {
+  const root =
+    payload?.data ??
+    payload?.result ??
+    payload?.marking_schema ??
+    payload?.markingSchema ??
+    payload ??
+    {};
+
+  const rawQuestions = Array.isArray(root?.questions)
+    ? root.questions
+    : Array.isArray(root?.references)
+      ? root.references
+      : Array.isArray(root)
+        ? root
+        : [];
+
+  return {
+    id: root?.id ?? root?.schema_id ?? root?.schemaId ?? undefined,
+    sessionId: String(
+      root?.session_id ?? root?.sessionId ?? root?.chat_session_id ?? sessionId
+    ),
+    resourceId:
+      root?.resource_id ?? root?.resourceId ?? root?.session_resource_id ?? null,
+    isConfirmed: coerceBoolean(
+      root?.is_confirmed ?? root?.confirmed ?? root?.isConfirmed,
+      false
+    ),
+    createdAt: root?.created_at ?? root?.createdAt ?? undefined,
+    updatedAt: root?.updated_at ?? root?.updatedAt ?? undefined,
+    questions: rawQuestions.map((item: any, index: number) =>
+      normalizeMarkingSchemaQuestion(item, index)
+    ),
+  };
+}
+
+export async function getSessionMarkingSchema(sessionId: string): Promise<MarkingSchema> {
+  const payload = await apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(
+      sessionId
+    )}/marking-schema`,
+    {
+      method: "GET",
+    }
+  );
+
+  return normalizeMarkingSchema(payload, sessionId);
+}
+
+export async function saveSessionMarkingSchema(params: {
+  sessionId: string;
+  questions: MarkingSchemaQuestion[];
+}): Promise<MarkingSchema> {
+  const { sessionId, questions } = params;
+  const payload = await apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(
+      sessionId
+    )}/marking-schema`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        questions: questions.map((question) => ({
+          id: question.id,
+          question_id: question.questionId,
+          question_number: question.questionNumber,
+          question_text: question.questionText,
+          reference_text: question.referenceText,
+          max_marks: question.maxMarks,
+          part_name: question.partName,
+        })),
+      }),
+    }
+  );
+
+  return normalizeMarkingSchema(payload, sessionId);
+}
+
+export async function confirmSessionMarkingSchema(params: {
+  sessionId: string;
+  questions: MarkingSchemaQuestion[];
+}): Promise<MarkingSchema> {
+  const { sessionId, questions } = params;
+  const payload = await apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(
+      sessionId
+    )}/marking-schema/confirm`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        questions: questions.map((question) => ({
+          id: question.id,
+          question_id: question.questionId,
+          question_number: question.questionNumber,
+          question_text: question.questionText,
+          reference_text: question.referenceText,
+          max_marks: question.maxMarks,
+          part_name: question.partName,
+        })),
+      }),
+    }
+  );
+
+  return normalizeMarkingSchema(payload, sessionId);
+}
+
+export async function deleteSessionMarkingSchema(sessionId: string): Promise<void> {
+  await apiFetch<void>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(
+      sessionId
+    )}/marking-schema`,
+    {
+      method: "DELETE",
+    }
+  );
+}
+
 export type ProcessDocumentsRequest = {
   chat_session_id: string;
   answer_resource_ids: string[];
@@ -851,11 +1029,6 @@ export async function processDocumentsStream(
   return await res.text();
 }
 
-export type StartEvaluationRequest = {
-  chat_session_id: string;
-  answer_resource_ids: string[];
-};
-
 export type EvaluationProgressStep =
   | "evaluating_answer_sheets"
   | "calculating_marks"
@@ -879,11 +1052,11 @@ function guessStepFromLine(line: string): EvaluationProgressStep | undefined {
 }
 
 export async function startEvaluationStream(params: {
-  body: StartEvaluationRequest;
+  payload: StartEvaluationRequest;
   onEvent: (evt: StreamProgressEvent) => void;
   signal?: AbortSignal;
 }): Promise<any> {
-  const { body, onEvent, signal } = params;
+  const { payload, onEvent, signal } = params;
   const token = getAccessToken();
 
   const res = await fetch(`${API_BASE_URL}/api/v1/evaluation/start/stream`, {
@@ -892,7 +1065,7 @@ export async function startEvaluationStream(params: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
     signal,
   });
 
@@ -930,11 +1103,11 @@ export async function startEvaluationStream(params: {
       if (!trimmed) continue;
 
       // SSE-like: "data: ..."
-      const payload = trimmed.startsWith("data:")
+      const data = trimmed.startsWith("data:")
         ? trimmed.slice("data:".length).trim()
         : trimmed;
 
-      onEvent({ raw: payload, step: guessStepFromLine(payload) });
+      onEvent({ raw: data, step: guessStepFromLine(data) });
     }
   }
 
@@ -952,10 +1125,10 @@ export async function startEvaluationStream(params: {
   return null;
 }
 
-export async function startEvaluation(body: StartEvaluationRequest): Promise<any> {
+export async function startEvaluation(params: StartEvaluationRequest): Promise<any> {
   return apiFetch<any>(`${API_BASE_URL}/api/v1/evaluation/start`, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify(params),
   });
 }
 
