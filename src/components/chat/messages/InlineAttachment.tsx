@@ -2,39 +2,39 @@
 
 import { FileText, Music, Video } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { viewResource } from "@/lib/api/resource";
-import FilePreviewModal from "../uploads/FilePreviewModal";
 
 interface InlineAttachmentProps {
   resourceId?: string;
 }
 
-export function InlineAttachment({ resourceId }: InlineAttachmentProps) {
-  const [showModal, setShowModal] = useState(false);
+export function InlineAttachment({
+  resourceId,
+}: Readonly<InlineAttachmentProps>) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [mimeType, setMimeType] = useState<string | null>(null);
-
-  const id = resourceId;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Fetch blob URL if resourceId is provided
   useEffect(() => {
-    if (!id) return;
+    if (!resourceId) return;
 
     let isMounted = true;
+    let objectUrl: string | null = null;
+
     const fetchResource = async () => {
       try {
-        setLoading(true);
-        const blob = await viewResource(id); // fetch blob
+        const blob = await viewResource(resourceId);
         if (isMounted) {
-          const url = URL.createObjectURL(blob);
-          setBlobUrl(url);
-          setMimeType(blob.type); // save MIME type for rendering
+          objectUrl = URL.createObjectURL(blob);
+          setBlobUrl(objectUrl);
+          setMimeType(blob.type);
         }
       } catch (error) {
         console.error("Failed to fetch resource:", error);
-      } finally {
-        if (isMounted) setLoading(false);
       }
     };
 
@@ -42,9 +42,9 @@ export function InlineAttachment({ resourceId }: InlineAttachmentProps) {
 
     return () => {
       isMounted = false;
-      if (blobUrl) URL.revokeObjectURL(blobUrl); // cleanup
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [id]);
+  }, [resourceId]);
 
   // Determine file type from MIME type
   const fileType = useMemo(() => {
@@ -74,37 +74,21 @@ export function InlineAttachment({ resourceId }: InlineAttachmentProps) {
     }
   }, [fileType, blobUrl]);
 
-  const handleClick = () => setShowModal(true);
-  const handleCloseModal = () => setShowModal(false);
+  const handleClick = () => {
+    if (!resourceId) return;
 
-  if (loading) {
-    return (
-      <div className="w-20 h-20 flex items-center justify-center border rounded bg-gray-50 text-gray-400">
-        Loading...
-      </div>
-    );
-  }
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", resourceId);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   return (
-    <>
-      <div
-        onClick={handleClick}
-        className="w-20 h-20 flex items-center justify-center border rounded cursor-pointer overflow-hidden bg-gray-50 hover:bg-gray-100"
-      >
-        {icon}
-      </div>
-
-      {/* Optionally include modal preview if needed */}
-      {showModal && blobUrl && (
-        <FilePreviewModal
-          resourceId={id}
-          url={blobUrl}
-          type={
-            fileType === "file" && mimeType?.includes("pdf") ? "pdf" : fileType
-          }
-          onClose={handleCloseModal}
-        />
-      )}
-    </>
+    <button
+      type="button"
+      onClick={handleClick}
+      className="w-20 h-20 flex items-center justify-center border rounded overflow-hidden bg-gray-50 hover:bg-gray-100"
+    >
+      {icon}
+    </button>
   );
 }

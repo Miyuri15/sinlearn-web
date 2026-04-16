@@ -35,6 +35,7 @@ import UpdatedToast from "@/components/ui/updatedtoast";
 import EditModal from "@/components/ui/EditModal";
 import DeleteModal from "@/components/ui/DeleteModal";
 import ProcessingLogsModal from "@/components/chat/ProcessingLogsModal";
+import ChatResourcePreviewModal from "@/components/chat/ChatResourcePreviewModal";
 import useChatInit from "@/hooks/useChatInit";
 import { useProcessingProgressWS } from "@/hooks/useProcessingProgressWS";
 import {
@@ -2540,6 +2541,8 @@ export default function ChatPage({
         onCancel={handleCancelDelete}
         iconColor="red"
       />
+
+      <ChatResourcePreviewModal />
     </main>
   );
 }
