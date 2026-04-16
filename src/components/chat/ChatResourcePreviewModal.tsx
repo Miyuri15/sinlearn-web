@@ -46,7 +46,7 @@ export default function ChatResourcePreviewModal() {
       } catch (error) {
         console.error("Failed to load attachment preview:", error);
         if (!isActive) return;
-        handleClose(); // Exit modal on failure
+        handleClose();
       }
     };
 
@@ -77,10 +77,9 @@ export default function ChatResourcePreviewModal() {
   return (
     <FilePreviewModal
       resourceId={resourceId}
-      url={blobUrl || ""} // Handle null for loading states inside the modal
+      url={blobUrl || ""}
       type={previewType}
       onClose={handleClose}
-      // isLoading={!blobUrl} // Pass a loading prop if your modal supports it
     />
   );
 }
