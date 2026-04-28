@@ -6,6 +6,7 @@ import { formatBytes } from "@/lib/utils/format";
 import { useTranslation } from "react-i18next";
 import { ReactNode, useState } from "react";
 import { viewResource } from "@/lib/api/resource";
+import { getApiErrorMessage } from "@/lib/api/client";
 import { getMessageAttchmentLog } from "@/lib/api/chat";
 import FilePreviewModal from "@/components/chat/uploads/FilePreviewModal";
 import ProcessingLogsModal, { ProcessingLogEntry } from "./ProcessingLogsModal";
@@ -51,6 +52,9 @@ export default function SessionResourcesModal({
   const [openingResourceId, setOpeningResourceId] = useState<string | null>(
     null,
   );
+  const [previewErrorById, setPreviewErrorById] = useState<
+    Record<string, string>
+  >({});
 
   // Processing logs state
   const [logsModalOpen, setLogsModalOpen] = useState(false);
@@ -84,8 +88,21 @@ export default function SessionResourcesModal({
       setPreviewUrl(url);
       setPreviewType(resolvePreviewType(resource));
       setPreviewResourceId(resource.id);
+      setPreviewErrorById((prev) => {
+        const next = { ...prev };
+        delete next[resource.id];
+        return next;
+      });
     } catch (error) {
       console.error("Failed to preview resource", error);
+      setPreviewErrorById((prev) => ({
+        ...prev,
+        [resource.id]: getApiErrorMessage(
+          error,
+          t("attachment_preview_unavailable"),
+          t("attachment_preview_unavailable_offline"),
+        ),
+      }));
     } finally {
       setOpeningResourceId(null);
     }
@@ -185,6 +202,11 @@ export default function SessionResourcesModal({
                   {openingResourceId === resource.id && (
                     <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
                       {t("session_resources_loading")}
+                    </p>
+                  )}
+                  {previewErrorById[resource.id] && (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                      {previewErrorById[resource.id]}
                     </p>
                   )}
                 </button>

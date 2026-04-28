@@ -7,6 +7,8 @@
     "evaluation_mode": "Evaluation Mode",
     "connectivity_offline": "Offline",
     "connectivity_reconnecting": "Reconnecting",
+    "attachment_preview_unavailable": "Preview unavailable for this attachment.",
+    "attachment_preview_unavailable_offline": "Preview unavailable while offline.",
     "view_resources": "View Resources",
     "session_resources_title": "Session Resources",
     "session_resources_loading": "Loading resources...",
