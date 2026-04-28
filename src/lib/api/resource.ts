@@ -86,6 +86,37 @@ export const processMessageAttachments = (messageId: string) => {
   );
 };
 
+export type ResourceExtractedTextResponse = {
+  resource_id: string;
+  status: string;
+  extracted_text: string;
+  chunks_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  returned_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+  language?: string | null;
+};
+
+export const getResourceExtractedText = async (
+  resourceId: string,
+  params: { page?: number; pageSize?: number } = {}
+): Promise<ResourceExtractedTextResponse> => {
+  const queryParams = new URLSearchParams();
+  if (params.page) queryParams.set("page", String(params.page));
+  if (params.pageSize) queryParams.set("page_size", String(params.pageSize));
+  const query = queryParams.toString();
+
+  return apiFetch<ResourceExtractedTextResponse>(
+    `${API_BASE_URL}/api/v1/resources/${encodeURIComponent(
+      resourceId
+    )}/extracted-text${query ? `?${query}` : ""}`,
+    { method: "GET" }
+  );
+};
+
 export type ResourceBatchProcessResponse = {
   resource_id: string;
   status: string;

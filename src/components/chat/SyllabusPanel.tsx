@@ -1,16 +1,17 @@
 import Image from "next/image";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import PDFViewer from "@/components/ui/PDFViewer";
 import CloseIcon from "@mui/icons-material/Close";
 import UpdatedToast from "@/components/ui/updatedtoast";
 import { BookOpen } from "lucide-react";
+import FilePreviewModal from "@/components/chat/uploads/FilePreviewModal";
 import {
   listChatSessionResources,
   removeAttachedResourceFromSession,
   uploadEvaluationResources,
 } from "@/lib/api/evaluation";
-import { ApiError } from "@/lib/api/client";
+import { getResourceExtractedText, viewResource } from "@/lib/api/resource";
+import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 
 type ToastState = {
   message: string;
@@ -35,6 +36,7 @@ type SyllabusItemType = {
   topics: string;
   fileUrl?: string;
   fileType?: string;
+  mimeType?: string;
 };
 
 type SessionResourceSummary = {
@@ -45,7 +47,11 @@ type SessionResourceSummary = {
   filename?: string;
   file_name?: string;
   name?: string;
+  mime_type?: string;
+  mimeType?: string;
 };
+
+type PreviewType = "image" | "video" | "audio" | "pdf" | "file";
 
 const SyllabusItem = ({
   id,
@@ -165,6 +171,7 @@ const SyllabusPanelpage = ({
             uploaded: new Date().toLocaleDateString("en-US"),
             topics: `File: ${(ext || "N/A").toUpperCase()} | (Previously uploaded)`,
             fileType: ext,
+            mimeType: r.mime_type || r.mimeType,
           };
         });
 
@@ -192,9 +199,27 @@ const SyllabusPanelpage = ({
     type: "success",
   });
   const [viewingPDF, setViewingPDF] = useState<{
-    fileName: string;
     resourceId: string;
+    url: string;
+    type: PreviewType;
+    extractedText: string;
+    isExtracting: boolean;
+    extractedTextError: string | null;
+    extractedTextPage: number;
+    extractedTextPageSize: number;
+    extractedTextTotalPages: number;
+    extractedTextReturnedPages: number;
+    extractedTextHasNext: boolean;
+    extractedTextHasPrevious: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (viewingPDF?.url) {
+        URL.revokeObjectURL(viewingPDF.url);
+      }
+    };
+  }, [viewingPDF?.url]);
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, isVisible: true, type });
@@ -245,6 +270,24 @@ const SyllabusPanelpage = ({
     }
 
     return basePrefix + "Upload failed.";
+  };
+
+  const resolvePreviewType = (syllabus: SyllabusItemType): PreviewType => {
+    const mime = (syllabus.mimeType || "").toLowerCase();
+    if (mime.startsWith("image/")) return "image";
+    if (mime.startsWith("video/")) return "video";
+    if (mime.startsWith("audio/")) return "audio";
+    if (mime.includes("pdf")) return "pdf";
+
+    const fileType = (syllabus.fileType || "").toLowerCase();
+    if (fileType === "pdf") return "pdf";
+    if (["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(fileType))
+      return "image";
+    if (["mp4", "webm", "mov", "avi", "mkv"].includes(fileType))
+      return "video";
+    if (["mp3", "wav", "ogg", "m4a", "aac"].includes(fileType))
+      return "audio";
+    return "file";
   };
 
   const handleFileChange = async (
@@ -319,6 +362,7 @@ const SyllabusPanelpage = ({
             ).toFixed(2)} MB`,
             fileUrl: fileUrl,
             fileType: fileExt,
+            mimeType: uploads[0]?.mime_type || file.type,
           };
 
           setUploadedSyllabi((prev) => [...prev, newSyllabus]);
@@ -375,28 +419,81 @@ const SyllabusPanelpage = ({
     showToast(t("delete_success", { title }), "success");
   };
 
-  const handleViewSyllabus = (id: number) => {
+  const handleViewSyllabus = async (id: number) => {
     const syllabus = uploadedSyllabi.find((s) => s.id === id);
     if (!syllabus) return;
 
-    console.log("Viewing syllabus", syllabus);
-
-    console.log("Resource ID for viewing:", syllabus.resourceId);
-
-    if (syllabus.fileType !== "pdf") {
-      showToast(
-        t("preview_not_available", {
-          fileType: syllabus.fileType?.toUpperCase(),
-        }),
-        "error",
-      );
+    if (!syllabus.resourceId) {
+      showToast("Resource id is missing for this syllabus.", "error");
       return;
     }
 
-    setViewingPDF({
-      fileName: `${syllabus.title}.pdf`,
-      resourceId: syllabus.resourceId || "",
-    });
+    try {
+      const [blobResult, extractedTextResult] = await Promise.allSettled([
+        viewResource(syllabus.resourceId),
+        getResourceExtractedText(syllabus.resourceId, { page: 1, pageSize: 1 }),
+      ]);
+
+      if (blobResult.status === "rejected") {
+        throw blobResult.reason;
+      }
+
+      let extractedText = "";
+      let extractedTextError: string | null = null;
+      let extractedTextMeta = {
+        page: 1,
+        pageSize: 1,
+        totalPages: 0,
+        returnedPages: 0,
+        hasNext: false,
+        hasPrevious: false,
+      };
+
+      if (extractedTextResult.status === "fulfilled") {
+        extractedText = extractedTextResult.value.extracted_text || "";
+        extractedTextMeta = {
+          page: extractedTextResult.value.page || 1,
+          pageSize: extractedTextResult.value.page_size || 1,
+          totalPages: extractedTextResult.value.total_pages || 0,
+          returnedPages: extractedTextResult.value.returned_pages || 0,
+          hasNext: extractedTextResult.value.has_next,
+          hasPrevious: extractedTextResult.value.has_previous,
+        };
+      } else {
+        console.error("Failed to load extracted text", extractedTextResult.reason);
+        extractedTextError = getApiErrorMessage(
+          extractedTextResult.reason,
+          "Failed to load extracted text.",
+        );
+      }
+
+      const url = URL.createObjectURL(blobResult.value);
+      setViewingPDF((prev) => {
+        if (prev?.url) {
+          URL.revokeObjectURL(prev.url);
+        }
+        return {
+          resourceId: syllabus.resourceId || "",
+          url,
+          type: resolvePreviewType(syllabus),
+          extractedText,
+          isExtracting: false,
+          extractedTextError,
+          extractedTextPage: extractedTextMeta.page,
+          extractedTextPageSize: extractedTextMeta.pageSize,
+          extractedTextTotalPages: extractedTextMeta.totalPages,
+          extractedTextReturnedPages: extractedTextMeta.returnedPages,
+          extractedTextHasNext: extractedTextMeta.hasNext,
+          extractedTextHasPrevious: extractedTextMeta.hasPrevious,
+        };
+      });
+    } catch (error) {
+      console.error("Failed to preview syllabus", error);
+      showToast(
+        getApiErrorMessage(error, "Failed to preview syllabus."),
+        "error",
+      );
+    }
   };
 
   return (
@@ -537,12 +634,25 @@ const SyllabusPanelpage = ({
         />
       </div>
 
-      {/* PDF Viewer Modal */}
+      {/* Syllabus Preview Modal */}
       {viewingPDF && (
-        <PDFViewer
-          fileName={viewingPDF.fileName}
+        <FilePreviewModal
           resourceId={viewingPDF.resourceId}
-          onClose={() => setViewingPDF(null)}
+          url={viewingPDF.url}
+          type={viewingPDF.type}
+          extractedText={viewingPDF.extractedText}
+          isExtracting={viewingPDF.isExtracting}
+          extractedTextError={viewingPDF.extractedTextError}
+          extractedTextPage={viewingPDF.extractedTextPage}
+          extractedTextPageSize={viewingPDF.extractedTextPageSize}
+          extractedTextTotalPages={viewingPDF.extractedTextTotalPages}
+          extractedTextReturnedPages={viewingPDF.extractedTextReturnedPages}
+          extractedTextHasNext={viewingPDF.extractedTextHasNext}
+          extractedTextHasPrevious={viewingPDF.extractedTextHasPrevious}
+          onClose={() => {
+            URL.revokeObjectURL(viewingPDF.url);
+            setViewingPDF(null);
+          }}
         />
       )}
     </>
