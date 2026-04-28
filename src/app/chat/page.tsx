@@ -88,6 +88,11 @@ import {
   writeCachedSidebarChats,
 } from "@/lib/sidebarChatCache";
 import {
+  readCachedSessionMessages,
+  removeCachedSessionMessages,
+  writeCachedSessionMessages,
+} from "@/lib/messageHistoryCache";
+import {
   enqueueTextMessage,
   getQueuedTextMessages,
   OfflineTextMessage,
@@ -556,6 +561,7 @@ export default function ChatPage({
 
   const router = useRouter();
   const endRef = useRef<HTMLDivElement | null>(null);
+  const learningMessageCacheSessionRef = useRef<string | null>(null);
   const [responseLevel, setResponseLevel] = useState("grade_9_11");
 
   // Evaluation inputs state
@@ -598,6 +604,15 @@ export default function ChatPage({
       }
 
       setIsLoadingMessages(true);
+      const cachedMessages = readCachedSessionMessages(chatId);
+      learningMessageCacheSessionRef.current = chatId;
+
+      if (cachedMessages.length > 0) {
+        setLearningMessages(cachedMessages);
+      } else {
+        setLearningMessages([]);
+      }
+
       try {
         const messages = await listSessionMessages(chatId);
 
@@ -607,9 +622,13 @@ export default function ChatPage({
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
         );
 
+        writeCachedSessionMessages(chatId, sorted);
         setLearningMessages(sorted);
       } catch (error) {
-        router.replace("/chat");
+        if (cachedMessages.length === 0 && !isOfflineError(error)) {
+          router.replace("/chat");
+        }
+
         setToastMessage(
           apiErrorMessage(error, "errors.load_chat_messages"),
         );
@@ -624,6 +643,15 @@ export default function ChatPage({
 
     loadMessages();
   }, [chatId, mode]);
+
+  useEffect(() => {
+    if (mode !== "learning") return;
+
+    const cacheSessionId = learningMessageCacheSessionRef.current;
+    if (!cacheSessionId) return;
+
+    writeCachedSessionMessages(cacheSessionId, learningMessages);
+  }, [learningMessages, mode]);
 
   useEffect(() => {
     const loadChats = async () => {
@@ -1008,6 +1036,8 @@ export default function ChatPage({
                 new Date(b.created_at).getTime(),
             );
 
+            learningMessageCacheSessionRef.current = sessionToRefresh;
+            writeCachedSessionMessages(sessionToRefresh, sorted);
             setLearningMessages(sorted);
           } catch (err) {
             console.error("Failed to refresh messages", err);
@@ -1152,6 +1182,8 @@ export default function ChatPage({
             new Date(a.created_at).getTime() -
             new Date(b.created_at).getTime(),
         );
+        learningMessageCacheSessionRef.current = sessionToRefresh;
+        writeCachedSessionMessages(sessionToRefresh, sorted);
         setLearningMessages(sorted);
       }
 
@@ -2455,6 +2487,7 @@ export default function ChatPage({
       setIsDeletingChat(true);
       try {
         await deleteChatSession(deletingChat.id);
+        removeCachedSessionMessages(deletingChat.id);
 
         setChats((prev) => {
           const updated = prev.filter((item) => item.id !== deletingChat.id);
