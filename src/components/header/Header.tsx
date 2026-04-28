@@ -51,6 +51,8 @@ export default function Header({
   const { t } = useTranslation("chat");
   const connectivityStatus = useConnectivityStatus(backendConnectionStatus);
   const showConnectivityBadge = connectivityStatus !== "online";
+  const showCompactConnectivityBadge =
+    isSyllabusOpen || isQuestionsOpen || isRubricOpen;
   const connectivityLabel =
     connectivityStatus === "offline"
       ? t("connectivity_offline")
@@ -247,7 +249,9 @@ export default function Header({
               title={connectivityLabel}
             >
               <WifiOff className="h-4 w-4" />
-              <span>{connectivityLabel}</span>
+              {!showCompactConnectivityBadge && (
+                <span>{connectivityLabel}</span>
+              )}
             </div>
           )}
         </div>
@@ -282,7 +286,9 @@ export default function Header({
                 title={t("evaluation_start_step_rubric")}
               >
                 <FileText className="w-5 h-5" />
-                <span className="text-sm font-medium">{t("evaluation_start_step_rubric")}</span>
+                <span className="text-sm font-medium">
+                  {t("evaluation_start_step_rubric")}
+                </span>
               </button>
 
               <button
@@ -295,7 +301,9 @@ export default function Header({
                 title={t("evaluation_start_step_syllabus")}
               >
                 <Book className="w-5 h-5" />
-                <span className="text-sm font-medium">{t("evaluation_start_step_syllabus")}</span>
+                <span className="text-sm font-medium">
+                  {t("evaluation_start_step_syllabus")}
+                </span>
               </button>
 
               <button
@@ -308,7 +316,9 @@ export default function Header({
                 title={t("evaluation_start_step_questions")}
               >
                 <HelpCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">{t("evaluation_start_step_questions")}</span>
+                <span className="text-sm font-medium">
+                  {t("evaluation_start_step_questions")}
+                </span>
               </button>
             </div>
           )}
