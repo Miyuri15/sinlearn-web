@@ -33,6 +33,10 @@
   "logout_confirm_message": "ඔබට Log out වීමට අවශ්‍යද?",
   "cancel": "අවලංගු කරන්න",
   "logging_out": "පිටවෙමින් පවතී...",
+  "errors": {
+    "offline": "ඔබ අන්තර්ජාලයට සම්බන්ධ වී නැත. කරුණාකර නැවත සම්බන්ධ වී උත්සාහ කරන්න.",
+    "authentication_failed": "සත්‍යාපනය (Authentication) අසාර්ථක විය"
+  },
   
   "settings": {
     "title": "සැකසුම්",
