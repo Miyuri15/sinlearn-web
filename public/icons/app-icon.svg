@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">SinhalaLearn</title>
+  <rect width="512" height="512" rx="96" fill="#111827"/>
+  <path d="M128 142c0-22 18-40 40-40h176c22 0 40 18 40 40v228c0 22-18 40-40 40H168c-22 0-40-18-40-40V142Z" fill="#f9fafb"/>
+  <path d="M176 176h160M176 226h160M176 276h104" stroke="#2563eb" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="344" cy="344" r="44" fill="#16a34a"/>
+  <path d="m326 344 13 13 27-30" fill="none" stroke="#f9fafb" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

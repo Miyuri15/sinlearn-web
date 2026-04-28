@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getAuthTokens, isAccessTokenExpired } from "@/lib/localStore";
+import { isBrowserOffline } from "@/lib/api/client";
 import UpdatedToast from "@/components/ui/updatedtoast";
 
 const AuthenticatedLayout: React.FC<{ children: React.ReactNode }> = ({
@@ -18,7 +19,11 @@ const AuthenticatedLayout: React.FC<{ children: React.ReactNode }> = ({
 
   const isAuthRoute = useMemo(() => {
     if (!pathname) return false;
-    return pathname === "/auth" || pathname.startsWith("/auth/");
+    return (
+      pathname === "/offline" ||
+      pathname === "/auth" ||
+      pathname.startsWith("/auth/")
+    );
   }, [pathname]);
 
   useEffect(() => {
@@ -30,7 +35,7 @@ const AuthenticatedLayout: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const tokens = getAuthTokens();
-    const isAuthed = !!tokens && !isAccessTokenExpired();
+    const isAuthed = !!tokens && (!isAccessTokenExpired() || isBrowserOffline());
 
     if (isAuthed) {
       setAllowed(true);

@@ -81,9 +81,43 @@ import {
 } from "@/lib/api/evaluation";
 import { formatDistanceToNow } from "date-fns";
 import { getSelectedChatType } from "@/lib/localStore";
+import { getApiErrorMessage, isOfflineError } from "@/lib/api/client";
+import {
+  readCachedSidebarChats,
+  SidebarChatItem,
+  writeCachedSidebarChats,
+} from "@/lib/sidebarChatCache";
+import {
+  readCachedSessionMessages,
+  removeCachedSessionMessages,
+  writeCachedSessionMessages,
+} from "@/lib/messageHistoryCache";
+import {
+  enqueueTextMessage,
+  getQueuedTextMessages,
+  OfflineTextMessage,
+  removeQueuedTextMessage,
+} from "@/lib/offlineMessageQueue";
+import { useConnectivityStatus } from "@/hooks/useConnectivityStatus";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
+
+function queuedTextMessageToChatMessage(message: OfflineTextMessage): ChatMessage {
+  return {
+    id: message.id,
+    role: "user",
+    content: message.content,
+    grade_level: message.gradeLevel,
+    created_at: message.createdAt,
+    offline_status: "pending",
+    offline_files: message.files.map((item) => ({
+      name: item.name,
+      size: item.size,
+      type: item.type,
+    })),
+  } as ChatMessage;
+}
 
 interface ChatPageProps {
   chatId?: string;
@@ -95,11 +129,24 @@ export default function ChatPage({
   initialMessages = [],
 }: Readonly<ChatPageProps>) {
   const { t } = useTranslation("chat");
+  const apiErrorMessage = useCallback(
+    (error: unknown, key: string) =>
+      getApiErrorMessage(error, t(key), t("errors.offline")),
+    [t],
+  );
+
   const [chatType, setChatType] = useState<"learning" | "evaluation">(
     () => getSelectedChatType() || "learning",
   );
   // ✅ ADD THIS: active server session id for the current chat
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const getCurrentQueueSessionId = useCallback(() => {
+    if (activeSessionId) return activeSessionId;
+    if (chatId && !chatId.startsWith("local-") && !chatId.startsWith("new-")) {
+      return chatId;
+    }
+    return null;
+  }, [activeSessionId, chatId]);
 
   const evaluationHistoryStorageKey = (sessionId: string) =>
     `sinlearn.evaluationHistory.v1.${sessionId}`;
@@ -125,7 +172,9 @@ export default function ChatPage({
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
   const [creating, setCreating] = useState(false);
-  const [chats, setChats] = useState<SidebarChatItem[]>([]);
+  const [chats, setChats] = useState<SidebarChatItem[]>(() =>
+    readCachedSidebarChats(),
+  );
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState<
     "success" | "error" | "info" | "warning"
@@ -166,7 +215,7 @@ export default function ChatPage({
       // Ensure the newly created session exists in sidebar list so it can be highlighted
       setChats((prev) => {
         const next = prev.filter((c) => c.id !== session.id);
-        return [
+        const updated: SidebarChatItem[] = [
           {
             id: session.id,
             title: session.title || t("new_evaluation_chat"),
@@ -175,6 +224,8 @@ export default function ChatPage({
           },
           ...next,
         ];
+        writeCachedSidebarChats(updated);
+        return updated;
       });
 
       // Update URL without full reload to keep state
@@ -183,7 +234,9 @@ export default function ChatPage({
       return session.id;
     } catch (error) {
       console.error("Failed to create session on demand", error);
-      setToastMessage("Failed to create chat session. Please try again.");
+      setToastMessage(
+        apiErrorMessage(error, "errors.create_chat_session"),
+      );
       setToastType("error");
       setIsToastVisible(true);
       return null;
@@ -227,7 +280,9 @@ export default function ChatPage({
   }, [processingStatus]);
 
   // WebSocket: listen for processing_progress events from the backend
-  const { lastProgress, progressLog } = useProcessingProgressWS();
+  const { connectionStatus, lastProgress, progressLog } =
+    useProcessingProgressWS();
+  const connectivityStatus = useConnectivityStatus(connectionStatus);
   const [isProgressLogModalOpen, setIsProgressLogModalOpen] = useState(false);
 
   useEffect(() => {
@@ -504,15 +559,9 @@ export default function ChatPage({
     }
   }, [activeSessionId, mode, evaluationHistory]);
 
-  type SidebarChatItem = {
-    id: string;
-    title: string;
-    type: "learning" | "evaluation";
-    time: string;
-  };
-
   const router = useRouter();
   const endRef = useRef<HTMLDivElement | null>(null);
+  const learningMessageCacheSessionRef = useRef<string | null>(null);
   const [responseLevel, setResponseLevel] = useState("grade_9_11");
 
   // Evaluation inputs state
@@ -555,6 +604,15 @@ export default function ChatPage({
       }
 
       setIsLoadingMessages(true);
+      const cachedMessages = readCachedSessionMessages(chatId);
+      learningMessageCacheSessionRef.current = chatId;
+
+      if (cachedMessages.length > 0) {
+        setLearningMessages(cachedMessages);
+      } else {
+        setLearningMessages([]);
+      }
+
       try {
         const messages = await listSessionMessages(chatId);
 
@@ -564,10 +622,16 @@ export default function ChatPage({
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
         );
 
+        writeCachedSessionMessages(chatId, sorted);
         setLearningMessages(sorted);
-      } catch {
-        router.replace("/chat");
-        setToastMessage("Failed to load chat messages. Please try again.");
+      } catch (error) {
+        if (cachedMessages.length === 0 && !isOfflineError(error)) {
+          router.replace("/chat");
+        }
+
+        setToastMessage(
+          apiErrorMessage(error, "errors.load_chat_messages"),
+        );
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -579,6 +643,15 @@ export default function ChatPage({
 
     loadMessages();
   }, [chatId, mode]);
+
+  useEffect(() => {
+    if (mode !== "learning") return;
+
+    const cacheSessionId = learningMessageCacheSessionRef.current;
+    if (!cacheSessionId) return;
+
+    writeCachedSessionMessages(cacheSessionId, learningMessages);
+  }, [learningMessages, mode]);
 
   useEffect(() => {
     const loadChats = async () => {
@@ -599,6 +672,7 @@ export default function ChatPage({
           }),
         }));
 
+        writeCachedSidebarChats(mapped);
         setChats(mapped);
 
         // On the root /chat route, automatically load the most recent real session
@@ -626,6 +700,10 @@ export default function ChatPage({
         }
       } catch (err) {
         console.error("Failed to load chat history", err);
+        setChats((prev) => {
+          if (prev.length > 0) return prev;
+          return readCachedSidebarChats();
+        });
       }
     };
 
@@ -640,6 +718,32 @@ export default function ChatPage({
       setActiveSessionId(null);
     }
   }, [chatId]);
+
+  useEffect(() => {
+    if (mode !== "learning") return;
+
+    let cancelled = false;
+
+    const hydrateQueuedMessages = async () => {
+      const queued = await getQueuedTextMessages(getCurrentQueueSessionId());
+      if (cancelled || queued.length === 0) return;
+
+      setLearningMessages((prev) => {
+        const existingIds = new Set(prev.map((item) => item.id).filter(Boolean));
+        const missing = queued
+          .filter((item) => !existingIds.has(item.id))
+          .map(queuedTextMessageToChatMessage);
+
+        return missing.length > 0 ? [...prev, ...missing] : prev;
+      });
+    };
+
+    void hydrateQueuedMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getCurrentQueueSessionId, mode, setLearningMessages]);
 
   const handleSend = (configOverride?: PaperPart[]) => {
     const run = async () => {
@@ -665,17 +769,60 @@ export default function ChatPage({
 
       // Upload pending files before sending the message so backend receives resource ids
       const filesToUpload = mode === "learning" ? pendingFiles : selectedFiles;
+      const shouldQueueOffline =
+        mode === "learning" && connectivityStatus !== "online";
+
+      if (shouldQueueOffline) {
+        const queued = await enqueueTextMessage({
+          sessionId: getCurrentQueueSessionId(),
+          content: message,
+          gradeLevel: responseLevel,
+          files: filesToUpload,
+        });
+
+        setLearningMessages((prev) => [
+          ...prev,
+          queuedTextMessageToChatMessage(queued),
+        ]);
+        setToastMessage(t("offline_message_queued"));
+        setToastType("info");
+        setIsToastVisible(true);
+        setCreating(false);
+        setMessage("");
+        clearPendingFiles();
+        return;
+      }
+
       if (filesToUpload.length > 0) {
         setIsUploading(true);
         try {
           uploadedResources = await uploadResources(filesToUpload);
         } catch (error) {
           console.error("Failed to upload files", error);
-          let message = "Failed to upload files. Please try again.";
-          if (error instanceof Error) {
-            message = error.message;
+          if (mode === "learning" && isOfflineError(error)) {
+            const queued = await enqueueTextMessage({
+              sessionId: getCurrentQueueSessionId(),
+              content: message,
+              gradeLevel: responseLevel,
+              files: filesToUpload,
+            });
+
+            setLearningMessages((prev) => [
+              ...prev,
+              queuedTextMessageToChatMessage(queued),
+            ]);
+            setToastMessage(t("offline_message_queued"));
+            setToastType("info");
+            setIsToastVisible(true);
+            setCreating(false);
+            setIsUploading(false);
+            setMessage("");
+            clearPendingFiles();
+            return;
           }
-          setToastMessage(message);
+
+          const uploadErrorMessage = apiErrorMessage(error, "errors.upload_files");
+          setToastMessage(uploadErrorMessage);
           setToastType("error");
           setIsToastVisible(true);
           setCreating(false);
@@ -869,7 +1016,9 @@ export default function ChatPage({
             }
           } catch (err) {
             console.error("Failed to generate assistant reply", err);
-            setToastMessage("Failed to generate assistant reply.");
+            setToastMessage(
+              apiErrorMessage(err, "errors.generate_assistant_reply"),
+            );
             setToastType("error");
             setIsToastVisible(true);
           } finally {
@@ -887,6 +1036,8 @@ export default function ChatPage({
                 new Date(b.created_at).getTime(),
             );
 
+            learningMessageCacheSessionRef.current = sessionToRefresh;
+            writeCachedSessionMessages(sessionToRefresh, sorted);
             setLearningMessages(sorted);
           } catch (err) {
             console.error("Failed to refresh messages", err);
@@ -900,7 +1051,34 @@ export default function ChatPage({
         }
       } catch (error) {
         console.error("Failed to send message", error);
-        setToastMessage("Failed to send message. Please try again.");
+        if (mode === "learning" && isOfflineError(error)) {
+          const queued = await enqueueTextMessage({
+            sessionId: getCurrentQueueSessionId(),
+            content: message,
+            gradeLevel: responseLevel,
+            files: [],
+          });
+
+          setLearningMessages((prev) => {
+            const withoutOptimistic = prev.filter(
+              (item) =>
+                !(
+                  item.role === "user" &&
+                  item.content === message &&
+                  !String(item.id ?? "").startsWith("offline-")
+                ),
+            );
+            return [...withoutOptimistic, queuedTextMessageToChatMessage(queued)];
+          });
+          setToastMessage(t("offline_message_queued"));
+          setToastType("info");
+          setIsToastVisible(true);
+          return;
+        }
+
+        setToastMessage(
+          apiErrorMessage(error, "errors.send_message"),
+        );
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -912,6 +1090,150 @@ export default function ChatPage({
 
     void run();
   };
+
+  const flushOfflineTextMessages = useCallback(async () => {
+    if (connectivityStatus !== "online" || mode !== "learning") return;
+
+    const queueSessionId = getCurrentQueueSessionId();
+    const queued = await getQueuedTextMessages(queueSessionId);
+    if (queued.length === 0) return;
+
+    setIsSyncingMessages(true);
+    let sessionToRefresh = activeSessionId ?? queueSessionId;
+    let pendingNavigateSessionId: string | null = null;
+
+    try {
+      for (const queuedMessage of queued) {
+        setLearningMessages((prev) =>
+          prev.map((item) =>
+            item.id === queuedMessage.id
+              ? ({ ...item, offline_status: "syncing" } as unknown as ChatMessage)
+              : item,
+          ),
+        );
+
+        let queuedUploads: ResourceUploadResponse[] = [];
+        if (queuedMessage.files.length > 0) {
+          queuedUploads = await uploadResources(
+            queuedMessage.files.map((item) => item.file),
+          );
+        }
+
+        const attachments = queuedUploads.map((item, index) => ({
+          resource_id: item.resource_id,
+          display_name: queuedMessage.files[index]?.name ?? "Attachment",
+          attachment_type: queuedMessage.files[index]?.type?.startsWith("image/")
+            ? "image"
+            : "file",
+        }));
+
+        const resp = await postMessage(queuedMessage.sessionId ?? activeSessionId ?? undefined, {
+          content: queuedMessage.content,
+          modality: "text",
+          grade_level: queuedMessage.gradeLevel,
+          ...(attachments.length ? { attachments } : {}),
+        });
+
+        const newSessionId =
+          resp?.session_id || resp?.session?.id || resp?.chat_id || resp?.id;
+        const createdMessageId =
+          resp?.message_id || resp?.message?.id || resp?.id || null;
+
+        if (newSessionId) {
+          sessionToRefresh = newSessionId;
+          setActiveSessionId(newSessionId);
+          if (!activeSessionId && !queueSessionId) {
+            pendingNavigateSessionId = newSessionId;
+          }
+        }
+
+        await removeQueuedTextMessage(queuedMessage.id);
+
+        if (resp?.assistant_message) {
+          setLearningMessages((prev) => [...prev, resp.assistant_message]);
+        } else if (createdMessageId) {
+          try {
+            const generated = await generateMessageResponse(createdMessageId);
+            const generatedMessage = generated?.message;
+            if (generatedMessage) {
+              setLearningMessages((prev) => [
+                ...prev,
+                {
+                  id: generatedMessage.id,
+                  role: (generatedMessage.role ?? "assistant") as
+                    | "user"
+                    | "assistant",
+                  content: generatedMessage.content ?? "",
+                  grade_level: generatedMessage.grade_level,
+                  safety_summary: generatedMessage.safety_summary,
+                } as ChatMessage,
+              ]);
+            }
+          } catch (error) {
+            console.error("Failed to generate queued assistant reply", error);
+          }
+        }
+      }
+
+      if (sessionToRefresh) {
+        const messages = await listSessionMessages(sessionToRefresh);
+        const sorted = messages.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() -
+            new Date(b.created_at).getTime(),
+        );
+        learningMessageCacheSessionRef.current = sessionToRefresh;
+        writeCachedSessionMessages(sessionToRefresh, sorted);
+        setLearningMessages(sorted);
+      }
+
+      if (pendingNavigateSessionId) {
+        router.replace(`/chat/${pendingNavigateSessionId}`);
+      }
+
+      setToastMessage(t("offline_messages_synced"));
+      setToastType("success");
+      setIsToastVisible(true);
+    } catch (error) {
+      console.error("Failed to sync offline messages", error);
+      setLearningMessages((prev) =>
+        prev.map((item) =>
+          String(item.id ?? "").startsWith("offline-")
+            ? ({ ...item, offline_status: "pending" } as unknown as ChatMessage)
+            : item,
+        ),
+      );
+      setToastMessage(apiErrorMessage(error, "errors.sync_offline_messages"));
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setIsSyncingMessages(false);
+    }
+  }, [
+    activeSessionId,
+    apiErrorMessage,
+    connectivityStatus,
+    getCurrentQueueSessionId,
+    mode,
+    router,
+    setLearningMessages,
+    t,
+  ]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      void flushOfflineTextMessages();
+    };
+
+    window.addEventListener("online", handleOnline);
+    if (connectivityStatus === "online") {
+      void flushOfflineTextMessages();
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [connectivityStatus, flushOfflineTextMessages]);
 
   const handleVoiceSend = async (audioBlob: Blob) => {
     // Voice QA is only supported in learning mode.
@@ -934,7 +1256,9 @@ export default function ChatPage({
           );
         } catch (err) {
           console.error("Failed to process resources batch", err);
-          setToastMessage("Failed to process uploaded resources.");
+          setToastMessage(
+            apiErrorMessage(err, "errors.process_uploaded_resources"),
+          );
           setToastType("error");
           setIsToastVisible(true);
           return;
@@ -992,7 +1316,9 @@ export default function ChatPage({
           return newMessages;
         });
 
-        setToastMessage("Failed to transcribe your voice");
+        setToastMessage(
+          apiErrorMessage(transcribeError, "errors.transcribe_voice"),
+        );
         setToastType("error");
         setIsToastVisible(true);
         return; // Stop here if transcription fails
@@ -1052,13 +1378,15 @@ export default function ChatPage({
           return newMessages;
         });
 
-        setToastMessage("Failed to get answer for your question");
+        setToastMessage(
+          apiErrorMessage(qaError, "errors.voice_answer"),
+        );
         setToastType("error");
         setIsToastVisible(true);
       }
     } catch (error) {
       console.error(error);
-      setToastMessage("Voice processing failed");
+      setToastMessage(apiErrorMessage(error, "errors.voice_processing"));
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1149,7 +1477,7 @@ export default function ChatPage({
 
     } catch (error) {
       console.error("Failed to start evaluation", error);
-      setToastMessage("Failed to start evaluation.");
+      setToastMessage(apiErrorMessage(error, "errors.start_evaluation"));
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1239,7 +1567,9 @@ export default function ChatPage({
       }
     } catch (error) {
       console.error("Failed to regenerate assistant reply", error);
-      setToastMessage("Failed to regenerate assistant reply.");
+      setToastMessage(
+        apiErrorMessage(error, "errors.regenerate_assistant_reply"),
+      );
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1302,7 +1632,9 @@ export default function ChatPage({
       setSessionResources(normalized);
     } catch (error) {
       console.error("Failed to load session resources", error);
-      setSessionResourcesError("Failed to load session resources.");
+      setSessionResourcesError(
+        apiErrorMessage(error, "errors.load_session_resources"),
+      );
       setSessionResources([]);
     } finally {
       setIsSessionResourcesLoading(false);
@@ -1361,7 +1693,9 @@ export default function ChatPage({
           });
         } catch (e) {
           console.error("Failed to detach rubric", e);
-          setToastMessage("Failed to remove rubric from the server.");
+          setToastMessage(
+            apiErrorMessage(e, "errors.remove_rubric"),
+          );
           setToastType("error");
           setIsToastVisible(true);
           return;
@@ -1551,7 +1885,9 @@ export default function ChatPage({
       }
     } catch (error) {
       console.error("Failed to upload answer sheets", error);
-      setToastMessage("Failed to upload answer sheets. Please try again.");
+      setToastMessage(
+        apiErrorMessage(error, "errors.upload_answer_sheets"),
+      );
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1587,7 +1923,9 @@ export default function ChatPage({
       }
     } catch (e) {
       console.error("Failed to delete answer sheet resource", e);
-      setToastMessage("Failed to remove the answer sheet from the server.");
+      setToastMessage(
+        apiErrorMessage(e, "errors.remove_answer_sheet"),
+      );
       setToastType("error");
       setIsToastVisible(true);
       return;
@@ -1665,7 +2003,9 @@ export default function ChatPage({
       });
     } catch (error) {
       console.error("Failed to replace answer sheet", error);
-      setToastMessage("Failed to replace answer sheet. Please try again.");
+      setToastMessage(
+        apiErrorMessage(error, "errors.replace_answer_sheet"),
+      );
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1737,7 +2077,9 @@ export default function ChatPage({
     } catch (error) {
       console.error("Failed to process documents", error);
       setProcessingStatus("idle");
-      setToastMessage("Failed to process documents. Please try again.");
+      setToastMessage(
+        apiErrorMessage(error, "errors.process_documents"),
+      );
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1790,7 +2132,9 @@ export default function ChatPage({
       setMarkingSchemaConfirmed(Boolean(schema.isConfirmed));
     } catch (error) {
       console.error("Failed to load marking schema", error);
-      setToastMessage("Failed to load the marking schema.");
+      setToastMessage(
+        apiErrorMessage(error, "errors.load_marking_schema"),
+      );
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -2041,7 +2385,7 @@ export default function ChatPage({
         // Optimistically add the session so sidebar can highlight it instantly
         setChats((prev) => {
           const next = prev.filter((c) => c.id !== session.id);
-          return [
+          const updated: SidebarChatItem[] = [
             {
               id: session.id,
               title: session.title || "New Evaluation Chat",
@@ -2050,13 +2394,15 @@ export default function ChatPage({
             },
             ...next,
           ];
+          writeCachedSidebarChats(updated);
+          return updated;
         });
 
         router.push(`/chat/${session.id}`);
       } catch (error) {
         console.error("Failed to create evaluation chat", error);
         setToastMessage(
-          "Failed to create new evaluation chat. Please try again.",
+          apiErrorMessage(error, "errors.create_evaluation_chat"),
         );
         setToastType("error");
         setIsToastVisible(true);
@@ -2072,7 +2418,9 @@ export default function ChatPage({
       router.push(`/chat/${tempId}`);
     } catch (error) {
       console.error("Failed to open new chat UI", error);
-      setToastMessage("Failed to open a new chat. Please try again.");
+      setToastMessage(
+        apiErrorMessage(error, "errors.open_new_chat"),
+      );
       setToastType("error");
       setIsToastVisible(true);
     }
@@ -2096,11 +2444,13 @@ export default function ChatPage({
       try {
         await updateChatSession(editingChat.id, { title: nextTitle });
 
-        setChats((prev) =>
-          prev.map((item) =>
+        setChats((prev) => {
+          const updated = prev.map((item) =>
             item.id === editingChat.id ? { ...item, title: nextTitle } : item,
-          ),
-        );
+          );
+          writeCachedSidebarChats(updated);
+          return updated;
+        });
 
         setToastMessage("Chat title updated successfully");
         setToastType("success");
@@ -2108,7 +2458,9 @@ export default function ChatPage({
         setIsEditModalOpen(false);
       } catch (error) {
         console.error("Failed to update chat title", error);
-        setToastMessage("Failed to update chat title. Please try again.");
+        setToastMessage(
+          apiErrorMessage(error, "errors.update_chat_title"),
+        );
         setToastType("error");
         setIsToastVisible(true);
       }
@@ -2135,8 +2487,13 @@ export default function ChatPage({
       setIsDeletingChat(true);
       try {
         await deleteChatSession(deletingChat.id);
+        removeCachedSessionMessages(deletingChat.id);
 
-        setChats((prev) => prev.filter((item) => item.id !== deletingChat.id));
+        setChats((prev) => {
+          const updated = prev.filter((item) => item.id !== deletingChat.id);
+          writeCachedSidebarChats(updated);
+          return updated;
+        });
 
         if (chatId === deletingChat.id) {
           router.push("/chat");
@@ -2149,7 +2506,9 @@ export default function ChatPage({
         setDeletingChat(null);
       } catch (error) {
         console.error("Failed to delete chat", error);
-        setToastMessage("Failed to delete chat. Please try again.");
+        setToastMessage(
+          apiErrorMessage(error, "errors.delete_chat"),
+        );
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -2205,6 +2564,7 @@ export default function ChatPage({
           isTemporal={
             !chatId || chatId.startsWith("local-") || chatId.startsWith("new-")
           }
+          backendConnectionStatus={connectionStatus}
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           toggleRubric={toggleRubric}
           toggleSyllabus={toggleSyllabus}
@@ -2238,7 +2598,7 @@ export default function ChatPage({
               setIsToastVisible(true);
             } catch (e) {
               console.error("Failed to confirm paper config", e);
-              setToastMessage("Failed to confirm paper config.");
+              setToastMessage(apiErrorMessage(e, "errors.confirm_paper_config"));
               setToastType("error");
               setIsToastVisible(true);
               throw e;
@@ -2276,7 +2636,9 @@ export default function ChatPage({
               setIsToastVisible(true);
             } catch (error) {
               console.error("Failed to save marking schema", error);
-              setToastMessage("Failed to save the marking schema.");
+              setToastMessage(
+                apiErrorMessage(error, "errors.save_marking_schema"),
+              );
               setToastType("error");
               setIsToastVisible(true);
               throw error;
@@ -2307,7 +2669,9 @@ export default function ChatPage({
               setIsToastVisible(true);
             } catch (error) {
               console.error("Failed to confirm marking schema", error);
-              setToastMessage("Failed to confirm the marking schema.");
+              setToastMessage(
+                apiErrorMessage(error, "errors.confirm_marking_schema"),
+              );
               setToastType("error");
               setIsToastVisible(true);
               throw error;
@@ -2334,7 +2698,9 @@ export default function ChatPage({
               setIsToastVisible(true);
             } catch (error) {
               console.error("Failed to delete marking schema", error);
-              setToastMessage("Failed to delete the marking schema.");
+              setToastMessage(
+                apiErrorMessage(error, "errors.delete_marking_schema"),
+              );
               setToastType("error");
               setIsToastVisible(true);
               throw error;

@@ -1,21 +1,27 @@
 import { API_BASE_URL } from "../config";
 import { getAccessToken } from "../localStore";
-import { ApiError, apiFetch } from "./client";
+import { ApiError, OfflineError, apiFetch, assertOnline, isLikelyNetworkError } from "./client";
 
 // Fetch resource as blob for inline display (PDF, images, audio, video)
 export const viewResource = async (resourceId: string): Promise<Blob> => {
   const token = getAccessToken();
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/resources/${resourceId}/view`,
-    {
+  const url = `${API_BASE_URL}/api/v1/resources/${resourceId}/view`;
+  assertOnline(url);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
       method: "GET",
       headers: token
         ? {
           Authorization: `Bearer ${token}`,
         }
         : undefined,
-    }
-  );
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
 
   if (!response.ok) throw new Error("Failed to fetch resource");
 
@@ -28,17 +34,23 @@ export const downloadResource = async (
   filename?: string
 ): Promise<void> => {
   const token = getAccessToken();
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/resources/${resourceId}/download`,
-    {
+  const url = `${API_BASE_URL}/api/v1/resources/${resourceId}/download`;
+  assertOnline(url);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
       method: "GET",
       headers: token
         ? {
           Authorization: `Bearer ${token}`,
         }
         : undefined,
-    }
-  );
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
 
   if (!response.ok) throw new Error("Failed to download resource");
 

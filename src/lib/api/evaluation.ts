@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "../config";
 import { getAccessToken } from "../localStore";
-import { apiFetch } from "./client";
+import { OfflineError, apiFetch, assertOnline, isLikelyNetworkError } from "./client";
 import type {
   MarkingSchema,
   MarkingSchemaQuestion,
@@ -938,6 +938,11 @@ export type ProcessDocumentsRequest = {
   answer_resource_ids: string[];
 };
 
+export type StartEvaluationRequest = {
+  chat_session_id: string;
+  answer_resource_ids: string[];
+};
+
 export async function processDocumentsStreamWithProgress(params: {
   body: ProcessDocumentsRequest;
   onEvent: (evt: StreamProgressEvent) => void;
@@ -945,16 +950,25 @@ export async function processDocumentsStreamWithProgress(params: {
 }): Promise<any> {
   const { body, onEvent, signal } = params;
   const token = getAccessToken();
+  const url = `${API_BASE_URL}/api/v1/evaluation/process-documents/stream`;
 
-  const res = await fetch(`${API_BASE_URL}/api/v1/evaluation/process-documents/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
+  assertOnline(url);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -1011,15 +1025,24 @@ export async function processDocumentsStream(
   body: ProcessDocumentsRequest
 ): Promise<string> {
   const token = getAccessToken();
+  const url = `${API_BASE_URL}/api/v1/evaluation/process-documents/stream`;
 
-  const res = await fetch(`${API_BASE_URL}/api/v1/evaluation/process-documents/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
+  assertOnline(url);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -1058,16 +1081,25 @@ export async function startEvaluationStream(params: {
 }): Promise<any> {
   const { payload, onEvent, signal } = params;
   const token = getAccessToken();
+  const url = `${API_BASE_URL}/api/v1/evaluation/start/stream`;
 
-  const res = await fetch(`${API_BASE_URL}/api/v1/evaluation/start/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(payload),
-    signal,
-  });
+  assertOnline(url);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+      signal,
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -1139,15 +1171,24 @@ export async function evaluateAnswerStream(params: {
 }): Promise<void> {
   const { answerId, onEvent, signal } = params;
   const token = getAccessToken();
+  const url = `${API_BASE_URL}/api/v1/evaluation/answers/${answerId}/evaluate/stream`;
 
-  const res = await fetch(`${API_BASE_URL}/api/v1/evaluation/answers/${answerId}/evaluate/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    signal,
-  });
+  assertOnline(url);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      signal,
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");

@@ -42,6 +42,13 @@ export type PostMessagePayload = {
   role?: string;
   content: any;
   mode?: "learning" | "evaluation";
+  modality?: "text" | "voice" | string;
+  grade_level?: string;
+  attachments?: Array<{
+    resource_id: string;
+    display_name?: string;
+    attachment_type?: string;
+  }>;
   // include other fields as needed (files, metadata)
   resource_ids?: string[];
 };

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { getLanguage, setAuthTokens } from "@/lib/localStore";
 import { GraduationCap } from "lucide-react";
 import { signup, signin } from "@/lib/api/auth";
+import { getApiErrorMessage } from "@/lib/api/client";
 
 interface AuthPageProps {
   readonly defaultTab?: "signin" | "signup";
@@ -144,8 +145,14 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         setAuthTokens(res);
         router.push("/chat");
       }
-    } catch (err: any) {
-      setError(err.message || "Authentication failed");
+    } catch (err: unknown) {
+      setError(
+        getApiErrorMessage(
+          err,
+          t("errors.authentication_failed"),
+          t("errors.offline"),
+        ),
+      );
     } finally {
       setLoading(false);
     }

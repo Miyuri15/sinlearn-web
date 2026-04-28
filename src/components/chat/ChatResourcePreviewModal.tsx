@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import FilePreviewModal from "@/components/chat/uploads/FilePreviewModal";
 import { viewResource } from "@/lib/api/resource";
+import { getApiErrorMessage } from "@/lib/api/client";
+import { useTranslation } from "react-i18next";
 
 function getPreviewType(
   mimeType: string | null,
@@ -21,14 +23,17 @@ export default function ChatResourcePreviewModal() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const resourceId = searchParams.get("view");
+  const { t } = useTranslation("chat");
 
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!resourceId) {
       setBlobUrl(null);
       setMimeType(null);
+      setPreviewError(null);
       return;
     }
 
@@ -43,10 +48,19 @@ export default function ChatResourcePreviewModal() {
         currentObjectUrl = URL.createObjectURL(blob);
         setBlobUrl(currentObjectUrl);
         setMimeType(blob.type);
+        setPreviewError(null);
       } catch (error) {
         console.error("Failed to load attachment preview:", error);
         if (!isActive) return;
-        handleClose();
+        setBlobUrl(null);
+        setMimeType(null);
+        setPreviewError(
+          getApiErrorMessage(
+            error,
+            t("attachment_preview_unavailable"),
+            t("attachment_preview_unavailable_offline"),
+          ),
+        );
       }
     };
 
@@ -80,6 +94,7 @@ export default function ChatResourcePreviewModal() {
       url={blobUrl || ""}
       type={previewType}
       onClose={handleClose}
+      previewError={previewError}
     />
   );
 }

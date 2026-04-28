@@ -19,6 +19,7 @@ interface FilePreviewModalProps {
   onClose: () => void;
   extractedText?: string;
   isExtracting?: boolean;
+  previewError?: string | null;
 }
 
 export default function FilePreviewModal({
@@ -26,6 +27,7 @@ export default function FilePreviewModal({
   url,
   type,
   onClose,
+  previewError,
   isExtracting: initialLoading = false,
   extractedText = "EXTRACTED TEXT (HARDCODED):\n\n1. Invoice Number: INV-2026-001\n2. Date: April 16, 2026\n3. Total Amount: $1,250.00\n4. Vendor: Tech Solutions Inc.",
 }: FilePreviewModalProps) {
@@ -50,6 +52,17 @@ export default function FilePreviewModal({
   };
 
   const renderMedia = () => {
+    if (previewError || !url) {
+      return (
+        <div className="flex flex-col items-center justify-center h-[40vh] bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200 rounded px-6 text-center">
+          <FileText className="w-12 h-12 mb-3" />
+          <p className="text-sm font-medium">
+            {previewError || "Preview unavailable"}
+          </p>
+        </div>
+      );
+    }
+
     switch (type) {
       case "image":
         return (
