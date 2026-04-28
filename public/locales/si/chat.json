@@ -6,6 +6,8 @@
     "typing_placeholder": "ඔබේ පිළිතුර ටයිප් කරන්න හෝ ගොනුවක් උඩුගත කරන්න...",
     "learning_mode": "ඉගෙනුම් ක්‍රියාවලිය",
     "evaluation_mode": "ඇගයීම් ක්‍රියාවලිය",
+    "connectivity_offline": "සම්බන්ධතාව විසන්ධි වී ඇත",
+    "connectivity_reconnecting": "නැවත සම්බන්ධ වෙමින් පවතී...",
     "view_resources": "මූලාශ්‍ර බලන්න",
     "session_resources_title": "සංවාද මූලාශ්‍ර",
     "session_resources_loading": "මූලාශ්‍ර පූරණය කරමින්...",

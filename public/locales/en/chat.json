@@ -5,6 +5,8 @@
     "typing_placeholder": "Type your answer or upload a file...",
     "learning_mode": "Learning Mode",
     "evaluation_mode": "Evaluation Mode",
+    "connectivity_offline": "Offline",
+    "connectivity_reconnecting": "Reconnecting",
     "view_resources": "View Resources",
     "session_resources_title": "Session Resources",
     "session_resources_loading": "Loading resources...",

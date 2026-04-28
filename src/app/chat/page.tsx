@@ -82,6 +82,11 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { getSelectedChatType } from "@/lib/localStore";
 import { getApiErrorMessage } from "@/lib/api/client";
+import {
+  readCachedSidebarChats,
+  SidebarChatItem,
+  writeCachedSidebarChats,
+} from "@/lib/sidebarChatCache";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
@@ -129,7 +134,9 @@ export default function ChatPage({
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
   const [creating, setCreating] = useState(false);
-  const [chats, setChats] = useState<SidebarChatItem[]>([]);
+  const [chats, setChats] = useState<SidebarChatItem[]>(() =>
+    readCachedSidebarChats(),
+  );
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState<
     "success" | "error" | "info" | "warning"
@@ -170,7 +177,7 @@ export default function ChatPage({
       // Ensure the newly created session exists in sidebar list so it can be highlighted
       setChats((prev) => {
         const next = prev.filter((c) => c.id !== session.id);
-        return [
+        const updated: SidebarChatItem[] = [
           {
             id: session.id,
             title: session.title || t("new_evaluation_chat"),
@@ -179,6 +186,8 @@ export default function ChatPage({
           },
           ...next,
         ];
+        writeCachedSidebarChats(updated);
+        return updated;
       });
 
       // Update URL without full reload to keep state
@@ -233,7 +242,8 @@ export default function ChatPage({
   }, [processingStatus]);
 
   // WebSocket: listen for processing_progress events from the backend
-  const { lastProgress, progressLog } = useProcessingProgressWS();
+  const { connectionStatus, lastProgress, progressLog } =
+    useProcessingProgressWS();
   const [isProgressLogModalOpen, setIsProgressLogModalOpen] = useState(false);
 
   useEffect(() => {
@@ -510,13 +520,6 @@ export default function ChatPage({
     }
   }, [activeSessionId, mode, evaluationHistory]);
 
-  type SidebarChatItem = {
-    id: string;
-    title: string;
-    type: "learning" | "evaluation";
-    time: string;
-  };
-
   const router = useRouter();
   const endRef = useRef<HTMLDivElement | null>(null);
   const [responseLevel, setResponseLevel] = useState("grade_9_11");
@@ -607,6 +610,7 @@ export default function ChatPage({
           }),
         }));
 
+        writeCachedSidebarChats(mapped);
         setChats(mapped);
 
         // On the root /chat route, automatically load the most recent real session
@@ -634,6 +638,10 @@ export default function ChatPage({
         }
       } catch (err) {
         console.error("Failed to load chat history", err);
+        setChats((prev) => {
+          if (prev.length > 0) return prev;
+          return readCachedSidebarChats();
+        });
       }
     };
 
@@ -2072,7 +2080,7 @@ export default function ChatPage({
         // Optimistically add the session so sidebar can highlight it instantly
         setChats((prev) => {
           const next = prev.filter((c) => c.id !== session.id);
-          return [
+          const updated: SidebarChatItem[] = [
             {
               id: session.id,
               title: session.title || "New Evaluation Chat",
@@ -2081,6 +2089,8 @@ export default function ChatPage({
             },
             ...next,
           ];
+          writeCachedSidebarChats(updated);
+          return updated;
         });
 
         router.push(`/chat/${session.id}`);
@@ -2129,11 +2139,13 @@ export default function ChatPage({
       try {
         await updateChatSession(editingChat.id, { title: nextTitle });
 
-        setChats((prev) =>
-          prev.map((item) =>
+        setChats((prev) => {
+          const updated = prev.map((item) =>
             item.id === editingChat.id ? { ...item, title: nextTitle } : item,
-          ),
-        );
+          );
+          writeCachedSidebarChats(updated);
+          return updated;
+        });
 
         setToastMessage("Chat title updated successfully");
         setToastType("success");
@@ -2171,7 +2183,11 @@ export default function ChatPage({
       try {
         await deleteChatSession(deletingChat.id);
 
-        setChats((prev) => prev.filter((item) => item.id !== deletingChat.id));
+        setChats((prev) => {
+          const updated = prev.filter((item) => item.id !== deletingChat.id);
+          writeCachedSidebarChats(updated);
+          return updated;
+        });
 
         if (chatId === deletingChat.id) {
           router.push("/chat");
@@ -2242,6 +2258,7 @@ export default function ChatPage({
           isTemporal={
             !chatId || chatId.startsWith("local-") || chatId.startsWith("new-")
           }
+          backendConnectionStatus={connectionStatus}
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           toggleRubric={toggleRubric}
           toggleSyllabus={toggleSyllabus}

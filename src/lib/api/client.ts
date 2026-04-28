@@ -68,6 +68,57 @@ export function getApiErrorMessage(
   return fallback;
 }
 
+const API_CACHE_PREFIX = "sinlearn.apiCache.v1.";
+const API_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
+
+type CachedApiResponse = {
+  cachedAt: number;
+  data: unknown;
+};
+
+function isGetRequest(options: RequestInit): boolean {
+  return (options.method || "GET").toUpperCase() === "GET";
+}
+
+function getApiCacheKey(url: string): string {
+  return `${API_CACHE_PREFIX}${url}`;
+}
+
+function readCachedApiResponse<T>(url: string): T | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = localStorage.getItem(getApiCacheKey(url));
+    if (!raw) return null;
+
+    const cached = JSON.parse(raw) as CachedApiResponse;
+    if (!cached || typeof cached.cachedAt !== "number") return null;
+
+    if (Date.now() - cached.cachedAt > API_CACHE_MAX_AGE_MS) {
+      localStorage.removeItem(getApiCacheKey(url));
+      return null;
+    }
+
+    return cached.data as T;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedApiResponse(url: string, data: unknown): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    const cached: CachedApiResponse = {
+      cachedAt: Date.now(),
+      data,
+    };
+    localStorage.setItem(getApiCacheKey(url), JSON.stringify(cached));
+  } catch {
+    // Cache writes are best-effort only.
+  }
+}
+
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
@@ -130,7 +181,14 @@ export async function apiFetch<T>(
   options: RequestInit = {},
   isRetry = false
 ): Promise<T> {
+  const canUseCache = isGetRequest(options);
+
   try {
+    if (canUseCache && isBrowserOffline()) {
+      const cached = readCachedApiResponse<T>(url);
+      if (cached !== null) return cached;
+    }
+
     assertOnline(url);
 
     const isAuthEndpoint =
@@ -201,9 +259,19 @@ export async function apiFetch<T>(
       return {} as T;
     }
 
-    return res.json();
+    const data = await res.json();
+    if (canUseCache) {
+      writeCachedApiResponse(url, data);
+    }
+
+    return data;
   } catch (error) {
     if (isLikelyNetworkError(error)) {
+      if (canUseCache) {
+        const cached = readCachedApiResponse<T>(url);
+        if (cached !== null) return cached;
+      }
+
       throw error instanceof OfflineError ? error : new OfflineError(undefined, url);
     }
 
