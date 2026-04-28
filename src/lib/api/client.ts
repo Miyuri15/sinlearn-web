@@ -21,6 +21,49 @@ export class ApiError extends Error {
   }
 }
 
+export class OfflineError extends Error {
+  url?: string;
+
+  constructor(message = "You are offline. Please reconnect and try again.", url?: string) {
+    super(message);
+    this.name = "OfflineError";
+    this.url = url;
+  }
+}
+
+export function isBrowserOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+export function isOfflineError(error: unknown): error is OfflineError {
+  return error instanceof OfflineError;
+}
+
+export function isLikelyNetworkError(error: unknown): boolean {
+  if (isBrowserOffline()) return true;
+  if (error instanceof OfflineError) return true;
+  if (
+    typeof DOMException !== "undefined" &&
+    error instanceof DOMException &&
+    error.name === "AbortError"
+  ) {
+    return false;
+  }
+  return error instanceof TypeError;
+}
+
+export function assertOnline(url?: string): void {
+  if (isBrowserOffline()) {
+    throw new OfflineError(undefined, url);
+  }
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof OfflineError) return error.message;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return fallback;
+}
+
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
@@ -53,6 +96,8 @@ async function refreshAccessToken(): Promise<void> {
     throw new Error("No refresh token available");
   }
 
+  assertOnline(`${API_BASE_URL}/api/v1/auth/refresh`);
+
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
       method: "POST",
@@ -65,6 +110,10 @@ async function refreshAccessToken(): Promise<void> {
     const newTokens = await response.json();
     setAuthTokens(newTokens);
   } catch (error) {
+    if (isLikelyNetworkError(error)) {
+      throw new OfflineError(undefined, `${API_BASE_URL}/api/v1/auth/refresh`);
+    }
+
     console.error("Failed to refresh token:", error);
     logout();
     dispatchLogoutEvent();
@@ -78,6 +127,8 @@ export async function apiFetch<T>(
   isRetry = false
 ): Promise<T> {
   try {
+    assertOnline(url);
+
     const isAuthEndpoint =
       url.includes("/auth/signin") ||
       url.includes("/auth/signup") ||
@@ -148,6 +199,10 @@ export async function apiFetch<T>(
 
     return res.json();
   } catch (error) {
+    if (isLikelyNetworkError(error)) {
+      throw error instanceof OfflineError ? error : new OfflineError(undefined, url);
+    }
+
     // Re-throw Error instances as-is
     if (error instanceof Error) {
       throw error;

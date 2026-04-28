@@ -81,6 +81,7 @@ import {
 } from "@/lib/api/evaluation";
 import { formatDistanceToNow } from "date-fns";
 import { getSelectedChatType } from "@/lib/localStore";
+import { getApiErrorMessage } from "@/lib/api/client";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
@@ -183,7 +184,9 @@ export default function ChatPage({
       return session.id;
     } catch (error) {
       console.error("Failed to create session on demand", error);
-      setToastMessage("Failed to create chat session. Please try again.");
+      setToastMessage(
+        getApiErrorMessage(error, "Failed to create chat session. Please try again."),
+      );
       setToastType("error");
       setIsToastVisible(true);
       return null;
@@ -565,9 +568,11 @@ export default function ChatPage({
         );
 
         setLearningMessages(sorted);
-      } catch {
+      } catch (error) {
         router.replace("/chat");
-        setToastMessage("Failed to load chat messages. Please try again.");
+        setToastMessage(
+          getApiErrorMessage(error, "Failed to load chat messages. Please try again."),
+        );
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -671,7 +676,10 @@ export default function ChatPage({
           uploadedResources = await uploadResources(filesToUpload);
         } catch (error) {
           console.error("Failed to upload files", error);
-          let message = "Failed to upload files. Please try again.";
+          let message = getApiErrorMessage(
+            error,
+            "Failed to upload files. Please try again.",
+          );
           if (error instanceof Error) {
             message = error.message;
           }
@@ -869,7 +877,9 @@ export default function ChatPage({
             }
           } catch (err) {
             console.error("Failed to generate assistant reply", err);
-            setToastMessage("Failed to generate assistant reply.");
+            setToastMessage(
+              getApiErrorMessage(err, "Failed to generate assistant reply."),
+            );
             setToastType("error");
             setIsToastVisible(true);
           } finally {
@@ -900,7 +910,9 @@ export default function ChatPage({
         }
       } catch (error) {
         console.error("Failed to send message", error);
-        setToastMessage("Failed to send message. Please try again.");
+        setToastMessage(
+          getApiErrorMessage(error, "Failed to send message. Please try again."),
+        );
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -934,7 +946,9 @@ export default function ChatPage({
           );
         } catch (err) {
           console.error("Failed to process resources batch", err);
-          setToastMessage("Failed to process uploaded resources.");
+          setToastMessage(
+            getApiErrorMessage(err, "Failed to process uploaded resources."),
+          );
           setToastType("error");
           setIsToastVisible(true);
           return;
@@ -992,7 +1006,9 @@ export default function ChatPage({
           return newMessages;
         });
 
-        setToastMessage("Failed to transcribe your voice");
+        setToastMessage(
+          getApiErrorMessage(transcribeError, "Failed to transcribe your voice"),
+        );
         setToastType("error");
         setIsToastVisible(true);
         return; // Stop here if transcription fails
@@ -1052,13 +1068,15 @@ export default function ChatPage({
           return newMessages;
         });
 
-        setToastMessage("Failed to get answer for your question");
+        setToastMessage(
+          getApiErrorMessage(qaError, "Failed to get answer for your question"),
+        );
         setToastType("error");
         setIsToastVisible(true);
       }
     } catch (error) {
       console.error(error);
-      setToastMessage("Voice processing failed");
+      setToastMessage(getApiErrorMessage(error, "Voice processing failed"));
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1149,7 +1167,7 @@ export default function ChatPage({
 
     } catch (error) {
       console.error("Failed to start evaluation", error);
-      setToastMessage("Failed to start evaluation.");
+      setToastMessage(getApiErrorMessage(error, "Failed to start evaluation."));
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1239,7 +1257,9 @@ export default function ChatPage({
       }
     } catch (error) {
       console.error("Failed to regenerate assistant reply", error);
-      setToastMessage("Failed to regenerate assistant reply.");
+      setToastMessage(
+        getApiErrorMessage(error, "Failed to regenerate assistant reply."),
+      );
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1302,7 +1322,9 @@ export default function ChatPage({
       setSessionResources(normalized);
     } catch (error) {
       console.error("Failed to load session resources", error);
-      setSessionResourcesError("Failed to load session resources.");
+      setSessionResourcesError(
+        getApiErrorMessage(error, "Failed to load session resources."),
+      );
       setSessionResources([]);
     } finally {
       setIsSessionResourcesLoading(false);
@@ -1361,7 +1383,9 @@ export default function ChatPage({
           });
         } catch (e) {
           console.error("Failed to detach rubric", e);
-          setToastMessage("Failed to remove rubric from the server.");
+          setToastMessage(
+            getApiErrorMessage(e, "Failed to remove rubric from the server."),
+          );
           setToastType("error");
           setIsToastVisible(true);
           return;
@@ -1551,7 +1575,9 @@ export default function ChatPage({
       }
     } catch (error) {
       console.error("Failed to upload answer sheets", error);
-      setToastMessage("Failed to upload answer sheets. Please try again.");
+      setToastMessage(
+        getApiErrorMessage(error, "Failed to upload answer sheets. Please try again."),
+      );
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1587,7 +1613,9 @@ export default function ChatPage({
       }
     } catch (e) {
       console.error("Failed to delete answer sheet resource", e);
-      setToastMessage("Failed to remove the answer sheet from the server.");
+      setToastMessage(
+        getApiErrorMessage(e, "Failed to remove the answer sheet from the server."),
+      );
       setToastType("error");
       setIsToastVisible(true);
       return;
@@ -1665,7 +1693,9 @@ export default function ChatPage({
       });
     } catch (error) {
       console.error("Failed to replace answer sheet", error);
-      setToastMessage("Failed to replace answer sheet. Please try again.");
+      setToastMessage(
+        getApiErrorMessage(error, "Failed to replace answer sheet. Please try again."),
+      );
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1737,7 +1767,9 @@ export default function ChatPage({
     } catch (error) {
       console.error("Failed to process documents", error);
       setProcessingStatus("idle");
-      setToastMessage("Failed to process documents. Please try again.");
+      setToastMessage(
+        getApiErrorMessage(error, "Failed to process documents. Please try again."),
+      );
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1790,7 +1822,9 @@ export default function ChatPage({
       setMarkingSchemaConfirmed(Boolean(schema.isConfirmed));
     } catch (error) {
       console.error("Failed to load marking schema", error);
-      setToastMessage("Failed to load the marking schema.");
+      setToastMessage(
+        getApiErrorMessage(error, "Failed to load the marking schema."),
+      );
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -2056,7 +2090,10 @@ export default function ChatPage({
       } catch (error) {
         console.error("Failed to create evaluation chat", error);
         setToastMessage(
-          "Failed to create new evaluation chat. Please try again.",
+          getApiErrorMessage(
+            error,
+            "Failed to create new evaluation chat. Please try again.",
+          ),
         );
         setToastType("error");
         setIsToastVisible(true);
@@ -2072,7 +2109,9 @@ export default function ChatPage({
       router.push(`/chat/${tempId}`);
     } catch (error) {
       console.error("Failed to open new chat UI", error);
-      setToastMessage("Failed to open a new chat. Please try again.");
+      setToastMessage(
+        getApiErrorMessage(error, "Failed to open a new chat. Please try again."),
+      );
       setToastType("error");
       setIsToastVisible(true);
     }
@@ -2108,7 +2147,9 @@ export default function ChatPage({
         setIsEditModalOpen(false);
       } catch (error) {
         console.error("Failed to update chat title", error);
-        setToastMessage("Failed to update chat title. Please try again.");
+        setToastMessage(
+          getApiErrorMessage(error, "Failed to update chat title. Please try again."),
+        );
         setToastType("error");
         setIsToastVisible(true);
       }
@@ -2149,7 +2190,9 @@ export default function ChatPage({
         setDeletingChat(null);
       } catch (error) {
         console.error("Failed to delete chat", error);
-        setToastMessage("Failed to delete chat. Please try again.");
+        setToastMessage(
+          getApiErrorMessage(error, "Failed to delete chat. Please try again."),
+        );
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -2238,7 +2281,7 @@ export default function ChatPage({
               setIsToastVisible(true);
             } catch (e) {
               console.error("Failed to confirm paper config", e);
-              setToastMessage("Failed to confirm paper config.");
+              setToastMessage(getApiErrorMessage(e, "Failed to confirm paper config."));
               setToastType("error");
               setIsToastVisible(true);
               throw e;
@@ -2276,7 +2319,9 @@ export default function ChatPage({
               setIsToastVisible(true);
             } catch (error) {
               console.error("Failed to save marking schema", error);
-              setToastMessage("Failed to save the marking schema.");
+              setToastMessage(
+                getApiErrorMessage(error, "Failed to save the marking schema."),
+              );
               setToastType("error");
               setIsToastVisible(true);
               throw error;
@@ -2307,7 +2352,9 @@ export default function ChatPage({
               setIsToastVisible(true);
             } catch (error) {
               console.error("Failed to confirm marking schema", error);
-              setToastMessage("Failed to confirm the marking schema.");
+              setToastMessage(
+                getApiErrorMessage(error, "Failed to confirm the marking schema."),
+              );
               setToastType("error");
               setIsToastVisible(true);
               throw error;
@@ -2334,7 +2381,9 @@ export default function ChatPage({
               setIsToastVisible(true);
             } catch (error) {
               console.error("Failed to delete marking schema", error);
-              setToastMessage("Failed to delete the marking schema.");
+              setToastMessage(
+                getApiErrorMessage(error, "Failed to delete the marking schema."),
+              );
               setToastType("error");
               setIsToastVisible(true);
               throw error;
