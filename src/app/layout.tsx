@@ -4,12 +4,15 @@ import I18nProvider from "./providers/I18nProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 import AuthListener from "@/components/auth/AuthListener";
 import AuthenticatedLayout from "./AuthenticatedLayout";
+import ServiceWorkerRegistration from "@/components/pwa/ServiceWorkerRegistration";
 
 export const metadata = {
   title: "SinhalaLearn",
   description: "AI-Powered Sinhala Educational Assistant",
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: "/favicon.ico",
+    apple: "/icons/Icon.png",
   },
 };
 
@@ -46,6 +49,7 @@ export default function RootLayout({
       <body className="h-dvh transition-colors duration-300">
         <I18nProvider>
           <ToastProvider>
+            <ServiceWorkerRegistration />
             <AuthListener />
             <AuthenticatedLayout>{children}</AuthenticatedLayout>
           </ToastProvider>

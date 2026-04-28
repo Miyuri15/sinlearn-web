@@ -18,7 +18,11 @@ const AuthenticatedLayout: React.FC<{ children: React.ReactNode }> = ({
 
   const isAuthRoute = useMemo(() => {
     if (!pathname) return false;
-    return pathname === "/auth" || pathname.startsWith("/auth/");
+    return (
+      pathname === "/offline" ||
+      pathname === "/auth" ||
+      pathname.startsWith("/auth/")
+    );
   }, [pathname]);
 
   useEffect(() => {

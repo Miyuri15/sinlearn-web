@@ -938,6 +938,11 @@ export type ProcessDocumentsRequest = {
   answer_resource_ids: string[];
 };
 
+export type StartEvaluationRequest = {
+  chat_session_id: string;
+  answer_resource_ids: string[];
+};
+
 export async function processDocumentsStreamWithProgress(params: {
   body: ProcessDocumentsRequest;
   onEvent: (evt: StreamProgressEvent) => void;
