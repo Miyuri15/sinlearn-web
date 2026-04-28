@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Download,
@@ -8,9 +9,14 @@ import {
   AlignLeft,
   Loader2,
   Copy,
-  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import { downloadResource } from "@/lib/api/resource";
+import {
+  downloadResource,
+  getResourceExtractedText,
+} from "@/lib/api/resource";
+import { getApiErrorMessage } from "@/lib/api/client";
 
 interface FilePreviewModalProps {
   resourceId?: string;
@@ -19,6 +25,13 @@ interface FilePreviewModalProps {
   onClose: () => void;
   extractedText?: string;
   isExtracting?: boolean;
+  extractedTextError?: string | null;
+  extractedTextPage?: number;
+  extractedTextPageSize?: number;
+  extractedTextTotalPages?: number;
+  extractedTextReturnedPages?: number;
+  extractedTextHasNext?: boolean;
+  extractedTextHasPrevious?: boolean;
   previewError?: string | null;
 }
 
@@ -28,11 +41,31 @@ export default function FilePreviewModal({
   type,
   onClose,
   previewError,
-  isExtracting: initialLoading = false,
-  extractedText = "EXTRACTED TEXT (HARDCODED):\n\n1. Invoice Number: INV-2026-001\n2. Date: April 16, 2026\n3. Total Amount: $1,250.00\n4. Vendor: Tech Solutions Inc.",
+  isExtracting = false,
+  extractedText = "",
+  extractedTextError,
+  extractedTextPage = 1,
+  extractedTextPageSize = 1,
+  extractedTextTotalPages = 0,
+  extractedTextReturnedPages = 0,
+  extractedTextHasNext = false,
+  extractedTextHasPrevious = false,
 }: FilePreviewModalProps) {
-  // Use internal state so we can manually toggle the loading view for testing
-  const [loading, setLoading] = useState(initialLoading);
+  const [currentExtractedText, setCurrentExtractedText] =
+    useState(extractedText);
+  const [currentExtractedTextError, setCurrentExtractedTextError] = useState<
+    string | null
+  >(extractedTextError ?? null);
+  const [currentPage, setCurrentPage] = useState(extractedTextPage);
+  const [pageSize, setPageSize] = useState(extractedTextPageSize);
+  const [totalPages, setTotalPages] = useState(extractedTextTotalPages);
+  const [returnedPages, setReturnedPages] = useState(
+    extractedTextReturnedPages,
+  );
+  const [hasNext, setHasNext] = useState(extractedTextHasNext);
+  const [hasPrevious, setHasPrevious] = useState(extractedTextHasPrevious);
+  const [isLoadingExtractedPage, setIsLoadingExtractedPage] =
+    useState(isExtracting);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -41,6 +74,33 @@ export default function FilePreviewModal({
     };
   }, []);
 
+  useEffect(() => {
+    setCurrentExtractedText(extractedText);
+    setCurrentExtractedTextError(extractedTextError ?? null);
+    setCurrentPage(extractedTextPage);
+    setPageSize(extractedTextPageSize);
+    setTotalPages(extractedTextTotalPages);
+    setReturnedPages(extractedTextReturnedPages);
+    setHasNext(extractedTextHasNext);
+    setHasPrevious(extractedTextHasPrevious);
+    setIsLoadingExtractedPage(isExtracting);
+  }, [
+    extractedText,
+    extractedTextError,
+    extractedTextPage,
+    extractedTextPageSize,
+    extractedTextTotalPages,
+    extractedTextReturnedPages,
+    extractedTextHasNext,
+    extractedTextHasPrevious,
+    isExtracting,
+  ]);
+
+  const pdfUrl = useMemo(() => {
+    if (type !== "pdf" || !url) return url;
+    return `${url}#page=${currentPage || 1}`;
+  }, [currentPage, type, url]);
+
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!resourceId) return;
@@ -48,6 +108,35 @@ export default function FilePreviewModal({
       await downloadResource(resourceId);
     } catch (err) {
       console.error("Failed to download:", err);
+    }
+  };
+
+  const loadExtractedTextPage = async (nextPage: number) => {
+    if (!resourceId || nextPage < 1 || isLoadingExtractedPage) return;
+
+    setIsLoadingExtractedPage(true);
+    setCurrentExtractedTextError(null);
+
+    try {
+      const response = await getResourceExtractedText(resourceId, {
+        page: nextPage,
+        pageSize: pageSize || 1,
+      });
+      setCurrentExtractedText(response.extracted_text || "");
+      setCurrentPage(response.page || nextPage);
+      setPageSize(response.page_size || pageSize || 1);
+      setTotalPages(response.total_pages || 0);
+      setReturnedPages(response.returned_pages || 0);
+      setHasNext(response.has_next);
+      setHasPrevious(response.has_previous);
+    } catch (error) {
+      console.error("Failed to load extracted text page:", error);
+      setCurrentExtractedText("");
+      setCurrentExtractedTextError(
+        getApiErrorMessage(error, "Failed to load extracted text."),
+      );
+    } finally {
+      setIsLoadingExtractedPage(false);
     }
   };
 
@@ -75,7 +164,7 @@ export default function FilePreviewModal({
       case "pdf":
         return (
           <iframe
-            src={url}
+            src={pdfUrl}
             className="w-full h-[70vh] rounded border border-gray-200 dark:border-zinc-800"
             title="PDF Preview"
           />
@@ -90,9 +179,11 @@ export default function FilePreviewModal({
     }
   };
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-colors duration-200"
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-colors duration-200"
       onClick={onClose}
     >
       <div
@@ -109,17 +200,6 @@ export default function FilePreviewModal({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* TEST LOADING BUTTON */}
-            <button
-              onClick={() => setLoading(!loading)}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800 transition-colors"
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
-              />
-              {loading ? "Stop Loading" : "Test Loading State"}
-            </button>
-
             {resourceId && (
               <button
                 onClick={handleDownload}
@@ -151,17 +231,49 @@ export default function FilePreviewModal({
               </span>
 
               <button
-                disabled={loading || !extractedText}
+                disabled={isLoadingExtractedPage || !currentExtractedText}
                 className="flex items-center gap-1 text-xs text-blue-500 hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
-                onClick={() => navigator.clipboard.writeText(extractedText)}
+                onClick={() =>
+                  navigator.clipboard.writeText(currentExtractedText)
+                }
               >
                 <Copy className="w-3 h-3" />
                 Copy Text
               </button>
             </div>
 
+            {(totalPages > 1 || hasNext || hasPrevious) && (
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/60">
+                <button
+                  type="button"
+                  disabled={!hasPrevious || isLoadingExtractedPage}
+                  onClick={() => void loadExtractedTextPage(currentPage - 1)}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </button>
+
+                <span className="text-xs font-medium text-gray-500 dark:text-zinc-400">
+                  Page {currentPage}
+                  {totalPages > 0 ? ` of ${totalPages}` : ""}
+                  {returnedPages > 1 ? ` (${returnedPages} pages)` : ""}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={!hasNext || isLoadingExtractedPage}
+                  onClick={() => void loadExtractedTextPage(currentPage + 1)}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
             <div className="prose dark:prose-invert max-w-none flex-1">
-              {loading ? (
+              {isLoadingExtractedPage ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[300px] space-y-4">
                   <div className="relative">
                     <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
@@ -176,15 +288,30 @@ export default function FilePreviewModal({
                     </p>
                   </div>
                 </div>
-              ) : (
+              ) : currentExtractedTextError ? (
+                <div className="flex flex-col items-center justify-center h-full min-h-[300px] rounded-lg border border-amber-200 bg-amber-50 px-6 text-center text-amber-800 dark:border-amber-900/70 dark:bg-amber-900/20 dark:text-amber-200">
+                  <FileText className="mb-3 h-10 w-10" />
+                  <p className="text-sm font-medium">
+                    {currentExtractedTextError}
+                  </p>
+                </div>
+              ) : currentExtractedText ? (
                 <pre className="whitespace-pre-wrap font-mono text-sm text-gray-700 dark:text-zinc-300 leading-relaxed bg-transparent p-0 border-none">
-                  {extractedText}
+                  {currentExtractedText}
                 </pre>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full min-h-[300px] rounded-lg border border-gray-200 bg-gray-50 px-6 text-center text-gray-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300">
+                  <FileText className="mb-3 h-10 w-10 text-gray-400" />
+                  <p className="text-sm font-medium">
+                    No extracted text is available for this resource.
+                  </p>
+                </div>
               )}
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
