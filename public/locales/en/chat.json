@@ -9,6 +9,10 @@
     "connectivity_reconnecting": "Reconnecting",
     "attachment_preview_unavailable": "Preview unavailable for this attachment.",
     "attachment_preview_unavailable_offline": "Preview unavailable while offline.",
+    "offline_message_queued": "Message saved offline. It will be sent when you reconnect.",
+    "offline_message_pending": "Pending",
+    "offline_message_syncing": "Syncing",
+    "offline_messages_synced": "Offline messages sent.",
     "view_resources": "View Resources",
     "session_resources_title": "Session Resources",
     "session_resources_loading": "Loading resources...",
@@ -42,7 +46,8 @@
         "confirm_paper_config": "Failed to confirm paper config.",
         "save_marking_schema": "Failed to save the marking schema.",
         "confirm_marking_schema": "Failed to confirm the marking schema.",
-        "delete_marking_schema": "Failed to delete the marking schema."
+        "delete_marking_schema": "Failed to delete the marking schema.",
+        "sync_offline_messages": "Failed to sync offline messages."
     },
     "response_level": "Response Level",
     "evaluation_settings_sub": "Enter the question structure before submitting your answer.",

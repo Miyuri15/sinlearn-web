@@ -10,6 +10,10 @@
     "connectivity_reconnecting": "නැවත සම්බන්ධ වෙමින්",
     "attachment_preview_unavailable": "මෙම ඇමුණුම සඳහා පෙරදසුන (preview) ලබා ගත නොහැක.",
     "attachment_preview_unavailable_offline": "නොබැඳිව (offline) සිටින විට පෙරදසුන ලබා ගත නොහැක.",
+    "offline_message_queued": "පණිවිඩය සුරකින ලදී. නැවත සම්බන්ධ වූ වහාම එය යවනු ලැබේ.",
+    "offline_message_pending": "යැවීමට රැඳී පවතී (pending)",
+    "offline_message_syncing": "සමමුහුර්ත (syncing) වෙමින් පවතී...",
+    "offline_messages_synced": "නොබැඳි පණිවිඩ සාර්ථකව යවා ඇත.",
     "view_resources": "මූලාශ්‍ර බලන්න",
     "session_resources_title": "සංවාද මූලාශ්‍ර",
     "session_resources_loading": "මූලාශ්‍ර පූරණය කරමින්...",
@@ -43,7 +47,8 @@
         "confirm_paper_config": "ප්‍රශ්න පත්‍ර සැකසුම (paper config) තහවුරු කිරීම අසාර්ථක විය.",
         "save_marking_schema": "ලකුණු ලබා දීමේ ක්‍රමය (marking schema) සුරැකීම අසාර්ථක විය.",
         "confirm_marking_schema": "ලකුණු ලබා දීමේ ක්‍රමය (marking schema) තහවුරු කිරීම අසාර්ථක විය.",
-        "delete_marking_schema": "ලකුණු ලබා දීමේ ක්‍රමය (marking schema) මැකීම අසාර්ථක විය."
+        "delete_marking_schema": "ලකුණු ලබා දීමේ ක්‍රමය (marking schema) මැකීම අසාර්ථක විය.",
+        "sync_offline_messages": "නොබැඳි පණිවිඩ සමමුහුර්ත කිරීම අසාර්ථක විය."
     },
     "response_level": "ප්‍රතිචාර මට්ටම",
     "evaluation_settings_sub": "ඔබේ පිළිතුර ඉදිරිපත් කිරීමට පෙර ප්‍රශ්න ව්‍යුහය ඇතුළත් කරන්න.",

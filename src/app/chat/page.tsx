@@ -81,15 +81,38 @@ import {
 } from "@/lib/api/evaluation";
 import { formatDistanceToNow } from "date-fns";
 import { getSelectedChatType } from "@/lib/localStore";
-import { getApiErrorMessage } from "@/lib/api/client";
+import { getApiErrorMessage, isOfflineError } from "@/lib/api/client";
 import {
   readCachedSidebarChats,
   SidebarChatItem,
   writeCachedSidebarChats,
 } from "@/lib/sidebarChatCache";
+import {
+  enqueueTextMessage,
+  getQueuedTextMessages,
+  OfflineTextMessage,
+  removeQueuedTextMessage,
+} from "@/lib/offlineMessageQueue";
+import { useConnectivityStatus } from "@/hooks/useConnectivityStatus";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
+
+function queuedTextMessageToChatMessage(message: OfflineTextMessage): ChatMessage {
+  return {
+    id: message.id,
+    role: "user",
+    content: message.content,
+    grade_level: message.gradeLevel,
+    created_at: message.createdAt,
+    offline_status: "pending",
+    offline_files: message.files.map((item) => ({
+      name: item.name,
+      size: item.size,
+      type: item.type,
+    })),
+  } as ChatMessage;
+}
 
 interface ChatPageProps {
   chatId?: string;
@@ -101,14 +124,24 @@ export default function ChatPage({
   initialMessages = [],
 }: Readonly<ChatPageProps>) {
   const { t } = useTranslation("chat");
-  const apiErrorMessage = (error: unknown, key: string) =>
-    getApiErrorMessage(error, t(key), t("errors.offline"));
+  const apiErrorMessage = useCallback(
+    (error: unknown, key: string) =>
+      getApiErrorMessage(error, t(key), t("errors.offline")),
+    [t],
+  );
 
   const [chatType, setChatType] = useState<"learning" | "evaluation">(
     () => getSelectedChatType() || "learning",
   );
   // ✅ ADD THIS: active server session id for the current chat
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const getCurrentQueueSessionId = useCallback(() => {
+    if (activeSessionId) return activeSessionId;
+    if (chatId && !chatId.startsWith("local-") && !chatId.startsWith("new-")) {
+      return chatId;
+    }
+    return null;
+  }, [activeSessionId, chatId]);
 
   const evaluationHistoryStorageKey = (sessionId: string) =>
     `sinlearn.evaluationHistory.v1.${sessionId}`;
@@ -244,6 +277,7 @@ export default function ChatPage({
   // WebSocket: listen for processing_progress events from the backend
   const { connectionStatus, lastProgress, progressLog } =
     useProcessingProgressWS();
+  const connectivityStatus = useConnectivityStatus(connectionStatus);
   const [isProgressLogModalOpen, setIsProgressLogModalOpen] = useState(false);
 
   useEffect(() => {
@@ -657,6 +691,32 @@ export default function ChatPage({
     }
   }, [chatId]);
 
+  useEffect(() => {
+    if (mode !== "learning") return;
+
+    let cancelled = false;
+
+    const hydrateQueuedMessages = async () => {
+      const queued = await getQueuedTextMessages(getCurrentQueueSessionId());
+      if (cancelled || queued.length === 0) return;
+
+      setLearningMessages((prev) => {
+        const existingIds = new Set(prev.map((item) => item.id).filter(Boolean));
+        const missing = queued
+          .filter((item) => !existingIds.has(item.id))
+          .map(queuedTextMessageToChatMessage);
+
+        return missing.length > 0 ? [...prev, ...missing] : prev;
+      });
+    };
+
+    void hydrateQueuedMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getCurrentQueueSessionId, mode, setLearningMessages]);
+
   const handleSend = (configOverride?: PaperPart[]) => {
     const run = async () => {
       // Messages are only supported in learning mode.
@@ -681,14 +741,60 @@ export default function ChatPage({
 
       // Upload pending files before sending the message so backend receives resource ids
       const filesToUpload = mode === "learning" ? pendingFiles : selectedFiles;
+      const shouldQueueOffline =
+        mode === "learning" && connectivityStatus !== "online";
+
+      if (shouldQueueOffline) {
+        const queued = await enqueueTextMessage({
+          sessionId: getCurrentQueueSessionId(),
+          content: message,
+          gradeLevel: responseLevel,
+          files: filesToUpload,
+        });
+
+        setLearningMessages((prev) => [
+          ...prev,
+          queuedTextMessageToChatMessage(queued),
+        ]);
+        setToastMessage(t("offline_message_queued"));
+        setToastType("info");
+        setIsToastVisible(true);
+        setCreating(false);
+        setMessage("");
+        clearPendingFiles();
+        return;
+      }
+
       if (filesToUpload.length > 0) {
         setIsUploading(true);
         try {
           uploadedResources = await uploadResources(filesToUpload);
         } catch (error) {
           console.error("Failed to upload files", error);
-          const message = apiErrorMessage(error, "errors.upload_files");
-          setToastMessage(message);
+          if (mode === "learning" && isOfflineError(error)) {
+            const queued = await enqueueTextMessage({
+              sessionId: getCurrentQueueSessionId(),
+              content: message,
+              gradeLevel: responseLevel,
+              files: filesToUpload,
+            });
+
+            setLearningMessages((prev) => [
+              ...prev,
+              queuedTextMessageToChatMessage(queued),
+            ]);
+            setToastMessage(t("offline_message_queued"));
+            setToastType("info");
+            setIsToastVisible(true);
+            setCreating(false);
+            setIsUploading(false);
+            setMessage("");
+            clearPendingFiles();
+            return;
+          }
+
+          const uploadErrorMessage = apiErrorMessage(error, "errors.upload_files");
+          setToastMessage(uploadErrorMessage);
           setToastType("error");
           setIsToastVisible(true);
           setCreating(false);
@@ -915,6 +1021,31 @@ export default function ChatPage({
         }
       } catch (error) {
         console.error("Failed to send message", error);
+        if (mode === "learning" && isOfflineError(error)) {
+          const queued = await enqueueTextMessage({
+            sessionId: getCurrentQueueSessionId(),
+            content: message,
+            gradeLevel: responseLevel,
+            files: [],
+          });
+
+          setLearningMessages((prev) => {
+            const withoutOptimistic = prev.filter(
+              (item) =>
+                !(
+                  item.role === "user" &&
+                  item.content === message &&
+                  !String(item.id ?? "").startsWith("offline-")
+                ),
+            );
+            return [...withoutOptimistic, queuedTextMessageToChatMessage(queued)];
+          });
+          setToastMessage(t("offline_message_queued"));
+          setToastType("info");
+          setIsToastVisible(true);
+          return;
+        }
+
         setToastMessage(
           apiErrorMessage(error, "errors.send_message"),
         );
@@ -929,6 +1060,148 @@ export default function ChatPage({
 
     void run();
   };
+
+  const flushOfflineTextMessages = useCallback(async () => {
+    if (connectivityStatus !== "online" || mode !== "learning") return;
+
+    const queueSessionId = getCurrentQueueSessionId();
+    const queued = await getQueuedTextMessages(queueSessionId);
+    if (queued.length === 0) return;
+
+    setIsSyncingMessages(true);
+    let sessionToRefresh = activeSessionId ?? queueSessionId;
+    let pendingNavigateSessionId: string | null = null;
+
+    try {
+      for (const queuedMessage of queued) {
+        setLearningMessages((prev) =>
+          prev.map((item) =>
+            item.id === queuedMessage.id
+              ? ({ ...item, offline_status: "syncing" } as unknown as ChatMessage)
+              : item,
+          ),
+        );
+
+        let queuedUploads: ResourceUploadResponse[] = [];
+        if (queuedMessage.files.length > 0) {
+          queuedUploads = await uploadResources(
+            queuedMessage.files.map((item) => item.file),
+          );
+        }
+
+        const attachments = queuedUploads.map((item, index) => ({
+          resource_id: item.resource_id,
+          display_name: queuedMessage.files[index]?.name ?? "Attachment",
+          attachment_type: queuedMessage.files[index]?.type?.startsWith("image/")
+            ? "image"
+            : "file",
+        }));
+
+        const resp = await postMessage(queuedMessage.sessionId ?? activeSessionId ?? undefined, {
+          content: queuedMessage.content,
+          modality: "text",
+          grade_level: queuedMessage.gradeLevel,
+          ...(attachments.length ? { attachments } : {}),
+        });
+
+        const newSessionId =
+          resp?.session_id || resp?.session?.id || resp?.chat_id || resp?.id;
+        const createdMessageId =
+          resp?.message_id || resp?.message?.id || resp?.id || null;
+
+        if (newSessionId) {
+          sessionToRefresh = newSessionId;
+          setActiveSessionId(newSessionId);
+          if (!activeSessionId && !queueSessionId) {
+            pendingNavigateSessionId = newSessionId;
+          }
+        }
+
+        await removeQueuedTextMessage(queuedMessage.id);
+
+        if (resp?.assistant_message) {
+          setLearningMessages((prev) => [...prev, resp.assistant_message]);
+        } else if (createdMessageId) {
+          try {
+            const generated = await generateMessageResponse(createdMessageId);
+            const generatedMessage = generated?.message;
+            if (generatedMessage) {
+              setLearningMessages((prev) => [
+                ...prev,
+                {
+                  id: generatedMessage.id,
+                  role: (generatedMessage.role ?? "assistant") as
+                    | "user"
+                    | "assistant",
+                  content: generatedMessage.content ?? "",
+                  grade_level: generatedMessage.grade_level,
+                  safety_summary: generatedMessage.safety_summary,
+                } as ChatMessage,
+              ]);
+            }
+          } catch (error) {
+            console.error("Failed to generate queued assistant reply", error);
+          }
+        }
+      }
+
+      if (sessionToRefresh) {
+        const messages = await listSessionMessages(sessionToRefresh);
+        const sorted = messages.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() -
+            new Date(b.created_at).getTime(),
+        );
+        setLearningMessages(sorted);
+      }
+
+      if (pendingNavigateSessionId) {
+        router.replace(`/chat/${pendingNavigateSessionId}`);
+      }
+
+      setToastMessage(t("offline_messages_synced"));
+      setToastType("success");
+      setIsToastVisible(true);
+    } catch (error) {
+      console.error("Failed to sync offline messages", error);
+      setLearningMessages((prev) =>
+        prev.map((item) =>
+          String(item.id ?? "").startsWith("offline-")
+            ? ({ ...item, offline_status: "pending" } as unknown as ChatMessage)
+            : item,
+        ),
+      );
+      setToastMessage(apiErrorMessage(error, "errors.sync_offline_messages"));
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setIsSyncingMessages(false);
+    }
+  }, [
+    activeSessionId,
+    apiErrorMessage,
+    connectivityStatus,
+    getCurrentQueueSessionId,
+    mode,
+    router,
+    setLearningMessages,
+    t,
+  ]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      void flushOfflineTextMessages();
+    };
+
+    window.addEventListener("online", handleOnline);
+    if (connectivityStatus === "online") {
+      void flushOfflineTextMessages();
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [connectivityStatus, flushOfflineTextMessages]);
 
   const handleVoiceSend = async (audioBlob: Blob) => {
     // Voice QA is only supported in learning mode.
