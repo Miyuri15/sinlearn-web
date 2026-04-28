@@ -58,8 +58,12 @@ export function assertOnline(url?: string): void {
   }
 }
 
-export function getApiErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof OfflineError) return error.message;
+export function getApiErrorMessage(
+  error: unknown,
+  fallback: string,
+  offlineMessage = "You are offline. Please reconnect and try again."
+): string {
+  if (error instanceof OfflineError) return offlineMessage;
   if (error instanceof Error && error.message.trim()) return error.message;
   return fallback;
 }
