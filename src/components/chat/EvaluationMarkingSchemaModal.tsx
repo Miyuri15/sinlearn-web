@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, FileText, RefreshCw, Trash2, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Download,
+  FileText,
+  RefreshCw,
+  Trash2,
+  X,
+} from "lucide-react";
 import Button from "@/components/ui/Button";
 import type { MarkingSchema, MarkingSchemaQuestion } from "@/lib/models/chat";
 import { ReactTransliterate } from "react-transliterate";
@@ -17,6 +24,10 @@ interface EvaluationMarkingSchemaModalProps {
   onSave: (questions: MarkingSchemaQuestion[]) => void | Promise<void>;
   onConfirm: (questions: MarkingSchemaQuestion[]) => void | Promise<void>;
   onDelete: () => void | Promise<void>;
+  onDownload: (
+    questions: MarkingSchemaQuestion[],
+    filename: string,
+  ) => void | Promise<void>;
 }
 
 export default function EvaluationMarkingSchemaModal({
@@ -29,6 +40,7 @@ export default function EvaluationMarkingSchemaModal({
   onSave,
   onConfirm,
   onDelete,
+  onDownload,
 }: EvaluationMarkingSchemaModalProps) {
   const [questions, setQuestions] = useState<MarkingSchemaQuestion[]>([]);
 
@@ -38,8 +50,10 @@ export default function EvaluationMarkingSchemaModal({
   }, [open, schema]);
 
   const completedCount = useMemo(
-    () => questions.filter((question) => question.referenceText.trim().length > 0).length,
-    [questions]
+    () =>
+      questions.filter((question) => question.referenceText.trim().length > 0)
+        .length,
+    [questions],
   );
 
   const parseQuestionNumber = (value: string) => {
@@ -59,16 +73,22 @@ export default function EvaluationMarkingSchemaModal({
 
     return {
       main,
-      sub: Number.isFinite(numericSub) && rawSub !== "" ? numericSub : rawSub.toLowerCase(),
+      sub:
+        Number.isFinite(numericSub) && rawSub !== ""
+          ? numericSub
+          : rawSub.toLowerCase(),
     };
   };
 
   const orderedSections = useMemo(() => {
     const partOrderValue = (partName?: string) => {
       const normalized = String(partName || "").toLowerCase();
-      if (normalized.includes("paper_i") || normalized.includes("paper i")) return 1;
-      if (normalized.includes("paper_ii") || normalized.includes("paper ii")) return 2;
-      if (normalized.includes("paper_iii") || normalized.includes("paper iii")) return 3;
+      if (normalized.includes("paper_i") || normalized.includes("paper i"))
+        return 1;
+      if (normalized.includes("paper_ii") || normalized.includes("paper ii"))
+        return 2;
+      if (normalized.includes("paper_iii") || normalized.includes("paper iii"))
+        return 3;
       return 99;
     };
 
@@ -98,7 +118,10 @@ export default function EvaluationMarkingSchemaModal({
             return aParsed.main - bParsed.main;
           }
 
-          if (typeof aParsed.sub === "number" && typeof bParsed.sub === "number") {
+          if (
+            typeof aParsed.sub === "number" &&
+            typeof bParsed.sub === "number"
+          ) {
             return aParsed.sub - bParsed.sub;
           }
 
@@ -112,15 +135,15 @@ export default function EvaluationMarkingSchemaModal({
       prev.map((question) =>
         question.id === questionId
           ? { ...question, referenceText: value }
-          : question
-      )
+          : question,
+      ),
     );
   };
 
   const handlePaste = (
     event: React.ClipboardEvent<HTMLTextAreaElement>,
     questionId: string,
-    currentValue: string
+    currentValue: string,
   ) => {
     event.preventDefault();
     const pastedText = event.clipboardData.getData("text");
@@ -137,6 +160,33 @@ export default function EvaluationMarkingSchemaModal({
       target.selectionStart = cursorPosition;
       target.selectionEnd = cursorPosition;
     });
+  };
+
+  const normalizeDownloadFileName = (value: string) => {
+    const sanitized = value
+      .trim()
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, "-")
+      .replace(/\s+/g, " ")
+      .replace(/\.+$/g, "");
+
+    if (!sanitized) return "";
+    return sanitized.toLowerCase().endsWith(".pdf")
+      ? sanitized
+      : `${sanitized}.pdf`;
+  };
+
+  const handleDownload = () => {
+    const requestedName = window.prompt(
+      "Enter a name for this marking schema download",
+      "marking-schema.pdf",
+    );
+
+    if (requestedName === null) return;
+
+    const fileName = normalizeDownloadFileName(requestedName);
+    if (!fileName) return;
+
+    void onDownload(questions, fileName);
   };
 
   if (!open) return null;
@@ -177,15 +227,16 @@ export default function EvaluationMarkingSchemaModal({
           <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 text-sm text-teal-900 dark:border-teal-900/40 dark:bg-teal-900/15 dark:text-teal-100">
             <p className="font-semibold">How to review the marking schema</p>
             <p className="mt-2 leading-6">
-              Read each extracted reference, fix anything that looks incomplete or
-              incorrect, then use <span className="font-semibold">Save changes</span>
+              Read each extracted reference, fix anything that looks incomplete
+              or incorrect, then use{" "}
+              <span className="font-semibold">Save changes </span>
               to keep your edits. Grading will stay locked until you press
               <span className="font-semibold"> Confirm schema</span>.
             </p>
             <p className="mt-2 leading-6">
               You can type in English letters and they will be converted into
-              Sinhala while typing. If you paste text, it will be kept exactly as
-              pasted.
+              Sinhala while typing. If you paste text, it will be kept exactly
+              as pasted.
             </p>
           </div>
 
@@ -205,77 +256,78 @@ export default function EvaluationMarkingSchemaModal({
 
           <div className="mt-5">
             {loading ? (
-            <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-gray-500 dark:text-gray-400">
-              <RefreshCw className="h-8 w-8 animate-spin" />
-              <div>
-                <p className="text-base font-medium text-gray-800 dark:text-gray-100">
-                  Loading marking schema...
-                </p>
-                <p className="text-sm">
-                  The backend will load the saved schema or generate a new one for
-                  this session.
-                </p>
+              <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-gray-500 dark:text-gray-400">
+                <RefreshCw className="h-8 w-8 animate-spin" />
+                <div>
+                  <p className="text-base font-medium text-gray-800 dark:text-gray-100">
+                    Loading marking schema...
+                  </p>
+                  <p className="text-sm">
+                    The backend will load the saved schema or generate a new one
+                    for this session.
+                  </p>
+                </div>
               </div>
-            </div>
-          ) : questions.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-              <div className="rounded-full bg-amber-100 p-4 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                <AlertTriangle className="h-7 w-7" />
+            ) : questions.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+                <div className="rounded-full bg-amber-100 p-4 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                  <AlertTriangle className="h-7 w-7" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    No marking schema available yet
+                  </p>
+                  <p className="max-w-xl text-sm text-gray-500 dark:text-gray-400">
+                    Once the backend endpoint is in place, this dialog will show
+                    the saved schema for the session or regenerate it when
+                    needed.
+                  </p>
+                </div>
+                <Button variant="secondary" onClick={onRefresh}>
+                  Retry loading schema
+                </Button>
               </div>
-              <div className="space-y-2">
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                  No marking schema available yet
-                </p>
-                <p className="max-w-xl text-sm text-gray-500 dark:text-gray-400">
-                  Once the backend endpoint is in place, this dialog will show the
-                  saved schema for the session or regenerate it when needed.
-                </p>
-              </div>
-              <Button variant="secondary" onClick={onRefresh}>
-                Retry loading schema
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-6 pb-4">
-              {orderedSections.map((section) => (
-                <div key={section.partName} className="space-y-4">
-                  <div className="sticky top-0 z-10 -mx-1 rounded-2xl bg-gray-100/95 px-4 py-3 backdrop-blur dark:bg-[#181818]/95">
-                    <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-700 dark:text-gray-200">
-                      {section.partName}
-                    </h3>
-                  </div>
+            ) : (
+              <div className="space-y-6 pb-4">
+                {orderedSections.map((section) => (
+                  <div key={section.partName} className="space-y-4">
+                    <div className="sticky top-0 z-10 -mx-1 rounded-2xl bg-gray-100/95 px-4 py-3 backdrop-blur dark:bg-[#181818]/95">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-700 dark:text-gray-200">
+                        {section.partName}
+                      </h3>
+                    </div>
 
-                  {section.questions.map((question, index) => (
-                    <div
-                      key={question.id}
-                      className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-[#2a2a2a] dark:bg-[#141414]"
-                    >
-                      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-teal-700 dark:bg-teal-900/20 dark:text-teal-300">
-                              {question.partName || "Question"}
-                            </span>
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                              {question.questionNumber}
-                            </span>
-                            {typeof question.maxMarks === "number" ? (
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {question.maxMarks} marks
-                              </span>
-                            ) : null}
-                          </div>
-                          <p className="text-sm leading-6 text-gray-700 dark:text-gray-200">
-                            {question.questionText || `Question ${index + 1}`}
-                          </p>
-                        </div>
-                      </div>
-
-                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
-                        Extracted reference
-                      </label>
+                    {section.questions.map((question, index) => (
                       <div
-                        className="
+                        key={question.id}
+                        className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-[#2a2a2a] dark:bg-[#141414]"
+                      >
+                        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-teal-700 dark:bg-teal-900/20 dark:text-teal-300">
+                                {question.partName || "Question"}
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                {question.questionNumber}
+                              </span>
+                              {typeof question.maxMarks === "number" ? (
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {question.maxMarks} marks
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="text-sm leading-6 text-gray-700 dark:text-gray-200">
+                              {question.questionText || `Question ${index + 1}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+                          Extracted reference
+                        </label>
+                        <div
+                          className="
                           relative
                           [&_ul]:!bottom-full
                           [&_ul]:!top-auto
@@ -288,78 +340,92 @@ export default function EvaluationMarkingSchemaModal({
                           dark:[&_ul]:!border-[#333]
                           dark:[&_ul]:!text-gray-200
                         "
-                      >
-                        <ReactTransliterate
-                          value={question.referenceText}
-                          onChangeText={(text) => {
-                            handleQuestionChange(question.id, text);
-                          }}
-                          lang="si"
-                          renderComponent={(props) => (
-                            <textarea
-                              {...props}
-                              onPaste={(event) =>
-                                handlePaste(
-                                  event,
-                                  question.id,
-                                  question.referenceText
-                                )
-                              }
-                              className="min-h-[148px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-6 text-gray-800 outline-none transition focus:border-teal-500 focus:bg-white dark:border-[#2a2a2a] dark:bg-[#101010] dark:text-gray-100 dark:focus:border-teal-400"
-                              placeholder="Reference points for this question will appear here."
-                            />
-                          )}
-                          containerStyles={{ width: "100%", position: "relative" }}
-                        />
+                        >
+                          <ReactTransliterate
+                            value={question.referenceText}
+                            onChangeText={(text) => {
+                              handleQuestionChange(question.id, text);
+                            }}
+                            lang="si"
+                            renderComponent={(props) => (
+                              <textarea
+                                {...props}
+                                onPaste={(event) =>
+                                  handlePaste(
+                                    event,
+                                    question.id,
+                                    question.referenceText,
+                                  )
+                                }
+                                className="min-h-[148px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-6 text-gray-800 outline-none transition focus:border-teal-500 focus:bg-white dark:border-[#2a2a2a] dark:bg-[#101010] dark:text-gray-100 dark:focus:border-teal-400"
+                                placeholder="Reference points for this question will appear here."
+                              />
+                            )}
+                            containerStyles={{
+                              width: "100%",
+                              position: "relative",
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="border-t border-gray-200 bg-gray-50 px-6 py-3 dark:border-[#2a2a2a] dark:bg-[#161616]">
           <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="secondary"
-              onClick={onRefresh}
-              disabled={loading || saving}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={onDelete}
-              disabled={loading || saving || !schema}
-              className="flex items-center gap-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete schema
-            </Button>
-          </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="secondary"
+                onClick={onRefresh}
+                disabled={loading || saving}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                />
+                Refresh
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={onDelete}
+                disabled={loading || saving || !schema}
+                className="flex items-center gap-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete schema
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleDownload}
+                disabled={loading || saving || questions.length === 0}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download
+              </Button>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => onSave(questions)}
-              disabled={loading || saving || questions.length === 0}
-            >
-              {saving ? "Saving..." : "Save changes"}
-            </Button>
-            <Button
-              onClick={() => onConfirm(questions)}
-              disabled={loading || saving || questions.length === 0}
-              className="min-w-[180px]"
-            >
-              {saving ? "Saving..." : "Confirm schema"}
-            </Button>
-          </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => onSave(questions)}
+                disabled={loading || saving || questions.length === 0}
+              >
+                {saving ? "Saving..." : "Save changes"}
+              </Button>
+              <Button
+                onClick={() => onConfirm(questions)}
+                disabled={loading || saving || questions.length === 0}
+                className="min-w-[180px]"
+              >
+                {saving ? "Saving..." : "Confirm schema"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

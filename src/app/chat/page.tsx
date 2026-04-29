@@ -72,6 +72,7 @@ import {
   confirmPaperConfig,
   confirmSessionMarkingSchema,
   deleteSessionMarkingSchema,
+  downloadSessionMarkingSchemaPdf,
   getSessionMarkingSchema,
   mergePaperConfigWithQuestionStructure,
   saveSessionMarkingSchema,
@@ -2700,6 +2701,42 @@ export default function ChatPage({
               console.error("Failed to delete marking schema", error);
               setToastMessage(
                 apiErrorMessage(error, "errors.delete_marking_schema"),
+              );
+              setToastType("error");
+              setIsToastVisible(true);
+              throw error;
+            } finally {
+              setIsMarkingSchemaSubmitting(false);
+            }
+          }}
+          onDownload={async (questions, filename) => {
+            const sessionId = await ensureSessionId();
+            if (!sessionId) {
+              setToastMessage("Please create an evaluation chat first.");
+              setToastType("error");
+              setIsToastVisible(true);
+              return;
+            }
+
+            try {
+              setIsMarkingSchemaSubmitting(true);
+              const savedSchema = await saveSessionMarkingSchema({
+                sessionId,
+                questions,
+              });
+              setMarkingSchema(savedSchema);
+              setMarkingSchemaConfirmed(Boolean(savedSchema.isConfirmed));
+              await downloadSessionMarkingSchemaPdf({
+                sessionId,
+                filename,
+              });
+              setToastMessage("Marking schema PDF download started.");
+              setToastType("success");
+              setIsToastVisible(true);
+            } catch (error) {
+              console.error("Failed to download marking schema PDF", error);
+              setToastMessage(
+                apiErrorMessage(error, "errors.download_marking_schema"),
               );
               setToastType("error");
               setIsToastVisible(true);

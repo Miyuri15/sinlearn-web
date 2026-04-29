@@ -933,6 +933,77 @@ export async function deleteSessionMarkingSchema(sessionId: string): Promise<voi
   );
 }
 
+function getFilenameFromContentDisposition(disposition: string | null): string | null {
+  if (!disposition) return null;
+
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].replace(/"/g, ""));
+    } catch {
+      return utf8Match[1].replace(/"/g, "");
+    }
+  }
+
+  const match = disposition.match(/filename="?([^"]+)"?/i);
+  return match?.[1] ?? null;
+}
+
+export async function downloadSessionMarkingSchemaPdf(params: {
+  sessionId: string;
+  filename?: string;
+}): Promise<void> {
+  const { sessionId, filename } = params;
+  const token = getAccessToken();
+  const url = `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(
+    sessionId
+  )}/marking-schema/pdf`;
+
+  assertOnline(url);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
+
+  if (!response.ok) {
+    let message = "Failed to download marking schema PDF";
+    try {
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const payload = await response.json();
+        message = payload?.detail || payload?.message || message;
+      } else {
+        const text = await response.text();
+        if (text.trim()) message = text;
+      }
+    } catch {
+      // Keep the fallback message.
+    }
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const downloadUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = downloadUrl;
+  link.download =
+    filename ||
+    getFilenameFromContentDisposition(response.headers.get("content-disposition")) ||
+    `marking_schema_${sessionId}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(downloadUrl);
+}
+
 export type ProcessDocumentsRequest = {
   chat_session_id: string;
   answer_resource_ids: string[];
