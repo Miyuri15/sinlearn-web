@@ -103,7 +103,9 @@ import { useConnectivityStatus } from "@/hooks/useConnectivityStatus";
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
 
-function queuedTextMessageToChatMessage(message: OfflineTextMessage): ChatMessage {
+function queuedTextMessageToChatMessage(
+  message: OfflineTextMessage,
+): ChatMessage {
   return {
     id: message.id,
     role: "user",
@@ -234,9 +236,7 @@ export default function ChatPage({
       return session.id;
     } catch (error) {
       console.error("Failed to create session on demand", error);
-      setToastMessage(
-        apiErrorMessage(error, "errors.create_chat_session"),
-      );
+      setToastMessage(apiErrorMessage(error, "errors.create_chat_session"));
       setToastType("error");
       setIsToastVisible(true);
       return null;
@@ -578,19 +578,31 @@ export default function ChatPage({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [answerResourceIds, setAnswerResourceIds] = useState<string[]>([]);
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
-  const [isMarkingSchemaModalOpen, setIsMarkingSchemaModalOpen] = useState(false);
+  const [isMarkingSchemaModalOpen, setIsMarkingSchemaModalOpen] =
+    useState(false);
   const [marksConfirmed, setMarksConfirmed] = useState(false);
-  const [markingSchema, setMarkingSchema] = useState<MarkingSchema | null>(null);
+  const [markingSchema, setMarkingSchema] = useState<MarkingSchema | null>(
+    null,
+  );
   const [isMarkingSchemaLoading, setIsMarkingSchemaLoading] = useState(false);
-  const [isMarkingSchemaSubmitting, setIsMarkingSchemaSubmitting] = useState(false);
+  const [isMarkingSchemaSubmitting, setIsMarkingSchemaSubmitting] =
+    useState(false);
   const [markingSchemaConfirmed, setMarkingSchemaConfirmed] = useState(false);
   const [evaluationUploadedFilesCount, setEvaluationUploadedFilesCount] =
     useState(0);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
-  const [processProgress, setProcessProgress] = useState({ current: 0, total: 0 });
-  const [answerDocumentIds, setAnswerDocumentIds] = useState<Record<string, string>>({});
+  const [uploadProgress, setUploadProgress] = useState({
+    current: 0,
+    total: 0,
+  });
+  const [processProgress, setProcessProgress] = useState({
+    current: 0,
+    total: 0,
+  });
+  const [answerDocumentIds, setAnswerDocumentIds] = useState<
+    Record<string, string>
+  >({});
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
@@ -629,9 +641,7 @@ export default function ChatPage({
           router.replace("/chat");
         }
 
-        setToastMessage(
-          apiErrorMessage(error, "errors.load_chat_messages"),
-        );
+        setToastMessage(apiErrorMessage(error, "errors.load_chat_messages"));
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -729,7 +739,9 @@ export default function ChatPage({
       if (cancelled || queued.length === 0) return;
 
       setLearningMessages((prev) => {
-        const existingIds = new Set(prev.map((item) => item.id).filter(Boolean));
+        const existingIds = new Set(
+          prev.map((item) => item.id).filter(Boolean),
+        );
         const missing = queued
           .filter((item) => !existingIds.has(item.id))
           .map(queuedTextMessageToChatMessage);
@@ -821,7 +833,10 @@ export default function ChatPage({
             return;
           }
 
-          const uploadErrorMessage = apiErrorMessage(error, "errors.upload_files");
+          const uploadErrorMessage = apiErrorMessage(
+            error,
+            "errors.upload_files",
+          );
           setToastMessage(uploadErrorMessage);
           setToastType("error");
           setIsToastVisible(true);
@@ -1068,7 +1083,10 @@ export default function ChatPage({
                   !String(item.id ?? "").startsWith("offline-")
                 ),
             );
-            return [...withoutOptimistic, queuedTextMessageToChatMessage(queued)];
+            return [
+              ...withoutOptimistic,
+              queuedTextMessageToChatMessage(queued),
+            ];
           });
           setToastMessage(t("offline_message_queued"));
           setToastType("info");
@@ -1076,9 +1094,7 @@ export default function ChatPage({
           return;
         }
 
-        setToastMessage(
-          apiErrorMessage(error, "errors.send_message"),
-        );
+        setToastMessage(apiErrorMessage(error, "errors.send_message"));
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -1107,7 +1123,10 @@ export default function ChatPage({
         setLearningMessages((prev) =>
           prev.map((item) =>
             item.id === queuedMessage.id
-              ? ({ ...item, offline_status: "syncing" } as unknown as ChatMessage)
+              ? ({
+                  ...item,
+                  offline_status: "syncing",
+                } as unknown as ChatMessage)
               : item,
           ),
         );
@@ -1122,17 +1141,22 @@ export default function ChatPage({
         const attachments = queuedUploads.map((item, index) => ({
           resource_id: item.resource_id,
           display_name: queuedMessage.files[index]?.name ?? "Attachment",
-          attachment_type: queuedMessage.files[index]?.type?.startsWith("image/")
+          attachment_type: queuedMessage.files[index]?.type?.startsWith(
+            "image/",
+          )
             ? "image"
             : "file",
         }));
 
-        const resp = await postMessage(queuedMessage.sessionId ?? activeSessionId ?? undefined, {
-          content: queuedMessage.content,
-          modality: "text",
-          grade_level: queuedMessage.gradeLevel,
-          ...(attachments.length ? { attachments } : {}),
-        });
+        const resp = await postMessage(
+          queuedMessage.sessionId ?? activeSessionId ?? undefined,
+          {
+            content: queuedMessage.content,
+            modality: "text",
+            grade_level: queuedMessage.gradeLevel,
+            ...(attachments.length ? { attachments } : {}),
+          },
+        );
 
         const newSessionId =
           resp?.session_id || resp?.session?.id || resp?.chat_id || resp?.id;
@@ -1179,8 +1203,7 @@ export default function ChatPage({
         const messages = await listSessionMessages(sessionToRefresh);
         const sorted = messages.sort(
           (a, b) =>
-            new Date(a.created_at).getTime() -
-            new Date(b.created_at).getTime(),
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
         );
         learningMessageCacheSessionRef.current = sessionToRefresh;
         writeCachedSessionMessages(sessionToRefresh, sorted);
@@ -1378,9 +1401,7 @@ export default function ChatPage({
           return newMessages;
         });
 
-        setToastMessage(
-          apiErrorMessage(qaError, "errors.voice_answer"),
-        );
+        setToastMessage(apiErrorMessage(qaError, "errors.voice_answer"));
         setToastType("error");
         setIsToastVisible(true);
       }
@@ -1474,7 +1495,6 @@ export default function ChatPage({
       setCurrentEvaluationResult(results);
       setIsEvaluationStarted(true);
       setEvaluationStatus("in_progress");
-
     } catch (error) {
       console.error("Failed to start evaluation", error);
       setToastMessage(apiErrorMessage(error, "errors.start_evaluation"));
@@ -1693,9 +1713,7 @@ export default function ChatPage({
           });
         } catch (e) {
           console.error("Failed to detach rubric", e);
-          setToastMessage(
-            apiErrorMessage(e, "errors.remove_rubric"),
-          );
+          setToastMessage(apiErrorMessage(e, "errors.remove_rubric"));
           setToastType("error");
           setIsToastVisible(true);
           return;
@@ -1816,8 +1834,8 @@ export default function ChatPage({
             acceptedFiles.push(file);
             acceptedIds.push(id);
           }
-          
-          setUploadProgress(prev => ({ ...prev, current: i + 1 }));
+
+          setUploadProgress((prev) => ({ ...prev, current: i + 1 }));
         } catch (err) {
           console.error(`Failed to upload file ${file.name}`, err);
           // Continue with next file
@@ -1885,9 +1903,7 @@ export default function ChatPage({
       }
     } catch (error) {
       console.error("Failed to upload answer sheets", error);
-      setToastMessage(
-        apiErrorMessage(error, "errors.upload_answer_sheets"),
-      );
+      setToastMessage(apiErrorMessage(error, "errors.upload_answer_sheets"));
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -1923,9 +1939,7 @@ export default function ChatPage({
       }
     } catch (e) {
       console.error("Failed to delete answer sheet resource", e);
-      setToastMessage(
-        apiErrorMessage(e, "errors.remove_answer_sheet"),
-      );
+      setToastMessage(apiErrorMessage(e, "errors.remove_answer_sheet"));
       setToastType("error");
       setIsToastVisible(true);
       return;
@@ -2003,9 +2017,7 @@ export default function ChatPage({
       });
     } catch (error) {
       console.error("Failed to replace answer sheet", error);
-      setToastMessage(
-        apiErrorMessage(error, "errors.replace_answer_sheet"),
-      );
+      setToastMessage(apiErrorMessage(error, "errors.replace_answer_sheet"));
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -2048,23 +2060,26 @@ export default function ChatPage({
           },
           onEvent: (evt) => {
             try {
-              const data = typeof evt.raw === "string" && evt.raw.trim().startsWith("{") 
-                ? JSON.parse(evt.raw) 
-                : null;
-              
+              const data =
+                typeof evt.raw === "string" && evt.raw.trim().startsWith("{")
+                  ? JSON.parse(evt.raw)
+                  : null;
+
               if (data && data.answer_document_id) {
-                console.log(`Captured answer_document_id: ${data.answer_document_id} for resource: ${resourceId}`);
-                setAnswerDocumentIds(prev => ({
+                console.log(
+                  `Captured answer_document_id: ${data.answer_document_id} for resource: ${resourceId}`,
+                );
+                setAnswerDocumentIds((prev) => ({
                   ...prev,
-                  [resourceId]: data.answer_document_id
+                  [resourceId]: data.answer_document_id,
                 }));
               }
             } catch (e) {
               // Ignore parse errors for non-json lines
             }
-          }
+          },
         });
-        setProcessProgress(prev => ({ ...prev, current: i + 1 }));
+        setProcessProgress((prev) => ({ ...prev, current: i + 1 }));
       }
 
       setProcessingStatus("completed");
@@ -2077,9 +2092,7 @@ export default function ChatPage({
     } catch (error) {
       console.error("Failed to process documents", error);
       setProcessingStatus("idle");
-      setToastMessage(
-        apiErrorMessage(error, "errors.process_documents"),
-      );
+      setToastMessage(apiErrorMessage(error, "errors.process_documents"));
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -2118,7 +2131,9 @@ export default function ChatPage({
     }
 
     if (!marksConfirmed) {
-      setToastMessage("Confirm the paper config before reviewing the marking schema.");
+      setToastMessage(
+        "Confirm the paper config before reviewing the marking schema.",
+      );
       setToastType("warning");
       setIsToastVisible(true);
       return;
@@ -2132,9 +2147,7 @@ export default function ChatPage({
       setMarkingSchemaConfirmed(Boolean(schema.isConfirmed));
     } catch (error) {
       console.error("Failed to load marking schema", error);
-      setToastMessage(
-        apiErrorMessage(error, "errors.load_marking_schema"),
-      );
+      setToastMessage(apiErrorMessage(error, "errors.load_marking_schema"));
       setToastType("error");
       setIsToastVisible(true);
     } finally {
@@ -2151,8 +2164,6 @@ export default function ChatPage({
 
   useEffect(() => {
     if (chatId) {
-      console.log("Loaded chat:", chatId);
-      // Reset file count when loading a new chat
       setEvaluationUploadedFilesCount(0);
       setAnswerResourceIds([]);
       setMarksConfirmed(false);
@@ -2266,6 +2277,7 @@ export default function ChatPage({
             onStartEvaluation={handleStartEvaluationProcess}
             onViewHistory={() => setEvaluationStatus("history")}
             uploadedFiles={selectedFiles}
+            answerResourceIds={answerResourceIds}
             onRemoveFile={handleRemoveEvaluationFile}
             onReplaceFile={handleReplaceEvaluationFile}
             isProcessing={isAutoProcessing}
@@ -2418,9 +2430,7 @@ export default function ChatPage({
       router.push(`/chat/${tempId}`);
     } catch (error) {
       console.error("Failed to open new chat UI", error);
-      setToastMessage(
-        apiErrorMessage(error, "errors.open_new_chat"),
-      );
+      setToastMessage(apiErrorMessage(error, "errors.open_new_chat"));
       setToastType("error");
       setIsToastVisible(true);
     }
@@ -2458,9 +2468,7 @@ export default function ChatPage({
         setIsEditModalOpen(false);
       } catch (error) {
         console.error("Failed to update chat title", error);
-        setToastMessage(
-          apiErrorMessage(error, "errors.update_chat_title"),
-        );
+        setToastMessage(apiErrorMessage(error, "errors.update_chat_title"));
         setToastType("error");
         setIsToastVisible(true);
       }
@@ -2506,9 +2514,7 @@ export default function ChatPage({
         setDeletingChat(null);
       } catch (error) {
         console.error("Failed to delete chat", error);
-        setToastMessage(
-          apiErrorMessage(error, "errors.delete_chat"),
-        );
+        setToastMessage(apiErrorMessage(error, "errors.delete_chat"));
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -2598,7 +2604,9 @@ export default function ChatPage({
               setIsToastVisible(true);
             } catch (e) {
               console.error("Failed to confirm paper config", e);
-              setToastMessage(apiErrorMessage(e, "errors.confirm_paper_config"));
+              setToastMessage(
+                apiErrorMessage(e, "errors.confirm_paper_config"),
+              );
               setToastType("error");
               setIsToastVisible(true);
               throw e;
@@ -2664,7 +2672,9 @@ export default function ChatPage({
               setMarkingSchema(confirmedSchema);
               setMarkingSchemaConfirmed(true);
               setIsMarkingSchemaModalOpen(false);
-              setToastMessage("Marking schema confirmed. You can now start grading.");
+              setToastMessage(
+                "Marking schema confirmed. You can now start grading.",
+              );
               setToastType("success");
               setIsToastVisible(true);
             } catch (error) {
@@ -2693,7 +2703,9 @@ export default function ChatPage({
               await deleteSessionMarkingSchema(sessionId);
               setMarkingSchema(null);
               setMarkingSchemaConfirmed(false);
-              setToastMessage("Marking schema deleted. Open the schema step to regenerate it.");
+              setToastMessage(
+                "Marking schema deleted. Open the schema step to regenerate it.",
+              );
               setToastType("success");
               setIsToastVisible(true);
             } catch (error) {
