@@ -1,7 +1,10 @@
 /**
- * API Client - Pricing & Usage Endpoints
+ * Pricing & Usage API Client
+ * Uses centralized apiFetch with token refresh, caching, and offline support
  */
 
+import { apiFetch } from "./api/client";
+import { API_BASE_URL } from "./config";
 import {
   UserProfile,
   UserUsage,
@@ -9,26 +12,14 @@ import {
   LimitExceededError,
 } from "@/types/pricing";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 /**
  * Fetch current user with tier information
  * GET /api/v1/users/me
  */
 export async function fetchCurrentUser(): Promise<UserProfile> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
+  return apiFetch<UserProfile>(`${API_BASE_URL}/api/v1/users/me`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
   });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch user: ${response.statusText}`);
-  }
-
-  return response.json();
 }
 
 /**
@@ -36,18 +27,12 @@ export async function fetchCurrentUser(): Promise<UserProfile> {
  * GET /api/v1/pricing/plans
  */
 export async function fetchPricingPlans(): Promise<PricingPlansResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/pricing/plans`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
+  return apiFetch<PricingPlansResponse>(
+    `${API_BASE_URL}/api/v1/pricing/plans`,
+    {
+      method: "GET",
     },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch pricing plans: ${response.statusText}`);
-  }
-
-  return response.json();
+  );
 }
 
 /**
@@ -55,23 +40,26 @@ export async function fetchPricingPlans(): Promise<PricingPlansResponse> {
  * GET /api/v1/usage/me
  */
 export async function fetchUserUsage(): Promise<UserUsage> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/usage/me`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    if (response.status === 403) {
-      const errorData: LimitExceededError = await response.json();
-      throw new LimitExceededErrorClass(errorData);
+  try {
+    return await apiFetch<UserUsage>(`${API_BASE_URL}/api/v1/usage/me`, {
+      method: "GET",
+    });
+  } catch (error) {
+    // Check if it's a 403 limit exceeded error and wrap it
+    if (error instanceof Error && "status" in error && error.status === 403) {
+      try {
+        // Try to parse the error details from the response
+        const details = (error as any).details as LimitExceededError;
+        if (details && "tier" in details) {
+          throw new LimitExceededErrorClass(details);
+        }
+      } catch (e) {
+        // If parsing fails, re-throw the original error
+        throw error;
+      }
     }
-    throw new Error(`Failed to fetch usage: ${response.statusText}`);
+    throw error;
   }
-
-  return response.json();
 }
 
 /**
@@ -82,23 +70,10 @@ export async function updateUserTier(
   userId: string,
   tier: "basic" | "intermediate" | "enterprise",
 ): Promise<UserProfile> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/users/${userId}/tier`, {
+  return apiFetch<UserProfile>(`${API_BASE_URL}/api/v1/users/${userId}/tier`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
     body: JSON.stringify({ tier }),
   });
-
-  if (!response.ok) {
-    if (response.status === 403) {
-      throw new Error("Only admins can update user tiers");
-    }
-    throw new Error(`Failed to update user tier: ${response.statusText}`);
-  }
-
-  return response.json();
 }
 
 /**
