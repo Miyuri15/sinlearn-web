@@ -119,6 +119,41 @@ export async function fetchCurrentUser(): Promise<UserProfile> {
 }
 
 /**
+ * Fetch admin-visible users
+ * GET /api/v1/users
+ */
+export async function fetchAdminUsers(
+  params: {
+    q?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<UserProfile[]> {
+  const searchParams = new URLSearchParams();
+
+  if (params.q) {
+    searchParams.set("q", params.q);
+  }
+
+  if (typeof params.limit === "number") {
+    searchParams.set("limit", String(params.limit));
+  }
+
+  if (typeof params.offset === "number") {
+    searchParams.set("offset", String(params.offset));
+  }
+
+  const queryString = searchParams.toString();
+  const url = queryString
+    ? `${API_BASE_URL}/api/v1/users?${queryString}`
+    : `${API_BASE_URL}/api/v1/users`;
+
+  return apiFetch<UserProfile[]>(url, {
+    method: "GET",
+  });
+}
+
+/**
  * Fetch all available pricing plans
  * GET /api/v1/pricing/plans
  */
@@ -150,8 +185,7 @@ export async function fetchUserUsage(): Promise<UserUsage> {
     if (error instanceof ApiError && error.status === 403) {
       const details = error.details as Partial<LimitExceededError> | undefined;
       if (
-        details &&
-        details.tier &&
+        details?.tier &&
         details.limit !== undefined &&
         details.used !== undefined &&
         details.resetAt
