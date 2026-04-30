@@ -9,6 +9,10 @@ import { useTranslation } from "react-i18next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useRef, useState } from "react";
+import { LogOut } from "lucide-react";
+import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
+import { signout } from "@/lib/api/auth";
+import { logout as logoutLocal } from "@/lib/localStore";
 
 const tabs = [
   { id: "general", label: "settings.general" },
@@ -28,7 +32,23 @@ export default function SettingsNav({ children }: Readonly<SettingsNavProps>) {
   const router = useRouter();
   const pathname = usePathname();
   const [isTabTransitioning, setIsTabTransitioning] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasMountedRef = useRef(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signout();
+    } catch (error) {
+      console.error("Signout API call failed:", error);
+    } finally {
+      logoutLocal();
+      setIsLogoutModalOpen(false);
+      setIsLoggingOut(false);
+      router.push("/auth/sign-in");
+    }
+  };
 
   // Extract active tab from pathname (/settings/[tab] -> tab)
   const activeTab = pathname.split("/").pop() || "general";
@@ -72,12 +92,24 @@ export default function SettingsNav({ children }: Readonly<SettingsNavProps>) {
           {t("settings.back")}
         </button>
 
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-          {t("settings.title")}
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm sm:text-base">
-          {t("settings.subtitle")}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+              {t("settings.title")}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm sm:text-base">
+              {t("settings.subtitle")}
+            </p>
+          </div>
+          <button
+            onClick={() => setIsLogoutModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition text-sm font-medium"
+            title={t("logout")}
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">{t("logout")}</span>
+          </button>
+        </div>
       </div>
 
       {/* Mobile Tabs */}
@@ -152,6 +184,13 @@ export default function SettingsNav({ children }: Readonly<SettingsNavProps>) {
           )}
         </main>
       </div>
+
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        isLoading={isLoggingOut}
+        onConfirm={handleLogout}
+        onCancel={() => setIsLogoutModalOpen(false)}
+      />
     </>
   );
 }
