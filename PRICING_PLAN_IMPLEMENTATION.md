@@ -4,14 +4,21 @@ This document tracks the implementation of Basic, Intermediate, and Enterprise p
 
 ## Current Status
 
-- Status: Planning phase
+- Status: Early implementation (Phases 1-3 complete ✅)
 - Owner: TBD
 - Started: 2026-04-30
 - Frontend framework: Next.js 15 (TypeScript)
 - Main user field: `user.tier`
-- User endpoint: `GET /api/v1/users/me` (expected)
+- User endpoint: `GET /api/v1/users/me` ✅ Backend Ready
 - Plans endpoint: `GET /api/v1/pricing/plans` (expected)
 - Usage endpoint: `GET /api/v1/usage/me` (expected)
+
+**Completed:**
+
+- ✅ Types & Constants (Phase 1)
+- ✅ API Integration layer (Phase 2)
+- ✅ State management hooks (Phase 3)
+- 🏗️ UI Components partially (Tier badges, usage display, limit warnings)
 
 ## Target Plans
 
@@ -23,40 +30,41 @@ This document tracks the implementation of Basic, Intermediate, and Enterprise p
 
 ## Implementation Checklist
 
-### Phase 1: Types & Constants
+### Phase 1: Types & Constants ✅ COMPLETE
 
-- [ ] Create `src/types/pricing.ts` with TypeScript interfaces:
-  - [ ] `PricingPlan` (id, tier, name, description, badge, price, features, limits)
-  - [ ] `UserTier` (type for `basic` | `intermediate` | `enterprise`)
-  - [ ] `PricingLimits` (learningRequestsPerHour, sessionsPerDay, evaluationsPerSession)
-  - [ ] `UserUsage` (currentHourRequests, sessionsTodayCount, evaluationsInSession, resetTimes)
-- [ ] Create `src/lib/constants.ts` entries:
-  - [ ] Plan metadata (names, badges, colors for each tier)
-  - [ ] Feature lists for marketing display
-  - [ ] Limit threshold percentages for warnings (e.g., 80% usage = warning)
+- [x] Create `src/types/pricing.ts` with TypeScript interfaces:
+  - [x] `PricingPlan` (id, tier, name, description, badge, price, features, limits)
+  - [x] `UserTier` (type for `basic` | `intermediate` | `enterprise`)
+  - [x] `PricingLimits` (learningRequestsPerHour, sessionsPerDay, evaluationsPerSession)
+  - [x] `UserUsage` (currentHourRequests, sessionsTodayCount, evaluationsInSession, resetTimes)
+- [x] Create `src/lib/constants.ts` entries:
+  - [x] Plan metadata (names, badges, colors for each tier)
+  - [x] Feature lists for marketing display
+  - [x] Limit threshold percentages for warnings (e.g., 80% usage = warning)
 
-### Phase 2: API Integration
+### Phase 2: API Integration ✅ COMPLETE
 
-- [ ] Create `src/lib/api.ts` API client functions:
-  - [ ] `fetchPricingPlans()` - GET /api/v1/pricing/plans
-  - [ ] `fetchUserUsage()` - GET /api/v1/usage/me
-  - [ ] `fetchCurrentUser()` - GET /api/v1/users/me (ensure tier is included)
-  - [ ] `updateUserTier(userId, tier)` - PATCH /api/v1/users/{id}/tier (admin only)
-- [ ] Add error handling for tier/usage API failures
-- [ ] Handle HTTP 403 responses with limit-exceeded details
+- [x] Create `src/lib/api.ts` API client functions:
+  - [x] `fetchCurrentUser()` - GET /api/v1/users/me (ensure tier is included) ✅ Backend Ready
+  - [x] `fetchPricingPlans()` - GET /api/v1/pricing/plans
+  - [x] `fetchUserUsage()` - GET /api/v1/usage/me
+  - [x] `updateUserTier(userId, tier)` - PATCH /api/v1/users/{id}/tier (admin only)
+- [x] Add error handling for tier/usage API failures
+- [x] Handle HTTP 403 responses with limit-exceeded details
 
-### Phase 3: Context & State Management
+### Phase 3: Context & State Management ✅ COMPLETE
 
-- [ ] Create `src/lib/PricingContext.ts` or hook:
-  - [ ] `usePricingPlans()` - fetch and cache all plans
-  - [ ] `useUserTier()` - get current user's tier
-  - [ ] `useUserUsage()` - fetch user's current usage stats
-  - [ ] `useIsPlanLimited(feature)` - check if current feature is limited
-  - [ ] Auto-refresh usage stats every 30-60 seconds during chat/evaluation
-- [ ] Optionally integrate with existing auth context to access tier
-- [ ] Handle stale data and cache invalidation
+- [x] Create `src/hooks/usePricing.ts` hook:
+  - [x] `usePricingPlans()` - fetch and cache all plans
+  - [x] `useUserTier()` - get current user's tier
+  - [x] `useUserUsage()` - fetch user's current usage stats with auto-refresh
+  - [x] `useIsTierLimited(feature)` - check if current feature is limited
+  - [x] `usePricingContext()` - combined context hook
+  - [x] Auto-refresh usage stats with configurable interval during chat/evaluation
+- [x] Implement cache management with expiry
+- [x] Handle stale data and cache invalidation
 
-### Phase 4: Auth & Settings Pages
+### Phase 4: Auth & Settings Pages 🟡 IN PROGRESS
 
 - [ ] Update `src/app/settings/page.tsx`:
   - [ ] Display current tier with badge
@@ -64,8 +72,8 @@ This document tracks the implementation of Basic, Intermediate, and Enterprise p
   - [ ] Display limits for current tier
   - [ ] Show reset times (next hour, midnight)
   - [ ] Add "Upgrade Plan" CTA button
-- [ ] Create tier display component `src/components/settings/TierBadge.tsx`
-- [ ] Create usage stats component `src/components/settings/UsageStats.tsx`
+- [x] Create tier display component `src/components/pricing/TierBadge.tsx` ✅ Component created: `TierBadge`, `TierCard`
+- [x] Create usage stats component - `src/components/pricing/LimitWarning.tsx` ✅ `UsageStats` component created
 - [ ] Update `src/app/auth/page.tsx` (if sign-up shows plan selection)
 
 ### Phase 5: Pricing Page / Plan Selection
@@ -79,19 +87,18 @@ This document tracks the implementation of Basic, Intermediate, and Enterprise p
 - [ ] Create `src/components/pricing/PricingTier.tsx` card component
 - [ ] Link to payment processing (e.g., Stripe, local payment gateway)
 
-### Phase 6: Chat/Learning Mode UI
+### Phase 6: Chat/Learning Mode UI 🟡 IN PROGRESS
 
 - [ ] Update `src/components/chat/InputBar.tsx`:
   - [ ] Check learning limit before sending message
   - [ ] Display warning when approaching limit (80% used)
   - [ ] Show error message when limit exceeded with tier info
   - [ ] Disable input or show "Upgrade" prompt on 403 error
-- [ ] Create `src/components/chat/LimitWarning.tsx`:
-  - [ ] Show visual warning (color-coded bar or badge)
-  - [ ] Display remaining requests in current hour
-  - [ ] Provide "Upgrade Plan" link
-- [ ] Create `src/components/chat/LimitExceededModal.tsx`:
-  - [ ] Show detailed limit info
+- [x] Create limit warning components in `src/components/pricing/LimitWarning.tsx` ✅:
+  - [x] `LimitWarning` - Show visual warning (color-coded bar or badge)
+  - [x] `LimitExceededErrorDisplay` - Show detailed limit info with upgrade CTA
+  - [x] Display remaining requests in current hour
+- [ ] Integrate components into InputBar
   - [ ] Explain when limit resets
   - [ ] Provide upgrade CTA
 
