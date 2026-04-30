@@ -13,6 +13,7 @@ import ProfileSettings from "@/components/settings/ProfileSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import PrivacySettings from "@/components/settings/PrivacySettings";
 import PlanSettings from "@/components/settings/PlanSettings";
+import AdminSettings from "@/components/settings/AdminSettings";
 import { useParams } from "next/navigation";
 
 export default function SettingsTabPage() {
@@ -39,6 +40,9 @@ export default function SettingsTabPage() {
 
       case "plan":
         return <PlanSettings />;
+
+      case "admin":
+        return <AdminSettings />;
 
       case "notifications":
         return <NotificationSettings />;

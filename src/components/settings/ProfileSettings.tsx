@@ -27,7 +27,9 @@ export default function ProfileSettings() {
   }, []);
 
   const handleSave = () => {
+    const existing = getUser();
     setUser({
+      ...existing,
       name,
       email,
       role: userType,

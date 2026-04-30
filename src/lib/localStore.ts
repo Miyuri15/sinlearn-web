@@ -13,9 +13,13 @@
 /* ───────────────── TYPES ───────────────── */
 
 export type User = {
+  id?: string;
   name?: string;
+  full_name?: string;
   email: string;
   role?: "student" | "teacher";
+  accountRole?: "user" | "admin";
+  tier?: "basic" | "intermediate" | "enterprise";
 };
 
 export type AuthTokens = {
@@ -53,6 +57,10 @@ export const getUser = (): User | null => {
 export const removeUser = () => {
   if (!isBrowser()) return;
   localStorage.removeItem("sinlearn_user");
+};
+
+export const isStoredAdmin = (): boolean => {
+  return getUser()?.accountRole === "admin";
 };
 
 /* ───────────────── AUTH TOKENS ───────────────── */

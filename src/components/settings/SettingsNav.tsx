@@ -12,9 +12,10 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 import { LogOut } from "lucide-react";
 import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
 import { signout } from "@/lib/api/auth";
-import { logout as logoutLocal } from "@/lib/localStore";
+import { isStoredAdmin, logout as logoutLocal } from "@/lib/localStore";
+import { useCurrentUser } from "@/hooks/usePricing";
 
-const tabs = [
+const baseTabs = [
   { id: "general", label: "settings.general" },
   { id: "profile", label: "settings.profile" },
   { id: "plan", label: "settings.plan" },
@@ -31,6 +32,7 @@ export default function SettingsNav({ children }: Readonly<SettingsNavProps>) {
   const { t } = useTranslation("common");
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useCurrentUser();
   const [isTabTransitioning, setIsTabTransitioning] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -52,6 +54,14 @@ export default function SettingsNav({ children }: Readonly<SettingsNavProps>) {
 
   // Extract active tab from pathname (/settings/[tab] -> tab)
   const activeTab = pathname.split("/").pop() || "general";
+  const isAdmin = user?.role === "admin" || isStoredAdmin();
+  const tabs = isAdmin
+    ? [
+        ...baseTabs.slice(0, 3),
+        { id: "admin", label: "settings.admin" },
+        ...baseTabs.slice(3),
+      ]
+    : baseTabs;
 
   useEffect(() => {
     // Skip artificial delay on initial mount; apply only between tab changes.
