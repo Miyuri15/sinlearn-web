@@ -96,7 +96,15 @@
     "terms": "නියම හා කොන්දේසි",
     "privacy_policy": "පෞද්ගලිකත්ව ප්‍රතිපත්තිය",
     
-    "save_changes": "වෙනස්කම් සුරකින්න"
+    "save_changes": "වෙනස්කම් සුරකින්න",
+    "saved": "වෙනස්කම් සුරකින ලදී!",
+    "plan_desc": "ඔබගේ දායකත්ව සැලැස්ම කළමනාකරණය කරන්න (Plan)",
+    "current_plan": "වත්මන් සැලැස්ම (Current Plan)",
+    "usage": "වත්මන් භාවිතය",
+    "plan_limits": "සීමාවන් (limits)",
+    "plan_features": "ඇතුළත් විශේෂාංග",
+    "not_found": "සැකසුම් පිටුව හමු නොවීය",
+    "plan": "සැලැස්ම (Plan)"
   }, 
   "rubric": {
     "action_teachers": "ක්‍රියාකාරී ගුරුවරු",
