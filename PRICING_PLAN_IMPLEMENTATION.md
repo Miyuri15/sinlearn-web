@@ -4,7 +4,7 @@ This document tracks the implementation of Basic, Intermediate, and Enterprise p
 
 ## Current Status
 
-- Status: Early implementation (Phases 1-3 complete ✅)
+- Status: Early implementation (Phases 1-4 complete ✅)
 - Owner: TBD
 - Started: 2026-04-30
 - Frontend framework: Next.js 15 (TypeScript)
@@ -18,6 +18,7 @@ This document tracks the implementation of Basic, Intermediate, and Enterprise p
 - ✅ Types & Constants (Phase 1)
 - ✅ API Integration layer (Phase 2)
 - ✅ State management hooks (Phase 3)
+- ✅ Settings & Profile pages with tier display (Phase 4)
 - 🏗️ UI Components partially (Tier badges, usage display, limit warnings)
 
 ## Target Plans
@@ -64,17 +65,19 @@ This document tracks the implementation of Basic, Intermediate, and Enterprise p
 - [x] Implement cache management with expiry
 - [x] Handle stale data and cache invalidation
 
-### Phase 4: Auth & Settings Pages 🟡 IN PROGRESS
+### Phase 4: Auth & Settings Pages ✅ COMPLETE
 
-- [ ] Update `src/app/settings/page.tsx`:
-  - [ ] Display current tier with badge
-  - [ ] Show current usage (requests used this hour, sessions today, evaluations in session)
-  - [ ] Display limits for current tier
-  - [ ] Show reset times (next hour, midnight)
-  - [ ] Add "Upgrade Plan" CTA button
+- [x] Update `src/app/settings/page.tsx`:
+  - [x] Added "Plan" tab to settings navigation
+  - [x] Display current tier with badge
+  - [x] Show current usage (requests used this hour, sessions today, evaluations in session)
+  - [x] Display limits for current tier
+  - [x] Show reset times (next hour, midnight)
+  - [x] Add "Upgrade Plan" CTA button
 - [x] Create tier display component `src/components/pricing/TierBadge.tsx` ✅ Component created: `TierBadge`, `TierCard`
 - [x] Create usage stats component - `src/components/pricing/LimitWarning.tsx` ✅ `UsageStats` component created
-- [ ] Update `src/app/auth/page.tsx` (if sign-up shows plan selection)
+- [x] Create `src/components/settings/PlanSettings.tsx` ✅ Comprehensive plan display with usage, limits, features
+- [x] Update `src/components/settings/ProfileSettings.tsx` ✅ Added tier badge display at top
 
 ### Phase 5: Pricing Page / Plan Selection
 

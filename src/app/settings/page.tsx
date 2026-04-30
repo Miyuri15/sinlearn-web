@@ -9,6 +9,7 @@ import AppearanceToggle from "@/components/settings/AppearanceToggle";
 import ProfileSettings from "@/components/settings/ProfileSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import PrivacySettings from "@/components/settings/PrivacySettings";
+import PlanSettings from "@/components/settings/PlanSettings";
 
 export default function SettingsPage() {
   const { t } = useTranslation("common");
@@ -18,6 +19,7 @@ export default function SettingsPage() {
   const tabs = [
     { id: "general", label: t("settings.general") },
     { id: "profile", label: t("settings.profile") },
+    { id: "plan", label: t("settings.plan") || "Plan" },
     { id: "notifications", label: t("settings.notifications") },
     { id: "privacy", label: t("settings.privacy") },
     { id: "about", label: t("settings.about") },
@@ -128,6 +130,8 @@ export default function SettingsPage() {
             )}
 
             {activeTab === "profile" && <ProfileSettings />}
+
+            {activeTab === "plan" && <PlanSettings />}
 
             {activeTab === "notifications" && <NotificationSettings />}
 

@@ -3,12 +3,15 @@ import "@/lib/i18n";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import SettingsSection from "./SettingsSection";
+import { TierBadge } from "@/components/pricing/TierBadge";
+import { useCurrentUser } from "@/hooks/usePricing";
 
 // LocalStorage
 import { getUser, setUser } from "@/lib/localStore";
 
 export default function ProfileSettings() {
   const { t } = useTranslation("common");
+  const { user } = useCurrentUser();
 
   const [userType, setUserType] = useState<"student" | "teacher">("student");
   const [name, setName] = useState("");
@@ -40,6 +43,21 @@ export default function ProfileSettings() {
       title={t("settings.profile") || "Profile"}
       description={t("settings.profile_desc") || "Your account information"}
     >
+      {/* Current Tier Badge */}
+      {user && (
+        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">
+              Your Plan
+            </p>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Manage your subscription in the Plan settings
+            </p>
+          </div>
+          <TierBadge tier={user.tier} size="lg" />
+        </div>
+      )}
+
       {/* User Type (LOCKED - Not editable) */}
       <div className="space-y-2 opacity-60 cursor-not-allowed">
         <label className="text-sm font-medium text-gray-900 dark:text-white">
