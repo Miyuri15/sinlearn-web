@@ -16,12 +16,16 @@ import {
   File,
   Upload,
   Eye,
+  AlertTriangle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
 import FilePreviewModal from "@/components/chat/uploads/FilePreviewModal";
 import { getResourceExtractedText, viewResource } from "@/lib/api/resource";
 import { getApiErrorMessage } from "@/lib/api/client";
+import { LimitWarning } from "@/components/pricing/LimitWarning";
+import { useUserUsage } from "@/hooks/usePricing";
+import { USAGE_POLL_INTERVAL } from "@/lib/constants";
 
 type PreviewType = "image" | "video" | "audio" | "pdf" | "file";
 
@@ -83,6 +87,7 @@ export default function EvaluationStartScreen({
   processProgress,
 }: EvaluationStartScreenProps) {
   const { t } = useTranslation("chat");
+  const { usage } = useUserUsage(USAGE_POLL_INTERVAL);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const replaceInputRef = React.useRef<HTMLInputElement>(null);
   const [replacingIndex, setReplacingIndex] = React.useState<number | null>(
@@ -114,7 +119,12 @@ export default function EvaluationStartScreen({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      onUploadAnswers(Array.from(e.target.files));
+      const files = Array.from(e.target.files);
+      const allowedFiles =
+        remainingAnswerSlots === null ? files : files.slice(0, remainingAnswerSlots);
+      if (allowedFiles.length > 0) {
+        onUploadAnswers(allowedFiles);
+      }
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -136,6 +146,7 @@ export default function EvaluationStartScreen({
   };
 
   const triggerFileUpload = () => {
+    if (isAnswerUploadLimitReached) return;
     fileInputRef.current?.click();
   };
 
@@ -278,9 +289,18 @@ export default function EvaluationStartScreen({
     rubricSet && syllabusSet && questionsSet && uploadedFiles.length > 0;
   const isProcessingCompleted = processingStatus === "completed";
   const needsReprocessing = processingStatus === "needs_reprocessing";
-
-  // i need to console log uploadedFiles here to debug an issue where the state is not updating correctly after replacing a file
-  console.log("Uploaded Files:", uploadedFiles);
+  const dailySessionLimitReached = Boolean(
+    usage &&
+      usage.today.limit > 0 &&
+      usage.today.evaluationSessions >= usage.today.limit,
+  );
+  const evaluationsPerSessionLimit = usage?.limits.evaluationsPerSession ?? 10;
+  const hasEvaluationUploadLimit = evaluationsPerSessionLimit !== null;
+  const remainingAnswerSlots = hasEvaluationUploadLimit
+    ? Math.max(evaluationsPerSessionLimit - uploadedFiles.length, 0)
+    : null;
+  const isAnswerUploadLimitReached =
+    remainingAnswerSlots !== null && remainingAnswerSlots <= 0;
 
   const steps = [
     {
@@ -309,7 +329,7 @@ export default function EvaluationStartScreen({
       icon: FileInput,
       action: triggerFileUpload,
       status: uploadedFiles.length > 0 ? "completed" : "pending",
-      disabled: isUploading,
+      disabled: isUploading || isAnswerUploadLimitReached,
     },
     {
       labelKey: "evaluation_start_step_process",
@@ -351,7 +371,11 @@ export default function EvaluationStartScreen({
       action: onStartEvaluation,
       status: "pending",
       disabled:
-        !isProcessingCompleted || !hasMarks || !hasMarkingSchema || isUploading,
+        !isProcessingCompleted ||
+        !hasMarks ||
+        !hasMarkingSchema ||
+        isUploading ||
+        dailySessionLimitReached,
     },
   ];
 
@@ -376,6 +400,35 @@ export default function EvaluationStartScreen({
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
           {t("evaluation_start_title")}
         </h1>
+
+        <div className="w-full">
+          <LimitWarning usage={usage} type="evaluation" />
+          {dailySessionLimitReached && usage && (
+            <div className="mb-3 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="font-medium">Daily evaluation session limit reached</p>
+                <p>
+                  You have used {usage.today.evaluationSessions} of{" "}
+                  {usage.today.limit} sessions. Resets at{" "}
+                  {new Date(usage.today.resetAt).toLocaleString()}.
+                </p>
+              </div>
+            </div>
+          )}
+          {isAnswerUploadLimitReached && (
+            <div className="mb-3 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="font-medium">Evaluation upload limit reached</p>
+                <p>
+                  Your current plan allows {evaluationsPerSessionLimit} answer
+                  sheets per evaluation session.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Uploading Banner - Only show for real answer sheet uploads, not background config loading */}
         {isUploading && !isPaperConfigLoading && (
@@ -613,7 +666,7 @@ export default function EvaluationStartScreen({
                   </div>
                 </div>
               ))}
-              {uploadedFiles.length < 10 && (
+              {!isAnswerUploadLimitReached && (
                 <button
                   onClick={triggerFileUpload}
                   disabled={isUploading}
@@ -621,9 +674,11 @@ export default function EvaluationStartScreen({
                 >
                   <Upload size={18} />
                   <span>
-                    {t("evaluation_start_upload_more_answer_sheets", {
-                      remaining: 10 - uploadedFiles.length,
-                    })}
+                    {hasEvaluationUploadLimit
+                      ? t("evaluation_start_upload_more_answer_sheets", {
+                          remaining: remainingAnswerSlots,
+                        })
+                      : t("evaluation_start_upload_answer_sheets")}
                   </span>
                 </button>
               )}
@@ -653,7 +708,8 @@ export default function EvaluationStartScreen({
             disabled={
               !isReadyToProcess ||
               processingStatus === "processing" ||
-              isUploading
+              isUploading ||
+              dailySessionLimitReached
             }
             className={`w-full h-12 rounded-full text-lg font-medium flex items-center justify-center gap-2
             ${

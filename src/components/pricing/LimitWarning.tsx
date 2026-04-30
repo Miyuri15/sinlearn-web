@@ -6,6 +6,7 @@
 "use client";
 
 import React from "react";
+import { AlertTriangle, Ban, Clock } from "lucide-react";
 import { UserUsage } from "@/types/pricing";
 import {
   USAGE_WARNING_THRESHOLD,
@@ -28,56 +29,55 @@ function getWarningLevel(percentage: number): "none" | "warning" | "critical" {
   return "none";
 }
 
+function formatLimit(limit: number): string {
+  return limit < 0 ? "Unlimited" : String(limit);
+}
+
 export function LimitWarning({ usage, type }: LimitWarningProps) {
   if (!usage) return null;
 
-  let used: number;
-  let limit: number;
-  let resetAt: string;
-  let label: string;
+  const values =
+    type === "learning"
+      ? {
+          used: usage.currentHour.learningRequests,
+          limit: usage.currentHour.limit,
+          resetAt: usage.currentHour.resetAt,
+          label: "learning requests this hour",
+        }
+      : {
+          used: usage.today.evaluationSessions,
+          limit: usage.today.limit,
+          resetAt: usage.today.resetAt,
+          label: "evaluation sessions today",
+        };
 
-  if (type === "learning") {
-    used = usage.currentHour.learningRequests;
-    limit = usage.currentHour.limit;
-    resetAt = usage.currentHour.resetAt;
-    label = "learning requests this hour";
-  } else {
-    used = usage.today.evaluationSessions;
-    limit = usage.today.limit;
-    resetAt = usage.today.resetAt;
-    label = "evaluation sessions today";
-  }
-
-  const percentage = getUsagePercentage(used, limit);
+  const percentage = getUsagePercentage(values.used, values.limit);
   const warningLevel = getWarningLevel(percentage);
 
   if (warningLevel === "none") return null;
 
-  const remaining = limit - used;
-  const color =
-    warningLevel === "critical"
-      ? "bg-red-100 border-red-300 text-red-800"
-      : "bg-yellow-100 border-yellow-300 text-yellow-800";
-
-  const icon = warningLevel === "critical" ? "⚠️" : "⏰";
+  const remaining = Math.max(values.limit - values.used, 0);
+  const isCritical = warningLevel === "critical";
+  const Icon = isCritical ? AlertTriangle : Clock;
+  const color = isCritical
+    ? "bg-red-100 border-red-300 text-red-800"
+    : "bg-yellow-100 border-yellow-300 text-yellow-800";
 
   return (
-    <div className={`border rounded-md p-3 mb-3 ${color}`}>
+    <div className={`border rounded-md p-3 mb-3 ${color}`} role="status">
       <div className="flex items-start gap-2">
-        <span className="text-lg">{icon}</span>
+        <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         <div className="flex-1">
           <p className="font-semibold">
-            {warningLevel === "critical"
-              ? "Usage Limit Reached"
-              : "Approaching Usage Limit"}
+            {isCritical ? "Usage Limit Reached" : "Approaching Usage Limit"}
           </p>
           <p className="text-sm">
-            {used} of {limit} {label} used
+            {values.used} of {values.limit} {values.label} used
             {remaining > 0 && ` (${remaining} remaining)`}
           </p>
           {remaining === 0 && (
             <p className="text-sm mt-1">
-              Resets at: {new Date(resetAt).toLocaleString()}
+              Resets at: {new Date(values.resetAt).toLocaleString()}
             </p>
           )}
         </div>
@@ -85,7 +85,7 @@ export function LimitWarning({ usage, type }: LimitWarningProps) {
       <div className="w-full bg-gray-300 rounded-full h-2 mt-2">
         <div
           className={`h-2 rounded-full transition-all ${
-            warningLevel === "critical" ? "bg-red-600" : "bg-yellow-600"
+            isCritical ? "bg-red-600" : "bg-yellow-600"
           }`}
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />
@@ -93,11 +93,6 @@ export function LimitWarning({ usage, type }: LimitWarningProps) {
     </div>
   );
 }
-
-/**
- * Limit Exceeded Error Component
- * Shows when user hits a usage limit
- */
 
 interface LimitExceededErrorProps {
   detail: string;
@@ -123,7 +118,7 @@ export function LimitExceededErrorDisplay({
   return (
     <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4 mb-4">
       <div className="flex items-start gap-3">
-        <span className="text-2xl">🚫</span>
+        <Ban className="h-6 w-6 shrink-0 text-red-700" aria-hidden="true" />
         <div className="flex-1">
           <h3 className="font-bold text-red-800 mb-1">Usage Limit Exceeded</h3>
           <p className="text-sm text-red-700 mb-2">{detail}</p>
@@ -132,7 +127,7 @@ export function LimitExceededErrorDisplay({
               <strong>Current tier:</strong> {tier}
             </p>
             <p>
-              <strong>Limit:</strong> {limit}
+              <strong>Limit:</strong> {formatLimit(limit)}
             </p>
             <p>
               <strong>Used:</strong> {used}
@@ -165,10 +160,6 @@ export function LimitExceededErrorDisplay({
   );
 }
 
-/**
- * Usage Stats Display Component
- */
-
 interface UsageStatsProps {
   usage: UserUsage | null;
   isLoading?: boolean;
@@ -187,6 +178,8 @@ export function UsageStats({ usage, isLoading }: UsageStatsProps) {
 
   if (!usage) return null;
 
+  const evaluationLimit = usage.currentSession.limit;
+
   return (
     <div className="space-y-3 text-sm">
       <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
@@ -202,10 +195,8 @@ export function UsageStats({ usage, isLoading }: UsageStatsProps) {
         </span>
       </div>
       <div className="flex justify-between items-center p-2 bg-amber-50 rounded">
-        <span>Evaluations in session:</span>
-        <span className="font-semibold">
-          {usage.currentSession.evaluations} / {usage.currentSession.limit}
-        </span>
+        <span>Evaluations per session:</span>
+        <span className="font-semibold">{formatLimit(evaluationLimit)}</span>
       </div>
     </div>
   );

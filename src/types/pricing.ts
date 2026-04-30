@@ -7,7 +7,8 @@ export type UserTier = "basic" | "intermediate" | "enterprise";
 export interface PricingLimits {
   learningRequestsPerHour: number;
   evaluationSessionsPerDay: number;
-  evaluationsPerSession: number;
+  evaluationsPerSession: number | null;
+  allowEvaluationOverage: boolean;
 }
 
 export interface PricingPlan {
@@ -16,9 +17,11 @@ export interface PricingPlan {
   name: string;
   description: string;
   badge: string;
-  price: number;
-  currency: string;
+  priceLabel: string;
   features: string[];
+  cta: string;
+  note: string;
+  isPopular: boolean;
   limits: PricingLimits;
 }
 
@@ -48,11 +51,13 @@ export interface SessionUsage {
 }
 
 export interface UserUsage {
-  userId: string;
   tier: UserTier;
+  planName: string;
+  limits: PricingLimits;
   currentHour: HourlyUsage;
   today: DailyUsage;
   currentSession: SessionUsage;
+  allowEvaluationOverage: boolean;
 }
 
 /**

@@ -83,15 +83,18 @@ export const TIER_LIMITS = {
     learningRequestsPerHour: 5,
     evaluationSessionsPerDay: 1,
     evaluationsPerSession: 10,
+    allowEvaluationOverage: false,
   },
   intermediate: {
     learningRequestsPerHour: 20,
     evaluationSessionsPerDay: 5,
-    evaluationsPerSession: -1, // unlimited
+    evaluationsPerSession: null,
+    allowEvaluationOverage: false,
   },
   enterprise: {
     learningRequestsPerHour: 50,
     evaluationSessionsPerDay: 10,
-    evaluationsPerSession: -1, // unlimited
+    evaluationsPerSession: null,
+    allowEvaluationOverage: true,
   },
 };

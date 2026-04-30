@@ -10,6 +10,7 @@ import {
   LimitExceededError,
 } from "@/types/pricing";
 import { fetchPricingPlans, fetchUserUsage, fetchCurrentUser } from "@/lib/api";
+import { LimitExceededErrorClass } from "@/lib/api";
 import { CACHE_DURATIONS } from "@/lib/constants";
 
 interface PricingContextData {
@@ -155,12 +156,8 @@ export function useUserUsage(autoRefreshInterval?: number) {
       const data = await fetchUserUsage();
       setUsage(data);
     } catch (err) {
-      if (
-        err instanceof Error &&
-        err.message.includes("403") &&
-        "tier" in err
-      ) {
-        setLimitError(err as unknown as LimitExceededError);
+      if (err instanceof LimitExceededErrorClass) {
+        setLimitError(err);
       } else {
         setError(err instanceof Error ? err : new Error("Unknown error"));
       }

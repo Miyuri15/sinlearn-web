@@ -6,6 +6,7 @@
 "use client";
 
 import React from "react";
+import { Check, Crown, Rocket, Star } from "lucide-react";
 import { UserTier } from "@/types/pricing";
 import { PRICING_TIERS } from "@/lib/constants";
 
@@ -28,6 +29,12 @@ const tierColors = {
   enterprise: "bg-amber-100 text-amber-800 border-amber-300",
 };
 
+const tierIcons = {
+  basic: Rocket,
+  intermediate: Star,
+  enterprise: Crown,
+};
+
 export function TierBadge({
   tier,
   showName = true,
@@ -35,14 +42,14 @@ export function TierBadge({
   className = "",
 }: TierBadgeProps) {
   const tierInfo = PRICING_TIERS[tier];
+  const Icon = tierIcons[tier];
 
   return (
     <span
       className={`inline-flex items-center gap-1 border rounded-full font-semibold ${sizeClasses[size]} ${tierColors[tier]} ${className}`}
+      aria-label={`${tierInfo.name} plan`}
     >
-      {tier === "basic" && "🚀"}
-      {tier === "intermediate" && "⭐"}
-      {tier === "enterprise" && "👑"}
+      <Icon className="h-4 w-4" aria-hidden="true" />
       {showName ? tierInfo.badge : tier}
     </span>
   );
@@ -57,18 +64,17 @@ interface TierCardProps {
   tier: UserTier;
   isCurrentTier?: boolean;
   onSelect?: (tier: UserTier) => void;
-  price?: number;
-  currency?: string;
+  priceLabel?: string;
 }
 
 export function TierCard({
   tier,
   isCurrentTier = false,
   onSelect,
-  price = 0,
-  currency = "LKR",
+  priceLabel,
 }: TierCardProps) {
   const tierInfo = PRICING_TIERS[tier];
+  const Icon = tierIcons[tier];
 
   return (
     <div
@@ -81,24 +87,15 @@ export function TierCard({
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xl font-bold">{tierInfo.name}</h3>
-          <span className="text-2xl">
-            {tier === "basic" && "🚀"}
-            {tier === "intermediate" && "⭐"}
-            {tier === "enterprise" && "👑"}
-          </span>
+          <Icon className="h-7 w-7" aria-hidden="true" />
         </div>
         <p className="text-sm text-gray-600">{tierInfo.description}</p>
       </div>
 
       <div className="mb-4">
-        {price > 0 ? (
-          <p className="text-2xl font-bold">
-            {currency} {price.toLocaleString()}
-            {tier !== "enterprise" && <span className="text-sm">/month</span>}
-          </p>
-        ) : (
-          <p className="text-2xl font-bold text-green-600">Free</p>
-        )}
+        <p className="text-2xl font-bold text-gray-900">
+          {priceLabel || (tier === "basic" ? "Free" : "Contact us")}
+        </p>
       </div>
 
       <div className="mb-6">
@@ -106,9 +103,12 @@ export function TierCard({
           Features
         </p>
         <ul className="space-y-2">
-          {tierInfo.features.map((feature, idx) => (
-            <li key={idx} className="text-sm flex items-start gap-2">
-              <span className="text-green-600 mt-0.5">✓</span>
+          {tierInfo.features.map((feature) => (
+            <li key={feature} className="text-sm flex items-start gap-2">
+              <Check
+                className="mt-0.5 h-4 w-4 shrink-0 text-green-600"
+                aria-hidden="true"
+              />
               <span>{feature}</span>
             </li>
           ))}
@@ -120,7 +120,7 @@ export function TierCard({
           disabled
           className="w-full py-2 bg-green-600 text-white rounded font-semibold"
         >
-          ✓ Current Plan
+          Current Plan
         </button>
       )}
       {!isCurrentTier && onSelect && (

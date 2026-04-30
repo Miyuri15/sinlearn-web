@@ -1,12 +1,12 @@
 "use client";
+
 import "@/lib/i18n";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { GraduationCap, School } from "lucide-react";
 import SettingsSection from "./SettingsSection";
 import { TierBadge } from "@/components/pricing/TierBadge";
 import { useCurrentUser } from "@/hooks/usePricing";
-
-// LocalStorage
 import { getUser, setUser } from "@/lib/localStore";
 
 export default function ProfileSettings() {
@@ -17,7 +17,6 @@ export default function ProfileSettings() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
 
-  // Load stored user
   useEffect(() => {
     const u = getUser();
     if (u) {
@@ -27,7 +26,6 @@ export default function ProfileSettings() {
     }
   }, []);
 
-  // Save user when pressing save button
   const handleSave = () => {
     setUser({
       name,
@@ -43,7 +41,6 @@ export default function ProfileSettings() {
       title={t("settings.profile") || "Profile"}
       description={t("settings.profile_desc") || "Your account information"}
     >
-      {/* Current Tier Badge */}
       {user && (
         <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg flex items-center justify-between">
           <div>
@@ -58,7 +55,6 @@ export default function ProfileSettings() {
         </div>
       )}
 
-      {/* User Type (LOCKED - Not editable) */}
       <div className="space-y-2 opacity-60 cursor-not-allowed">
         <label className="text-sm font-medium text-gray-900 dark:text-white">
           {t("settings.user_type") || "User Type"}
@@ -73,7 +69,11 @@ export default function ProfileSettings() {
                 : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
             }`}
           >
-            👨‍🎓 {t("role_student") || "Student"}
+            <GraduationCap
+              className="mr-2 inline h-5 w-5"
+              aria-hidden="true"
+            />
+            {t("role_student") || "Student"}
           </button>
 
           <button
@@ -84,7 +84,8 @@ export default function ProfileSettings() {
                 : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
             }`}
           >
-            👩‍🏫 {t("role_teacher") || "Teacher"}
+            <School className="mr-2 inline h-5 w-5" aria-hidden="true" />
+            {t("role_teacher") || "Teacher"}
           </button>
         </div>
 
@@ -94,7 +95,6 @@ export default function ProfileSettings() {
         </p>
       </div>
 
-      {/* Name Input */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-900 dark:text-white">
           {t("settings.name") || "Name"}
@@ -107,7 +107,6 @@ export default function ProfileSettings() {
         />
       </div>
 
-      {/* Email Input */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-900 dark:text-white">
           {t("settings.email") || "Email"}
@@ -121,7 +120,6 @@ export default function ProfileSettings() {
         />
       </div>
 
-      {/* Save Button */}
       <div className="pt-4">
         <button
           onClick={handleSave}

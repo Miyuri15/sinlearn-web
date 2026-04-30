@@ -3,14 +3,110 @@
  * Uses centralized apiFetch with token refresh, caching, and offline support
  */
 
-import { apiFetch } from "./api/client";
+import { apiFetch, ApiError } from "./api/client";
 import { API_BASE_URL } from "./config";
 import {
   UserProfile,
   UserUsage,
   PricingPlansResponse,
   LimitExceededError,
+  UserTier,
 } from "@/types/pricing";
+
+type BackendPlanLimits = {
+  learning_requests_per_hour: number;
+  evaluation_sessions_per_day: number;
+  evaluations_per_session: number | null;
+  allow_evaluation_overage: boolean;
+};
+
+type BackendPricingPlan = {
+  tier: UserTier;
+  name: string;
+  price_label: string;
+  description: string;
+  badge: string;
+  features: string[];
+  cta: string;
+  note: string;
+  limits: BackendPlanLimits;
+  is_popular: boolean;
+};
+
+type BackendPricingPlansResponse = {
+  plans: BackendPricingPlan[];
+};
+
+type BackendUsageWindow = {
+  used: number;
+  limit: number;
+  remaining: number;
+  reset_at: string;
+};
+
+type BackendUsageSummary = {
+  tier: UserTier;
+  plan_name: string;
+  limits: BackendPlanLimits;
+  learning_requests: BackendUsageWindow;
+  evaluation_sessions: BackendUsageWindow;
+  evaluations_per_session_limit: number | null;
+  allow_evaluation_overage: boolean;
+};
+
+function normalizeLimits(limits: BackendPlanLimits) {
+  return {
+    learningRequestsPerHour: limits.learning_requests_per_hour,
+    evaluationSessionsPerDay: limits.evaluation_sessions_per_day,
+    evaluationsPerSession: limits.evaluations_per_session,
+    allowEvaluationOverage: limits.allow_evaluation_overage,
+  };
+}
+
+function normalizePricingPlans(
+  response: BackendPricingPlansResponse,
+): PricingPlansResponse {
+  return {
+    plans: response.plans.map((plan) => ({
+      id: plan.tier,
+      tier: plan.tier,
+      name: plan.name,
+      priceLabel: plan.price_label,
+      description: plan.description,
+      badge: plan.badge,
+      features: plan.features,
+      cta: plan.cta,
+      note: plan.note,
+      isPopular: plan.is_popular,
+      limits: normalizeLimits(plan.limits),
+    })),
+  };
+}
+
+function normalizeUsage(response: BackendUsageSummary): UserUsage {
+  const evaluationsPerSessionLimit = response.evaluations_per_session_limit;
+
+  return {
+    tier: response.tier,
+    planName: response.plan_name,
+    limits: normalizeLimits(response.limits),
+    currentHour: {
+      learningRequests: response.learning_requests.used,
+      limit: response.learning_requests.limit,
+      resetAt: response.learning_requests.reset_at,
+    },
+    today: {
+      evaluationSessions: response.evaluation_sessions.used,
+      limit: response.evaluation_sessions.limit,
+      resetAt: response.evaluation_sessions.reset_at,
+    },
+    currentSession: {
+      evaluations: 0,
+      limit: evaluationsPerSessionLimit ?? -1,
+    },
+    allowEvaluationOverage: response.allow_evaluation_overage,
+  };
+}
 
 /**
  * Fetch current user with tier information
@@ -27,12 +123,13 @@ export async function fetchCurrentUser(): Promise<UserProfile> {
  * GET /api/v1/pricing/plans
  */
 export async function fetchPricingPlans(): Promise<PricingPlansResponse> {
-  return apiFetch<PricingPlansResponse>(
+  const response = await apiFetch<BackendPricingPlansResponse>(
     `${API_BASE_URL}/api/v1/pricing/plans`,
     {
       method: "GET",
     },
   );
+  return normalizePricingPlans(response);
 }
 
 /**
@@ -41,21 +138,25 @@ export async function fetchPricingPlans(): Promise<PricingPlansResponse> {
  */
 export async function fetchUserUsage(): Promise<UserUsage> {
   try {
-    return await apiFetch<UserUsage>(`${API_BASE_URL}/api/v1/usage/me`, {
-      method: "GET",
-    });
+    const response = await apiFetch<BackendUsageSummary>(
+      `${API_BASE_URL}/api/v1/usage/me`,
+      {
+        method: "GET",
+      },
+    );
+    return normalizeUsage(response);
   } catch (error) {
     // Check if it's a 403 limit exceeded error and wrap it
-    if (error instanceof Error && "status" in error && error.status === 403) {
-      try {
-        // Try to parse the error details from the response
-        const details = (error as any).details as LimitExceededError;
-        if (details && "tier" in details) {
-          throw new LimitExceededErrorClass(details);
-        }
-      } catch (e) {
-        // If parsing fails, re-throw the original error
-        throw error;
+    if (error instanceof ApiError && error.status === 403) {
+      const details = error.details as Partial<LimitExceededError> | undefined;
+      if (
+        details &&
+        details.tier &&
+        details.limit !== undefined &&
+        details.used !== undefined &&
+        details.resetAt
+      ) {
+        throw new LimitExceededErrorClass(details as LimitExceededError);
       }
     }
     throw error;
