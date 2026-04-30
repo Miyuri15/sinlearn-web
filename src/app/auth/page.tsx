@@ -167,7 +167,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         });
       }
 
-      router.push(isAdmin ? "/settings/admin" : "/chat");
+      router.push(isAdmin ? "/admin" : "/chat");
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(
