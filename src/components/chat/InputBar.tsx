@@ -1,5 +1,13 @@
 import "@/lib/i18n";
-import { AlertTriangle, Mic, Paperclip, Send, X, FileText, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Mic,
+  Paperclip,
+  Send,
+  X,
+  FileText,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { KeyboardEvent, useState, DragEvent, useRef, useEffect } from "react";
@@ -109,14 +117,14 @@ export default function InputBar({
     (isFirstMessage && !pendingVoice && pendingFiles.length === 0) ||
     Boolean(
       usage &&
-        usage.currentHour.limit > 0 &&
-        usage.currentHour.learningRequests >= usage.currentHour.limit,
+      usage.currentHour.limit > 0 &&
+      usage.currentHour.learningRequests >= usage.currentHour.limit,
     );
 
   const isLearningLimitReached = Boolean(
     usage &&
-      usage.currentHour.limit > 0 &&
-      usage.currentHour.learningRequests >= usage.currentHour.limit,
+    usage.currentHour.limit > 0 &&
+    usage.currentHour.learningRequests >= usage.currentHour.limit,
   );
 
   return (
@@ -133,11 +141,12 @@ export default function InputBar({
         }
       `}
     >
-      <LimitWarning usage={usage} type="learning" />
-
       {isLearningLimitReached && usage && (
         <div className="mx-3 mt-3 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <AlertTriangle
+            className="mt-0.5 h-4 w-4 shrink-0"
+            aria-hidden="true"
+          />
           <div className="min-w-0 flex-1">
             <p className="font-medium">Learning limit reached</p>
             <p>
