@@ -164,6 +164,7 @@
     "new_evaluation_chat": "New Evaluation Chat",
     "untitled_chat": "Untitled Chat",
     "evaluation_start_uploaded_answer_sheets": "Uploaded Answer Sheets",
+    "evaluation_start_review_mapped": "Review Mapped",
     "evaluation_start_replace_attachment": "Replace attachment",
     "evaluation_start_remove_attachment": "Remove attachment",
     "evaluation_start_upload_more_answer_sheets": "Upload more answer sheets ({{remaining}} remaining)",
