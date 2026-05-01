@@ -42,6 +42,7 @@ interface EvaluationStartScreenProps {
   answerResourceIds?: string[];
   onRemoveFile: (index: number) => void | Promise<void>;
   onReplaceFile: (index: number, file: File) => void | Promise<void>;
+  onReviewMappedAnswers: (index: number) => void;
   onStartEvaluation: () => void | Promise<void>;
   onViewHistory: () => void;
   isProcessing?: boolean;
@@ -55,7 +56,12 @@ interface EvaluationStartScreenProps {
   questionsSet?: boolean;
   processingStatus?: "idle" | "processing" | "completed" | "needs_reprocessing";
   uploadProgress?: { current: number; total: number };
-  processProgress?: { current: number; total: number };
+  processProgress?: {
+    current: number;
+    total: number;
+    percent?: number;
+    message?: string;
+  };
 }
 
 export default function EvaluationStartScreen({
@@ -73,6 +79,7 @@ export default function EvaluationStartScreen({
   answerResourceIds = [],
   onRemoveFile,
   onReplaceFile,
+  onReviewMappedAnswers,
   isProcessing = false,
   isUploading = false,
   isPaperConfigLoading = false,
@@ -121,7 +128,9 @@ export default function EvaluationStartScreen({
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
       const allowedFiles =
-        remainingAnswerSlots === null ? files : files.slice(0, remainingAnswerSlots);
+        remainingAnswerSlots === null
+          ? files
+          : files.slice(0, remainingAnswerSlots);
       if (allowedFiles.length > 0) {
         onUploadAnswers(allowedFiles);
       }
@@ -289,10 +298,11 @@ export default function EvaluationStartScreen({
     rubricSet && syllabusSet && questionsSet && uploadedFiles.length > 0;
   const isProcessingCompleted = processingStatus === "completed";
   const needsReprocessing = processingStatus === "needs_reprocessing";
+
   const dailySessionLimitReached = Boolean(
     usage &&
-      usage.today.limit > 0 &&
-      usage.today.evaluationSessions >= usage.today.limit,
+    usage.today.limit > 0 &&
+    usage.today.evaluationSessions >= usage.today.limit,
   );
   const evaluationsPerSessionLimit = usage?.limits.evaluationsPerSession ?? 10;
   const hasEvaluationUploadLimit = evaluationsPerSessionLimit !== null;
@@ -301,6 +311,28 @@ export default function EvaluationStartScreen({
     : null;
   const isAnswerUploadLimitReached =
     remainingAnswerSlots !== null && remainingAnswerSlots <= 0;
+
+  const displayedProcessPercent =
+    processProgress && processProgress.total > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round(
+              typeof processProgress.percent === "number"
+                ? processProgress.percent
+                : (processProgress.current / processProgress.total) * 100,
+            ),
+          ),
+        )
+      : 10;
+  const displayedProcessCurrent =
+    processProgress && processProgress.total > 0
+      ? Math.min(
+          processProgress.total,
+          Math.max(1, processProgress.current || 1),
+        )
+      : 0;
 
   const steps = [
     {
@@ -405,9 +437,14 @@ export default function EvaluationStartScreen({
           <LimitWarning usage={usage} type="evaluation" />
           {dailySessionLimitReached && usage && (
             <div className="mb-3 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <AlertTriangle
+                className="mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
               <div>
-                <p className="font-medium">Daily evaluation session limit reached</p>
+                <p className="font-medium">
+                  Daily evaluation session limit reached
+                </p>
                 <p>
                   You have used {usage.today.evaluationSessions} of{" "}
                   {usage.today.limit} sessions. Resets at{" "}
@@ -418,7 +455,10 @@ export default function EvaluationStartScreen({
           )}
           {isAnswerUploadLimitReached && (
             <div className="mb-3 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <AlertTriangle
+                className="mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
               <div>
                 <p className="font-medium">Evaluation upload limit reached</p>
                 <p>
@@ -490,15 +530,12 @@ export default function EvaluationStartScreen({
               <div className="flex justify-between items-center mb-2">
                 <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
                   {processProgress && processProgress.total > 0
-                    ? `Processing ${processProgress.current} of ${processProgress.total} documents...`
+                    ? `Processing ${displayedProcessCurrent} of ${processProgress.total} documents...`
                     : t("evaluation_start_processing")}
                 </p>
                 {processProgress && processProgress.total > 0 && (
                   <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                    {Math.round(
-                      (processProgress.current / processProgress.total) * 100,
-                    )}
-                    %
+                    {displayedProcessPercent}%
                   </span>
                 )}
               </div>
@@ -508,28 +545,16 @@ export default function EvaluationStartScreen({
                   style={{
                     width:
                       processProgress && processProgress.total > 0
-                        ? `${(processProgress.current / processProgress.total) * 100}%`
+                        ? `${displayedProcessPercent}%`
                         : "10%",
                   }}
                 />
               </div>
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Analyzing student answers and mapping to the rubric. This may
-                take a few moments.
+                {processProgress?.message ||
+                  "Analyzing student answers and mapping to the rubric. This may take a few moments."}
               </p>
             </div>
-          </div>
-        )}
-
-        {/* Reprocessing Banner */}
-        {needsReprocessing && (
-          <div className="w-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center gap-3 text-amber-800 dark:text-amber-200">
-            <div className="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-full">
-              <RefreshCw size={16} />
-            </div>
-            <p className="text-sm font-medium">
-              {t("evaluation_start_reprocess_banner")}
-            </p>
           </div>
         )}
 
@@ -639,6 +664,16 @@ export default function EvaluationStartScreen({
                     </span>
                   </button>
                   <div className="flex items-center gap-4">
+                    {isProcessingCompleted && (
+                      <button
+                        onClick={() => onReviewMappedAnswers(index)}
+                        className="flex items-center gap-1 text-sm text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-medium"
+                        title={`View Mapped Answers for ${file.name}`}
+                      >
+                        <ScrollText size={14} />
+                        View Mapped
+                      </button>
+                    )}
                     <button
                       onClick={() => void handlePreviewAnswerSheet(file, index)}
                       className="flex items-center gap-1 text-sm text-gray-600 hover:text-blue-700 dark:text-gray-300 dark:hover:text-blue-400 font-medium"
