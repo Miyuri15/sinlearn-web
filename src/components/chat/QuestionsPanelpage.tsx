@@ -2,7 +2,7 @@ import Image from "next/image";
 import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Toast from "@/components/ui/updatedtoast";
-import PDFViewer from "@/components/ui/PDFViewer";
+import FilePreviewModal from "@/components/chat/uploads/FilePreviewModal";
 import HelpIcon from "@mui/icons-material/Help";
 import CloseIcon from "@mui/icons-material/Close";
 
@@ -12,7 +12,8 @@ import {
   removeAttachedResourceFromSession,
   uploadEvaluationResources,
 } from "@/lib/api/evaluation";
-import { ApiError } from "@/lib/api/client";
+import { getResourceExtractedText, viewResource } from "@/lib/api/resource";
+import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 
 type ToastState = {
   message: string;
@@ -36,6 +37,7 @@ type QuestionItemType = {
   details: string;
   fileUrl?: string;
   fileType?: string;
+  mimeType?: string;
 };
 
 type SessionResourceSummary = {
@@ -46,7 +48,13 @@ type SessionResourceSummary = {
   filename?: string;
   file_name?: string;
   name?: string;
+  original_filename?: string;
+  originalFilename?: string;
+  mime_type?: string;
+  mimeType?: string;
 };
+
+type PreviewType = "image" | "video" | "audio" | "pdf" | "file";
 
 const QuestionItem = ({
   id,
@@ -129,8 +137,8 @@ const QuestionsPanelpage = ({
       r.filename ||
       r.file_name ||
       r.name ||
-      (r as any).original_filename ||
-      (r as any).originalFilename ||
+      r.original_filename ||
+      r.originalFilename ||
       ""
     ).toString();
   };
@@ -189,6 +197,7 @@ const QuestionsPanelpage = ({
           uploaded: new Date().toLocaleDateString("en-US"),
           details: `File: ${(ext || "N/A").toUpperCase()} | (Previously uploaded)`,
           fileType: ext,
+          mimeType: qp?.mime_type || qp?.mimeType,
         });
       } catch (e) {
         // Non-fatal: don't block UI if hydration fails
@@ -212,10 +221,28 @@ const QuestionsPanelpage = ({
     isVisible: false,
     type: "success",
   });
-  const [viewingPDF, setViewingPDF] = useState<{
-    fileName: string;
+  const [previewQuestion, setPreviewQuestion] = useState<{
     resourceId: string;
+    url: string;
+    type: PreviewType;
+    extractedText: string;
+    isExtracting: boolean;
+    extractedTextError: string | null;
+    extractedTextPage: number;
+    extractedTextPageSize: number;
+    extractedTextTotalPages: number;
+    extractedTextReturnedPages: number;
+    extractedTextHasNext: boolean;
+    extractedTextHasPrevious: boolean;
   } | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (previewQuestion?.url) {
+        URL.revokeObjectURL(previewQuestion.url);
+      }
+    };
+  }, [previewQuestion?.url]);
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, isVisible: true, type });
@@ -267,6 +294,24 @@ const QuestionsPanelpage = ({
     return basePrefix + "Upload failed.";
   };
 
+  const resolvePreviewType = (question: QuestionItemType): PreviewType => {
+    const mime = (question.mimeType || "").toLowerCase();
+    if (mime.startsWith("image/")) return "image";
+    if (mime.startsWith("video/")) return "video";
+    if (mime.startsWith("audio/")) return "audio";
+    if (mime.includes("pdf")) return "pdf";
+
+    const fileType = (question.fileType || "").toLowerCase();
+    if (fileType === "pdf") return "pdf";
+    if (["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(fileType))
+      return "image";
+    if (["mp4", "webm", "mov", "avi", "mkv"].includes(fileType))
+      return "video";
+    if (["mp3", "wav", "ogg", "m4a", "aac"].includes(fileType))
+      return "audio";
+    return "file";
+  };
+
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -284,6 +329,7 @@ const QuestionsPanelpage = ({
         }
 
         let uploadedResourceId: string | undefined;
+        let uploadedMimeType: string | undefined;
 
         if (!targetSessionId) {
           showToast("Please create an evaluation chat first.", "error");
@@ -334,6 +380,7 @@ const QuestionsPanelpage = ({
           }
 
           uploadedResourceId = newResourceId;
+          uploadedMimeType = uploads[0]?.mime_type;
         } catch (error) {
           console.error("Failed to upload question paper", error);
           showToast(formatUploadError(fileName, error), "error");
@@ -361,6 +408,7 @@ const QuestionsPanelpage = ({
           ).toFixed(2)} MB`,
           fileUrl: fileUrl,
           fileType: fileExt,
+          mimeType: uploadedMimeType || file.type,
         };
 
         setUploadedQuestion(newQuestion);
@@ -402,19 +450,9 @@ const QuestionsPanelpage = ({
     showToast(t("delete_success", { title }), "success");
   };
 
-  const handleViewQuestion = () => {
+  const handleViewQuestion = async () => {
     if (!uploadedQuestion) {
       showToast(t("preview_not_available"), "error");
-      return;
-    }
-
-    if (uploadedQuestion.fileType !== "pdf") {
-      showToast(
-        t("preview_not_available", {
-          fileType: uploadedQuestion.fileType?.toUpperCase(),
-        }),
-        "error",
-      );
       return;
     }
 
@@ -423,10 +461,75 @@ const QuestionsPanelpage = ({
       return;
     }
 
-    setViewingPDF({
-      fileName: `${uploadedQuestion.title}.pdf`,
-      resourceId: uploadedQuestion.resourceId,
-    });
+    try {
+      const [blobResult, extractedTextResult] = await Promise.allSettled([
+        viewResource(uploadedQuestion.resourceId),
+        getResourceExtractedText(uploadedQuestion.resourceId, {
+          page: 1,
+          pageSize: 1,
+        }),
+      ]);
+
+      if (blobResult.status === "rejected") {
+        throw blobResult.reason;
+      }
+
+      let extractedText = "";
+      let extractedTextError: string | null = null;
+      let extractedTextMeta = {
+        page: 1,
+        pageSize: 1,
+        totalPages: 0,
+        returnedPages: 0,
+        hasNext: false,
+        hasPrevious: false,
+      };
+
+      if (extractedTextResult.status === "fulfilled") {
+        extractedText = extractedTextResult.value.extracted_text || "";
+        extractedTextMeta = {
+          page: extractedTextResult.value.page || 1,
+          pageSize: extractedTextResult.value.page_size || 1,
+          totalPages: extractedTextResult.value.total_pages || 0,
+          returnedPages: extractedTextResult.value.returned_pages || 0,
+          hasNext: extractedTextResult.value.has_next,
+          hasPrevious: extractedTextResult.value.has_previous,
+        };
+      } else {
+        console.error("Failed to load extracted text", extractedTextResult.reason);
+        extractedTextError = getApiErrorMessage(
+          extractedTextResult.reason,
+          "Failed to load extracted text.",
+        );
+      }
+
+      const url = URL.createObjectURL(blobResult.value);
+      setPreviewQuestion((prev) => {
+        if (prev?.url) {
+          URL.revokeObjectURL(prev.url);
+        }
+        return {
+          resourceId: uploadedQuestion.resourceId || "",
+          url,
+          type: resolvePreviewType(uploadedQuestion),
+          extractedText,
+          isExtracting: false,
+          extractedTextError,
+          extractedTextPage: extractedTextMeta.page,
+          extractedTextPageSize: extractedTextMeta.pageSize,
+          extractedTextTotalPages: extractedTextMeta.totalPages,
+          extractedTextReturnedPages: extractedTextMeta.returnedPages,
+          extractedTextHasNext: extractedTextMeta.hasNext,
+          extractedTextHasPrevious: extractedTextMeta.hasPrevious,
+        };
+      });
+    } catch (error) {
+      console.error("Failed to preview question paper", error);
+      showToast(
+        getApiErrorMessage(error, "Failed to preview question paper."),
+        "error",
+      );
+    }
   };
 
   return (
@@ -566,12 +669,25 @@ const QuestionsPanelpage = ({
         </div>
       </div>
 
-      {/* PDF Viewer Modal */}
-      {viewingPDF && (
-        <PDFViewer
-          fileName={viewingPDF.fileName}
-          resourceId={viewingPDF.resourceId}
-          onClose={() => setViewingPDF(null)}
+      {/* Question Preview Modal */}
+      {previewQuestion && (
+        <FilePreviewModal
+          resourceId={previewQuestion.resourceId}
+          url={previewQuestion.url}
+          type={previewQuestion.type}
+          extractedText={previewQuestion.extractedText}
+          isExtracting={previewQuestion.isExtracting}
+          extractedTextError={previewQuestion.extractedTextError}
+          extractedTextPage={previewQuestion.extractedTextPage}
+          extractedTextPageSize={previewQuestion.extractedTextPageSize}
+          extractedTextTotalPages={previewQuestion.extractedTextTotalPages}
+          extractedTextReturnedPages={previewQuestion.extractedTextReturnedPages}
+          extractedTextHasNext={previewQuestion.extractedTextHasNext}
+          extractedTextHasPrevious={previewQuestion.extractedTextHasPrevious}
+          onClose={() => {
+            URL.revokeObjectURL(previewQuestion.url);
+            setPreviewQuestion(null);
+          }}
         />
       )}
     </>

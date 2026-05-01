@@ -33,6 +33,10 @@
   "logout_confirm_message": "Do you want to Log out?",
   "cancel": "Cancel",
   "logging_out": "Logging out...",
+  "errors": {
+    "offline": "You are offline. Please reconnect and try again.",
+    "authentication_failed": "Authentication failed"
+  },
 
   "settings": {
     "title": "Settings",

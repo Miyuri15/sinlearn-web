@@ -10,7 +10,10 @@ import {
   FileText,
   Book,
   HelpCircle,
+  WifiOff,
 } from "lucide-react";
+import { useConnectivityStatus } from "@/hooks/useConnectivityStatus";
+import type { WSConnectionStatus } from "@/hooks/useProcessingProgressWS";
 
 interface HeaderProps {
   mode: "learning" | "evaluation";
@@ -26,6 +29,7 @@ interface HeaderProps {
   toggleSidebar?: () => void;
   activeStep?: string; // Add this prop to track active step
   isTemporal?: boolean;
+  backendConnectionStatus?: WSConnectionStatus;
 }
 
 export default function Header({
@@ -42,8 +46,17 @@ export default function Header({
   toggleSidebar,
   activeStep,
   isTemporal = false,
+  backendConnectionStatus,
 }: Readonly<HeaderProps>) {
   const { t } = useTranslation("chat");
+  const connectivityStatus = useConnectivityStatus(backendConnectionStatus);
+  const showConnectivityBadge = connectivityStatus !== "online";
+  const showCompactConnectivityBadge =
+    isSyllabusOpen || isQuestionsOpen || isRubricOpen;
+  const connectivityLabel =
+    connectivityStatus === "offline"
+      ? t("connectivity_offline")
+      : t("connectivity_reconnecting");
 
   const modeDetails =
     mode === "learning"
@@ -99,6 +112,15 @@ export default function Header({
                   className="inline-block h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"
                   aria-label="Syncing"
                 />
+              </div>
+            )}
+
+            {showConnectivityBadge && (
+              <div
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-full border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/70 dark:bg-amber-900/20 dark:text-amber-200"
+                title={connectivityLabel}
+              >
+                <WifiOff className="h-3.5 w-3.5" />
               </div>
             )}
           </div>
@@ -220,6 +242,18 @@ export default function Header({
               <span>Syncing…</span>
             </div>
           )}
+
+          {showConnectivityBadge && (
+            <div
+              className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/70 dark:bg-amber-900/20 dark:text-amber-200"
+              title={connectivityLabel}
+            >
+              <WifiOff className="h-4 w-4" />
+              {!showCompactConnectivityBadge && (
+                <span>{connectivityLabel}</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* RIGHT TOOLS */}
@@ -252,7 +286,9 @@ export default function Header({
                 title={t("evaluation_start_step_rubric")}
               >
                 <FileText className="w-5 h-5" />
-                <span className="text-sm font-medium">{t("evaluation_start_step_rubric")}</span>
+                <span className="text-sm font-medium">
+                  {t("evaluation_start_step_rubric")}
+                </span>
               </button>
 
               <button
@@ -265,7 +301,9 @@ export default function Header({
                 title={t("evaluation_start_step_syllabus")}
               >
                 <Book className="w-5 h-5" />
-                <span className="text-sm font-medium">{t("evaluation_start_step_syllabus")}</span>
+                <span className="text-sm font-medium">
+                  {t("evaluation_start_step_syllabus")}
+                </span>
               </button>
 
               <button
@@ -278,7 +316,9 @@ export default function Header({
                 title={t("evaluation_start_step_questions")}
               >
                 <HelpCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">{t("evaluation_start_step_questions")}</span>
+                <span className="text-sm font-medium">
+                  {t("evaluation_start_step_questions")}
+                </span>
               </button>
             </div>
           )}

@@ -1,11 +1,12 @@
 // SessionResourcesModal.tsx (updated)
 "use client";
 
-import { X, FileText, Eye, Activity } from "lucide-react";
+import { X, FileText, Activity } from "lucide-react";
 import { formatBytes } from "@/lib/utils/format";
 import { useTranslation } from "react-i18next";
 import { ReactNode, useState } from "react";
-import { viewResource } from "@/lib/api/resource";
+import { getResourceExtractedText, viewResource } from "@/lib/api/resource";
+import { getApiErrorMessage } from "@/lib/api/client";
 import { getMessageAttchmentLog } from "@/lib/api/chat";
 import FilePreviewModal from "@/components/chat/uploads/FilePreviewModal";
 import ProcessingLogsModal, { ProcessingLogEntry } from "./ProcessingLogsModal";
@@ -51,6 +52,22 @@ export default function SessionResourcesModal({
   const [openingResourceId, setOpeningResourceId] = useState<string | null>(
     null,
   );
+  const [previewErrorById, setPreviewErrorById] = useState<
+    Record<string, string>
+  >({});
+  const [previewExtractedText, setPreviewExtractedText] = useState("");
+  const [isExtractingPreviewText, setIsExtractingPreviewText] = useState(false);
+  const [previewExtractedTextError, setPreviewExtractedTextError] = useState<
+    string | null
+  >(null);
+  const [previewExtractedTextMeta, setPreviewExtractedTextMeta] = useState({
+    page: 1,
+    pageSize: 1,
+    totalPages: 0,
+    returnedPages: 0,
+    hasNext: false,
+    hasPrevious: false,
+  });
 
   // Processing logs state
   const [logsModalOpen, setLogsModalOpen] = useState(false);
@@ -79,15 +96,71 @@ export default function SessionResourcesModal({
   const handleOpenPreview = async (resource: SessionResourceItem) => {
     try {
       setOpeningResourceId(resource.id);
-      const blob = await viewResource(resource.id);
-      const url = URL.createObjectURL(blob);
+      setIsExtractingPreviewText(true);
+      setPreviewExtractedText("");
+      setPreviewExtractedTextError(null);
+      setPreviewExtractedTextMeta({
+        page: 1,
+        pageSize: 1,
+        totalPages: 0,
+        returnedPages: 0,
+        hasNext: false,
+        hasPrevious: false,
+      });
+
+      const [blob, extractedTextResult] = await Promise.allSettled([
+        viewResource(resource.id),
+        getResourceExtractedText(resource.id, { page: 1, pageSize: 1 }),
+      ]);
+
+      if (blob.status === "rejected") {
+        throw blob.reason;
+      }
+
+      const url = URL.createObjectURL(blob.value);
       setPreviewUrl(url);
       setPreviewType(resolvePreviewType(resource));
       setPreviewResourceId(resource.id);
+
+      if (extractedTextResult.status === "fulfilled") {
+        setPreviewExtractedText(extractedTextResult.value.extracted_text || "");
+        setPreviewExtractedTextMeta({
+          page: extractedTextResult.value.page || 1,
+          pageSize: extractedTextResult.value.page_size || 1,
+          totalPages: extractedTextResult.value.total_pages || 0,
+          returnedPages: extractedTextResult.value.returned_pages || 0,
+          hasNext: extractedTextResult.value.has_next,
+          hasPrevious: extractedTextResult.value.has_previous,
+        });
+      } else {
+        console.error("Failed to load extracted text", extractedTextResult.reason);
+        setPreviewExtractedTextError(
+          getApiErrorMessage(
+            extractedTextResult.reason,
+            "Failed to load extracted text.",
+            t("attachment_preview_unavailable_offline"),
+          ),
+        );
+      }
+
+      setPreviewErrorById((prev) => {
+        const next = { ...prev };
+        delete next[resource.id];
+        return next;
+      });
     } catch (error) {
       console.error("Failed to preview resource", error);
+      setPreviewErrorById((prev) => ({
+        ...prev,
+        [resource.id]: getApiErrorMessage(
+          error,
+          t("attachment_preview_unavailable"),
+          t("attachment_preview_unavailable_offline"),
+        ),
+      }));
     } finally {
       setOpeningResourceId(null);
+      setIsExtractingPreviewText(false);
     }
   };
 
@@ -97,6 +170,17 @@ export default function SessionResourcesModal({
     }
     setPreviewUrl(null);
     setPreviewResourceId(undefined);
+    setPreviewExtractedText("");
+    setPreviewExtractedTextError(null);
+    setIsExtractingPreviewText(false);
+    setPreviewExtractedTextMeta({
+      page: 1,
+      pageSize: 1,
+      totalPages: 0,
+      returnedPages: 0,
+      hasNext: false,
+      hasPrevious: false,
+    });
   };
 
   const handleViewProcessingLogs = async (resource: SessionResourceItem) => {
@@ -187,6 +271,11 @@ export default function SessionResourcesModal({
                       {t("session_resources_loading")}
                     </p>
                   )}
+                  {previewErrorById[resource.id] && (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                      {previewErrorById[resource.id]}
+                    </p>
+                  )}
                 </button>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -205,7 +294,22 @@ export default function SessionResourcesModal({
                       )}
                     </button>
                   )}
-                  <FileText className="h-4 w-4 shrink-0 text-gray-400" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleOpenPreview(resource);
+                    }}
+                    disabled={openingResourceId === resource.id}
+                    className="rounded-md p-2 text-gray-500 transition hover:bg-gray-100 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-[#1e1e1e] dark:hover:text-blue-400"
+                    title="Preview resource"
+                    aria-label={`Preview ${fileName}`}
+                  >
+                    {openingResourceId === resource.id ? (
+                      <span className="block h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                    ) : (
+                      <FileText className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </div>
             </li>
@@ -267,6 +371,15 @@ export default function SessionResourcesModal({
             url={previewUrl}
             type={previewType}
             onClose={handleClosePreview}
+            extractedText={previewExtractedText}
+            isExtracting={isExtractingPreviewText}
+            extractedTextError={previewExtractedTextError}
+            extractedTextPage={previewExtractedTextMeta.page}
+            extractedTextPageSize={previewExtractedTextMeta.pageSize}
+            extractedTextTotalPages={previewExtractedTextMeta.totalPages}
+            extractedTextReturnedPages={previewExtractedTextMeta.returnedPages}
+            extractedTextHasNext={previewExtractedTextMeta.hasNext}
+            extractedTextHasPrevious={previewExtractedTextMeta.hasPrevious}
           />
         )}
       </div>

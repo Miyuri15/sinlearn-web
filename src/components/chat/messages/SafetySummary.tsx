@@ -41,7 +41,7 @@ const supportLevels = {
     color: "text-amber-600 dark:text-amber-400",
   },
   likely_unsupported: {
-    label: "Verify before using",
+    label: "Limited Support",
     description: "Limited support from source materials",
     icon: <AlertTriangle className="w-3.5 h-3.5" />,
     color: "text-rose-600 dark:text-rose-400",
@@ -83,7 +83,7 @@ export function SafetySummary({
             hover:bg-gray-100 dark:hover:bg-white/10 cursor-help transition-colors`}
         >
           {support.icon}
-          <span className={support.color}>{support.label}</span>
+          <span className={support.color}>{support.label} from source</span>
 
           {/* Optional: Add subtle visual bar instead of percentage */}
           <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden ml-1">
