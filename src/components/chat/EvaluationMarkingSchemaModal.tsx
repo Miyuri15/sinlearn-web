@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, FileText, RefreshCw, Trash2, X } from "lucide-react";
+import { AlertTriangle, Download, FileText, RefreshCw, Trash2, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import type { MarkingSchema, MarkingSchemaQuestion } from "@/lib/models/chat";
 import { ReactTransliterate } from "react-transliterate";
@@ -139,6 +139,160 @@ export default function EvaluationMarkingSchemaModal({
     });
   };
 
+  const escapeHtml = (value: unknown) =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+  const buildPrintableSchemaHtml = () => {
+    const generatedAt = new Date().toLocaleString();
+    const sectionsHtml = orderedSections
+      .map(
+        (section) => `
+          <section class="paper-section">
+            <h2>${escapeHtml(section.partName)}</h2>
+            ${section.questions
+              .map(
+                (question) => `
+                  <article class="question">
+                    <div class="question-header">
+                      <div>
+                        <span class="question-label">${escapeHtml(question.partName || "Question")} - ${escapeHtml(question.questionNumber)}</span>
+                        <h3>${escapeHtml(question.questionText || `Question ${question.questionNumber}`)}</h3>
+                      </div>
+                      ${
+                        typeof question.maxMarks === "number"
+                          ? `<span class="marks">${escapeHtml(question.maxMarks)} marks</span>`
+                          : ""
+                      }
+                    </div>
+                    <div class="reference">${escapeHtml(question.referenceText || "-").replace(/\n/g, "<br />")}</div>
+                  </article>
+                `
+              )
+              .join("")}
+          </section>
+        `
+      )
+      .join("");
+
+    return `
+      <!doctype html>
+      <html lang="si">
+        <head>
+          <meta charset="utf-8" />
+          <title>Marking Schema</title>
+          <style>
+            @page { size: A4; margin: 18mm; }
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              color: #111827;
+              font-family: "Noto Sans Sinhala", "Nirmala UI", "Iskoola Pota", Arial, sans-serif;
+              line-height: 1.65;
+            }
+            header {
+              border-bottom: 2px solid #0f766e;
+              margin-bottom: 18px;
+              padding-bottom: 12px;
+            }
+            h1 {
+              font-size: 24px;
+              margin: 0 0 6px;
+            }
+            .meta {
+              color: #4b5563;
+              font-size: 12px;
+            }
+            .summary {
+              background: #f0fdfa;
+              border: 1px solid #99f6e4;
+              border-radius: 10px;
+              font-size: 13px;
+              margin-bottom: 18px;
+              padding: 10px 12px;
+            }
+            .paper-section {
+              break-inside: avoid;
+              margin-bottom: 22px;
+            }
+            h2 {
+              background: #f3f4f6;
+              border-left: 4px solid #0f766e;
+              font-size: 16px;
+              margin: 0 0 10px;
+              padding: 8px 10px;
+            }
+            .question {
+              border: 1px solid #d1d5db;
+              border-radius: 10px;
+              break-inside: avoid;
+              margin-bottom: 10px;
+              padding: 12px;
+            }
+            .question-header {
+              align-items: flex-start;
+              display: flex;
+              gap: 12px;
+              justify-content: space-between;
+              margin-bottom: 8px;
+            }
+            .question-label {
+              color: #0f766e;
+              font-size: 12px;
+              font-weight: 700;
+              letter-spacing: 0.04em;
+              text-transform: uppercase;
+            }
+            h3 {
+              font-size: 14px;
+              font-weight: 600;
+              margin: 4px 0 0;
+            }
+            .marks {
+              color: #374151;
+              font-size: 12px;
+              white-space: nowrap;
+            }
+            .reference {
+              border-top: 1px solid #e5e7eb;
+              font-size: 13px;
+              padding-top: 8px;
+              white-space: normal;
+            }
+          </style>
+        </head>
+        <body>
+          <header>
+            <h1>Marking Schema</h1>
+            <div class="meta">Generated ${escapeHtml(generatedAt)}</div>
+          </header>
+          <div class="summary">${escapeHtml(completedCount)}/${escapeHtml(questions.length)} references ready - Status: ${escapeHtml(schema?.isConfirmed ? "Confirmed" : "Draft")}</div>
+          ${sectionsHtml}
+        </body>
+      </html>
+    `;
+  };
+
+  const handleDownloadPdf = () => {
+    if (questions.length === 0) return;
+
+    const printWindow = window.open("", "_blank", "width=960,height=720");
+    if (!printWindow) return;
+
+    printWindow.document.open();
+    printWindow.document.write(buildPrintableSchemaHtml());
+    printWindow.document.close();
+    printWindow.focus();
+
+    window.setTimeout(() => {
+      printWindow.print();
+    }, 300);
+  };
+
   if (!open) return null;
 
   return (
@@ -162,6 +316,18 @@ export default function EvaluationMarkingSchemaModal({
                 start grading.
               </p>
             </div>
+          </div>
+          {/* Download PDF Button */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleDownloadPdf}
+              className="flex items-center gap-2"
+              title="Download as PDF"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download PDF</span>
+            </Button>
           </div>
 
           <button
@@ -277,16 +443,16 @@ export default function EvaluationMarkingSchemaModal({
                       <div
                         className="
                           relative
-                          [&_ul]:!bottom-full
-                          [&_ul]:!top-auto
-                          [&_ul]:!mb-2
-                          [&_ul]:!z-50
+                          [&_ul]:bottom-full!
+                          [&_ul]:top-auto!
+                          [&_ul]:mb-2!
+                          [&_ul]:z-50!
                           [&_ul]:shadow-lg
                           [&_ul]:rounded-lg
-                          [&_ul]:!border-gray-200
-                          dark:[&_ul]:!bg-[#1F1F1F]
-                          dark:[&_ul]:!border-[#333]
-                          dark:[&_ul]:!text-gray-200
+                          [&_ul]:border-gray-200!
+                          dark:[&_ul]:bg-[#1F1F1F]!
+                          dark:[&_ul]:border-[#333]!
+                          dark:[&_ul]:text-gray-200!
                         "
                       >
                         <ReactTransliterate

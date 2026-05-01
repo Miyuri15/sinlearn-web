@@ -56,6 +56,7 @@ import {
   processResourcesBatch,
   detachAnswerScriptsFromSession,
   detachAnswerSheetFromSession,
+  deleteResource,
 } from "@/lib/api/resource";
 import {
   uploadEvaluationResources,
@@ -77,6 +78,7 @@ import {
   startEvaluation,
   startEvaluationStream,
   processDocumentsStreamWithProgress,
+  getAnswerDocuments,
 } from "@/lib/api/evaluation";
 import { formatDistanceToNow } from "date-fns";
 import { getSelectedChatType } from "@/lib/localStore";
@@ -539,8 +541,164 @@ export default function ChatPage({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
-  const [processProgress, setProcessProgress] = useState({ current: 0, total: 0 });
+  const [processProgress, setProcessProgress] = useState<{
+    current: number;
+    total: number;
+    percent?: number;
+    message?: string;
+  }>({ current: 0, total: 0 });
   const [answerDocumentIds, setAnswerDocumentIds] = useState<Record<string, string>>({});
+
+  const showToast = useCallback((message: string, type: "success" | "error" | "warning" = "error") => {
+    setToastMessage(message);
+    setToastType(type);
+    setIsToastVisible(true);
+  }, []);
+
+  const extractAnswerDocumentId = useCallback((payload: unknown, resourceId: string): string | null => {
+    const seen = new Set<unknown>();
+
+    const visit = (value: unknown): string | null => {
+      if (!value || typeof value !== "object" || seen.has(value)) return null;
+      seen.add(value);
+
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          const found = visit(item);
+          if (found) return found;
+        }
+        return null;
+      }
+
+      const record = value as Record<string, unknown>;
+      const direct =
+        record.answer_document_id ||
+        record.answerDocumentId ||
+        record.answer_doc_id ||
+        record.answerDocId;
+
+      if (typeof direct === "string" && direct.trim()) {
+        return direct;
+      }
+
+      const matchingResource =
+        record.resource_id === resourceId ||
+        record.resourceId === resourceId ||
+        record.answer_resource_id === resourceId ||
+        record.answerResourceId === resourceId;
+
+      if (matchingResource && typeof record.id === "string" && record.id.trim()) {
+        return record.id;
+      }
+
+      for (const [key, nested] of Object.entries(record)) {
+        const lowerKey = key.toLowerCase();
+        const looksLikeAnswerDocument =
+          lowerKey.includes("answerdocument") ||
+          lowerKey.includes("answer_document") ||
+          lowerKey.includes("answerdoc") ||
+          lowerKey.includes("answer_doc");
+
+        if (
+          looksLikeAnswerDocument &&
+          nested &&
+          typeof nested === "object" &&
+          !Array.isArray(nested) &&
+          typeof (nested as Record<string, unknown>).id === "string"
+        ) {
+          return (nested as Record<string, string>).id;
+        }
+
+        const found = visit(nested);
+        if (found) return found;
+      }
+
+      return null;
+    };
+
+    return visit(payload);
+  }, []);
+
+  const parseStreamPayload = useCallback((raw: string): unknown => {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      const jsonStart = trimmed.search(/[\[{]/);
+      if (jsonStart >= 0) {
+        try {
+          return JSON.parse(trimmed.slice(jsonStart));
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }
+  }, []);
+
+  const getStreamProgressPercent = useCallback((payload: unknown): number | null => {
+    if (!payload || typeof payload !== "object") return null;
+    const value = (payload as any).progress ?? (payload as any).percent;
+    const numeric = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    return Math.max(0, Math.min(100, numeric));
+  }, []);
+
+  const getStreamProgressMessage = useCallback((payload: unknown): string | undefined => {
+    if (!payload || typeof payload !== "object") return undefined;
+    const message = (payload as any).message || (payload as any).detail?.message;
+    return typeof message === "string" && message.trim() ? message : undefined;
+  }, []);
+
+  const fetchAnswerDocumentIdMap = useCallback(async (
+    sessionId: string,
+    resourceIds: string[],
+  ): Promise<Record<string, string>> => {
+    const answerDocs = await getAnswerDocuments(sessionId);
+    const next: Record<string, string> = {};
+
+    (Array.isArray(answerDocs) ? answerDocs : []).forEach((doc: any) => {
+      const resourceId =
+        doc?.resource_id ||
+        doc?.resourceId ||
+        doc?.answer_resource_id ||
+        doc?.answerResourceId;
+      const answerDocumentId =
+        doc?.id ||
+        doc?.answer_document_id ||
+        doc?.answerDocumentId ||
+        doc?.answer_doc_id ||
+        doc?.answerDocId;
+
+      if (
+        typeof resourceId === "string" &&
+        resourceIds.includes(resourceId) &&
+        typeof answerDocumentId === "string" &&
+        answerDocumentId.trim()
+      ) {
+        next[resourceId] = answerDocumentId;
+      }
+    });
+
+    return next;
+  }, []);
+
+  const removeAnswerSheetResource = useCallback(async (
+    resourceId: string,
+    sessionId?: string | null,
+  ) => {
+    if (sessionId) {
+      try {
+        await detachAnswerSheetFromSession({ sessionId, resourceId });
+      } catch (error) {
+        console.warn("Failed to detach answer sheet before deleting resource", error);
+      }
+    }
+
+    await deleteResource(resourceId);
+  }, []);
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
@@ -1169,6 +1327,7 @@ export default function ChatPage({
     // Clear ONLY answer sheets locally
     setSelectedFiles([]);
     setAnswerResourceIds([]);
+    setAnswerDocumentIds({});
     setEvaluationUploadedFilesCount(0);
     setProcessingStatus("idle");
     setMarksConfirmed(false);
@@ -1177,8 +1336,7 @@ export default function ChatPage({
     // Best-effort server cleanup so answer sheets don't rehydrate after relogin
     if (!sessionId) return;
 
-    // Detach answer scripts from this chat session (do NOT delete resources).
-    // This keeps already-evaluated history intact while removing answer uploads for the next run.
+    // Detach answer scripts from this chat session, then delete known uploads.
     try {
       await detachAnswerScriptsFromSession({ sessionId });
     } catch (e) {
@@ -1190,6 +1348,14 @@ export default function ChatPage({
         } catch (err) {
           console.warn("Failed to detach answer sheet resource", err);
         }
+      }
+    }
+
+    for (const resourceId of idsFromState) {
+      try {
+        await deleteResource(resourceId);
+      } catch (err) {
+        console.warn("Failed to delete cleared answer sheet resource", err);
       }
     }
   }, [activeSessionId, answerResourceIds]);
@@ -1515,7 +1681,7 @@ export default function ChatPage({
         setAnswerResourceIds((prev) => [...prev, ...acceptedIds]);
       } else {
         // If evaluation already started, we treat this as a full replacement.
-        // Detach old answer scripts from the session (do NOT delete resources).
+        // Detach old answer scripts from the session and delete known old uploads.
         try {
           await detachAnswerScriptsFromSession({ sessionId: targetSessionId });
         } catch (e) {
@@ -1531,6 +1697,14 @@ export default function ChatPage({
             } catch (err) {
               console.warn("Failed to detach previous answer sheet", err);
             }
+          }
+        }
+
+        for (const oldId of answerResourceIds) {
+          try {
+            await deleteResource(oldId);
+          } catch (err) {
+            console.warn("Failed to delete previous answer sheet resource", err);
           }
         }
 
@@ -1578,12 +1752,7 @@ export default function ChatPage({
 
     try {
       const targetSessionId = activeSessionId || evaluationSessionId;
-      if (targetSessionId) {
-        await detachAnswerSheetFromSession({
-          sessionId: targetSessionId,
-          resourceId,
-        });
-      }
+      await removeAnswerSheetResource(resourceId, targetSessionId);
     } catch (e) {
       console.error("Failed to delete answer sheet resource", e);
       setToastMessage("Failed to remove the answer sheet from the server.");
@@ -1598,6 +1767,11 @@ export default function ChatPage({
       return next;
     });
     setAnswerResourceIds((prev) => prev.filter((_, i) => i !== index));
+    setAnswerDocumentIds((prev) => {
+      const next = { ...prev };
+      delete next[resourceId];
+      return next;
+    });
     if (processingStatus === "completed") {
       setProcessingStatus("needs_reprocessing");
       setMarksConfirmed(false);
@@ -1641,12 +1815,9 @@ export default function ChatPage({
 
       if (oldId) {
         try {
-          await detachAnswerSheetFromSession({
-            sessionId: targetSessionId,
-            resourceId: oldId,
-          });
+          await removeAnswerSheetResource(oldId, targetSessionId);
         } catch (e) {
-          console.warn("Failed to detach old answer sheet resource", e);
+          console.warn("Failed to remove old answer sheet resource", e);
         }
       }
 
@@ -1662,6 +1833,13 @@ export default function ChatPage({
         next[index] = newId;
         return next;
       });
+      if (oldId) {
+        setAnswerDocumentIds((prev) => {
+          const next = { ...prev };
+          delete next[oldId];
+          return next;
+        });
+      }
     } catch (error) {
       console.error("Failed to replace answer sheet", error);
       setToastMessage("Failed to replace answer sheet. Please try again.");
@@ -1692,40 +1870,94 @@ export default function ChatPage({
     }
 
     setProcessingStatus("processing");
-    setProcessProgress({ current: 0, total: answerResourceIds.length });
+    setProcessProgress({
+      current: answerResourceIds.length > 0 ? 1 : 0,
+      total: answerResourceIds.length,
+      percent: answerResourceIds.length > 0 ? 10 : 0,
+      message: "Starting document processing...",
+    });
+    setAnswerDocumentIds({});
     // Re-processing invalidates any previous confirmation.
     setMarksConfirmed(false);
     resetMarkingSchemaState();
     try {
+      const nextAnswerDocumentIds: Record<string, string> = {};
+
       // Mobile parity: process one answer sheet at a time.
       for (let i = 0; i < answerResourceIds.length; i++) {
         const resourceId = answerResourceIds[i];
-        await processDocumentsStreamWithProgress({
+        const totalToProcess = answerResourceIds.length;
+        setProcessProgress({
+          current: i + 1,
+          total: totalToProcess,
+          percent: Math.max(10, Math.round((i / totalToProcess) * 100)),
+          message: `Preparing document ${i + 1} of ${totalToProcess}...`,
+        });
+        const processResult = await processDocumentsStreamWithProgress({
           body: {
             chat_session_id: targetSessionId,
             answer_resource_ids: [resourceId],
           },
           onEvent: (evt) => {
-            try {
-              const data = typeof evt.raw === "string" && evt.raw.trim().startsWith("{") 
-                ? JSON.parse(evt.raw) 
-                : null;
-              
-              if (data && data.answer_document_id) {
-                console.log(`Captured answer_document_id: ${data.answer_document_id} for resource: ${resourceId}`);
-                setAnswerDocumentIds(prev => ({
-                  ...prev,
-                  [resourceId]: data.answer_document_id
-                }));
-              }
-            } catch (e) {
-              // Ignore parse errors for non-json lines
+            const data = parseStreamPayload(evt.raw);
+            const answerDocumentId = extractAnswerDocumentId(data, resourceId);
+            const streamPercent = getStreamProgressPercent(data);
+            const streamMessage = getStreamProgressMessage(data);
+
+            if (streamPercent !== null) {
+              const overallPercent = ((i + streamPercent / 100) / totalToProcess) * 100;
+              setProcessProgress({
+                current: i + 1,
+                total: totalToProcess,
+                percent: Math.max(10, Math.min(99, Math.round(overallPercent / 10) * 10)),
+                message: streamMessage,
+              });
+            } else if (streamMessage) {
+              setProcessProgress(prev => ({
+                ...prev,
+                current: i + 1,
+                total: totalToProcess,
+                message: streamMessage,
+              }));
+            }
+
+            if (answerDocumentId) {
+              nextAnswerDocumentIds[resourceId] = answerDocumentId;
+              setAnswerDocumentIds(prev => ({
+                ...prev,
+                [resourceId]: answerDocumentId
+              }));
             }
           }
         });
-        setProcessProgress(prev => ({ ...prev, current: i + 1 }));
+
+        const answerDocumentId = extractAnswerDocumentId(processResult, resourceId);
+        if (answerDocumentId) {
+          nextAnswerDocumentIds[resourceId] = answerDocumentId;
+          setAnswerDocumentIds(prev => ({
+            ...prev,
+            [resourceId]: answerDocumentId
+          }));
+        }
+
+        setProcessProgress({
+          current: i + 1,
+          total: totalToProcess,
+          percent: Math.round(((i + 1) / totalToProcess) * 100),
+          message: `Document ${i + 1} of ${totalToProcess} processed.`,
+        });
       }
 
+      if (Object.keys(nextAnswerDocumentIds).length < answerResourceIds.length) {
+        try {
+          const fetchedMap = await fetchAnswerDocumentIdMap(targetSessionId, answerResourceIds);
+          Object.assign(nextAnswerDocumentIds, fetchedMap);
+        } catch (mapError) {
+          console.warn("Failed to fetch processed answer document ids", mapError);
+        }
+      }
+
+      setAnswerDocumentIds(nextAnswerDocumentIds);
       setProcessingStatus("completed");
       // After processing completes, marks must be (re)confirmed.
       setMarksConfirmed(false);
@@ -1742,6 +1974,41 @@ export default function ChatPage({
     } finally {
       setProcessProgress({ current: 0, total: 0 });
     }
+  };
+
+  const handleReviewMappedAnswers = async (index: number) => {
+    if (processingStatus !== "completed") {
+      showToast("Process documents to view the mapped collection.", "warning");
+      return;
+    }
+
+    const resourceId = answerResourceIds[index];
+    let answerDocumentId = resourceId ? answerDocumentIds[resourceId] : undefined;
+
+    if (!answerDocumentId) {
+      const targetSessionId = activeSessionId || evaluationSessionId;
+
+      if (targetSessionId && resourceId) {
+        try {
+          const fetchedMap = await fetchAnswerDocumentIdMap(targetSessionId, answerResourceIds);
+          setAnswerDocumentIds((prev) => ({ ...prev, ...fetchedMap }));
+          answerDocumentId = fetchedMap[resourceId];
+        } catch (mapError) {
+          console.warn("Failed to resolve mapped answer document id", mapError);
+        }
+      }
+    }
+
+    if (!answerDocumentId) {
+      answerDocumentId = resourceId;
+    }
+
+    const fileName = selectedFiles[index]?.name;
+    const params = new URLSearchParams({ answerId: answerDocumentId });
+    if (fileName) {
+      params.set("fileName", fileName);
+    }
+    router.push(`/answer-mapping?${params.toString()}`);
   };
 
   // Handle adding files to pending queue in learning mode
@@ -1923,6 +2190,7 @@ export default function ChatPage({
             uploadedFiles={selectedFiles}
             onRemoveFile={handleRemoveEvaluationFile}
             onReplaceFile={handleReplaceEvaluationFile}
+            onReviewMappedAnswers={handleReviewMappedAnswers}
             isProcessing={isAutoProcessing}
             isUploading={isUploading}
             isPaperConfigLoading={isPaperConfigLoading}

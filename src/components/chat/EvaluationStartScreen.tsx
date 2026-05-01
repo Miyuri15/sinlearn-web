@@ -14,7 +14,8 @@ import {
   Sparkles, 
   History,
   File,
-  Upload
+  Upload,
+  Eye
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
@@ -31,6 +32,7 @@ interface EvaluationStartScreenProps {
   uploadedFiles: File[];
   onRemoveFile: (index: number) => void | Promise<void>;
   onReplaceFile: (index: number, file: File) => void | Promise<void>;
+  onReviewMappedAnswers: (index: number) => void;
   onStartEvaluation: () => void | Promise<void>;
   onViewHistory: () => void;
   isProcessing?: boolean;
@@ -44,7 +46,7 @@ interface EvaluationStartScreenProps {
   questionsSet?: boolean;
   processingStatus?: "idle" | "processing" | "completed" | "needs_reprocessing";
   uploadProgress?: { current: number; total: number };
-  processProgress?: { current: number; total: number };
+  processProgress?: { current: number; total: number; percent?: number; message?: string };
 }
 
 export default function EvaluationStartScreen({
@@ -61,6 +63,7 @@ export default function EvaluationStartScreen({
   uploadedFiles,
   onRemoveFile,
   onReplaceFile,
+  onReviewMappedAnswers,
   isProcessing = false,
   isUploading = false,
   isPaperConfigLoading = false,
@@ -110,6 +113,22 @@ export default function EvaluationStartScreen({
   const isReadyToProcess = rubricSet && syllabusSet && questionsSet && uploadedFiles.length > 0;
   const isProcessingCompleted = processingStatus === "completed";
   const needsReprocessing = processingStatus === "needs_reprocessing";
+  const displayedProcessPercent = processProgress && processProgress.total > 0
+    ? Math.max(
+        0,
+        Math.min(
+          100,
+          Math.round(
+            typeof processProgress.percent === "number"
+              ? processProgress.percent
+              : (processProgress.current / processProgress.total) * 100
+          )
+        )
+      )
+    : 10;
+  const displayedProcessCurrent = processProgress && processProgress.total > 0
+    ? Math.min(processProgress.total, Math.max(1, processProgress.current || 1))
+    : 0;
 
   const steps = [
     { labelKey: "evaluation_start_step_rubric", icon: FileText, action: onOpenRubric, status: rubricSet ? "completed" : "pending", disabled: isUploading },
@@ -205,12 +224,12 @@ export default function EvaluationStartScreen({
             <div className="flex justify-between items-center mb-2">
               <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
                 {processProgress && processProgress.total > 0
-                  ? `Processing ${processProgress.current} of ${processProgress.total} documents...`
+                  ? `Processing ${displayedProcessCurrent} of ${processProgress.total} documents...`
                   : t("evaluation_start_processing")}
               </p>
               {processProgress && processProgress.total > 0 && (
                 <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                  {Math.round((processProgress.current / processProgress.total) * 100)}%
+                  {displayedProcessPercent}%
                 </span>
               )}
             </div>
@@ -219,13 +238,13 @@ export default function EvaluationStartScreen({
                 className="h-full bg-blue-600 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(37,99,235,0.5)]" 
                 style={{ 
                   width: processProgress && processProgress.total > 0 
-                    ? `${(processProgress.current / processProgress.total) * 100}%` 
+                    ? `${displayedProcessPercent}%` 
                     : "10%" 
                 }} 
               />
             </div>
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              Analyzing student answers and mapping to the rubric. This may take a few moments.
+              {processProgress?.message || "Analyzing student answers and mapping to the rubric. This may take a few moments."}
             </p>
           </div>
         </div>
@@ -329,7 +348,15 @@ export default function EvaluationStartScreen({
                     {file.name}
                   </span>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center justify-end gap-4">
+                  <button
+                    onClick={() => onReviewMappedAnswers(index)}
+                    disabled={isUploading}
+                    className="flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Eye size={14} />
+                    {t("evaluation_start_review_mapped")}
+                  </button>
                   <button 
                     onClick={() => triggerReplaceUpload(index)}
                     disabled={isUploading}

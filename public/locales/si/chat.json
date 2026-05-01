@@ -130,6 +130,7 @@
     "new_evaluation_chat": "නව ඇගයීම් සංවාදය",
     "untitled_chat": "නමක් නොමැති සංවාදය",
     "evaluation_start_uploaded_answer_sheets": "උඩුගත කළ පිළිතුරු පත්‍ර",
+    "evaluation_start_review_mapped": "Review Mapped",
     "evaluation_start_replace_attachment": "ඇමිණුම මාරු කරන්න",
     "evaluation_start_remove_attachment": "ඇමිණුම ඉවත් කරන්න",
     "evaluation_start_upload_more_answer_sheets": "තවත් පිළිතුරු පත්‍ර උඩුගත කරන්න (තවත් {{remaining}}ක් ඉතිරි)",
