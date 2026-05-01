@@ -95,6 +95,13 @@ export interface UserProfile {
   updated_at?: string;
 }
 
+export interface AdminUsersResponse {
+  items: UserProfile[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 /**
  * Limit Exceeded Error Response
  */

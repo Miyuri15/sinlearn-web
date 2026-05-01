@@ -13,6 +13,7 @@ import {
   UserTier,
   PricingPlan,
   PricingPlanUpdate,
+  AdminUsersResponse,
 } from "@/types/pricing";
 
 type BackendPlanLimits = {
@@ -186,7 +187,7 @@ export async function fetchAdminUsers(
     limit?: number;
     offset?: number;
   } = {},
-): Promise<UserProfile[]> {
+): Promise<AdminUsersResponse> {
   const searchParams = new URLSearchParams();
 
   if (params.q) {
@@ -206,7 +207,7 @@ export async function fetchAdminUsers(
     ? `${API_BASE_URL}/api/v1/users?${queryString}`
     : `${API_BASE_URL}/api/v1/users`;
 
-  return apiFetch<UserProfile[]>(url, {
+  return apiFetch<AdminUsersResponse>(url, {
     method: "GET",
   });
 }

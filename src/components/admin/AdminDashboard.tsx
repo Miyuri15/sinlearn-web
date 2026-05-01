@@ -441,6 +441,7 @@ function MetricCard({
 
 function AdminUserManagement() {
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
@@ -465,10 +466,11 @@ function AdminUserManagement() {
         });
         if (!isActive) return;
         const nextDraftTiers: Record<string, UserProfile["tier"]> = {};
-        response.forEach((u) => {
+        response.items.forEach((u) => {
           nextDraftTiers[u.id] = u.tier;
         });
-        setUsers(response);
+        setUsers(response.items);
+        setTotalUsers(response.total);
         setDraftTiers(nextDraftTiers);
       } catch (error) {
         if (!isActive) return;
@@ -645,7 +647,7 @@ function AdminUserManagement() {
       </div>
 
       <div className="mt-6 flex items-center justify-between">
-        <p className="text-sm text-gray-500">Showing {users.length} results</p>
+        <p className="text-sm text-gray-500">Showing {totalUsers} results</p>
         <div className="flex gap-2">
           <button
             disabled={page === 0 || usersLoading}
