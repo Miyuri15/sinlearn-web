@@ -16,12 +16,16 @@ import {
   Shield,
   Users,
   X,
+  Zap,
+  CheckCircle,
+  Activity,
 } from "lucide-react";
 import { fetchAdminUsers, updatePricingPlan, updateUserTier } from "@/lib/api";
 import {
   useCurrentUser,
   useAdminPricingPlans,
   useUserUsage,
+  useAdminApiUsageSummary,
 } from "@/hooks/usePricing";
 
 import { TierBadge } from "@/components/pricing/TierBadge";
@@ -679,7 +683,11 @@ export default function AdminDashboard() {
     error: plansError,
     refetch: refetchPlans,
   } = useAdminPricingPlans();
-  const { usage, isLoading: usageLoading } = useUserUsage();
+  const {
+    summary: apiUsageSummary,
+    isLoading: apiUsageLoading,
+    error: apiUsageError,
+  } = useAdminApiUsageSummary();
   const [planEditorOpen, setPlanEditorOpen] = useState(false);
   const [planEditorForm, setPlanEditorForm] = useState<PlanEditorForm | null>(
     null,
@@ -713,16 +721,6 @@ export default function AdminDashboard() {
     );
   }
 
-  const currentUsageLabel = getUsageLabel(
-    usage,
-    usageLoading,
-    (u) => `${u.currentHour.learningRequests}/${u.currentHour.limit}`,
-  );
-  const evaluationUsageLabel = getUsageLabel(
-    usage,
-    usageLoading,
-    (u) => `${u.today.evaluationSessions}/${u.today.limit}`,
-  );
   const availablePlans = plans?.plans ?? [];
 
   function openPlanEditor(plan?: PricingPlan) {
@@ -806,24 +804,45 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          label="System Plans"
-          value={plansLoading ? "..." : String(plans?.plans.length ?? 0)}
-          helper="Configured tiers in backend"
-          icon={Database}
+          label="API Requests"
+          value={
+            apiUsageLoading
+              ? "..."
+              : String(apiUsageSummary?.total_requests ?? 0)
+          }
+          helper="Total API requests"
+          icon={Activity}
         />
+
         <MetricCard
-          label="Admin Learning"
-          value={currentUsageLabel}
-          helper="Requests used this hour"
-          icon={BarChart3}
+          label="Success Rate"
+          value={
+            apiUsageLoading ? "..." : `${apiUsageSummary?.success_rate ?? 0}%`
+          }
+          helper="Successful API calls"
+          icon={CheckCircle}
         />
+
         <MetricCard
-          label="Admin Sessions"
-          value={evaluationUsageLabel}
-          helper="Sessions used today"
-          icon={Clock}
+          label="Failed Requests"
+          value={
+            apiUsageLoading
+              ? "..."
+              : String(apiUsageSummary?.failed_requests ?? 0)
+          }
+          helper="Failed API calls"
+          icon={AlertCircle}
+        />
+
+        <MetricCard
+          label="Total Tokens"
+          value={
+            apiUsageLoading ? "..." : String(apiUsageSummary?.total_tokens ?? 0)
+          }
+          helper="Total token usage"
+          icon={Zap}
         />
       </div>
 

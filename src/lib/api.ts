@@ -3,6 +3,7 @@
  * Uses centralized apiFetch with token refresh, caching, and offline support
  */
 
+import { ApiUsageSummary } from "@/types/admin";
 import { apiFetch, ApiError } from "./api/client";
 import { API_BASE_URL } from "./config";
 import {
@@ -323,4 +324,35 @@ export class LimitExceededErrorClass
     this.resetAt = errorData.resetAt;
     this.suggestedAction = errorData.suggestedAction;
   }
+}
+
+export async function fetchAdminApiUsageSummary(params?: {
+  from_date?: string;
+  to_date?: string;
+  provider?: string;
+  service_name?: string;
+  model_name?: string;
+  user_id?: string;
+  session_id?: string;
+}): Promise<ApiUsageSummary> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.from_date) searchParams.set("from_date", params.from_date);
+  if (params?.to_date) searchParams.set("to_date", params.to_date);
+  if (params?.provider) searchParams.set("provider", params.provider);
+  if (params?.service_name)
+    searchParams.set("service_name", params.service_name);
+  if (params?.model_name) searchParams.set("model_name", params.model_name);
+  if (params?.user_id) searchParams.set("user_id", params.user_id);
+  if (params?.session_id) searchParams.set("session_id", params.session_id);
+
+  const queryString = searchParams.toString();
+
+  const url = queryString
+    ? `${API_BASE_URL}/api/v1/admin/api-usage/summary?${queryString}`
+    : `${API_BASE_URL}/api/v1/admin/api-usage/summary`;
+
+  return apiFetch<ApiUsageSummary>(url, {
+    method: "GET",
+  });
 }

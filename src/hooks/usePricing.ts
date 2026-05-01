@@ -14,9 +14,11 @@ import {
   fetchAdminPricingPlans,
   fetchUserUsage,
   fetchCurrentUser,
+  fetchAdminApiUsageSummary,
 } from "@/lib/api";
 import { LimitExceededErrorClass } from "@/lib/api";
 import { CACHE_DURATIONS } from "@/lib/constants";
+import { ApiUsageSummary } from "@/types/admin";
 
 interface PricingContextData {
   plans: PricingPlansResponse | null;
@@ -261,6 +263,40 @@ export function useUserUsage(autoRefreshInterval?: number) {
   }, [refetch, autoRefreshInterval]);
 
   return { usage, isLoading, error, limitError, refetch };
+}
+
+/**
+ * Hook:
+ */
+export function useAdminApiUsageSummary(autoRefreshInterval?: number) {
+  const [summary, setSummary] = useState<ApiUsageSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const refetch = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await fetchAdminApiUsageSummary();
+      setSummary(data);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Unknown error"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refetch();
+
+    if (autoRefreshInterval) {
+      const interval = setInterval(refetch, autoRefreshInterval);
+      return () => clearInterval(interval);
+    }
+  }, [refetch, autoRefreshInterval]);
+
+  return { summary, isLoading, error, refetch };
 }
 
 /**
