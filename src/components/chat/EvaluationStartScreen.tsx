@@ -478,7 +478,8 @@ export default function EvaluationStartScreen({
               {processProgress?.message || "Analyzing student answers and mapping to the rubric. This may take a few moments."}
             </p>
           </div>
-        )}
+        </div>
+      )}
 
         {/* Stepper */}
 
@@ -537,78 +538,6 @@ export default function EvaluationStartScreen({
           );
         })}
       </div>
-
-      {/* Uploaded Answer Sheets Card */}
-      <div className="w-full bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-[#2a2a2a] p-6 mt-20 mb-10">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div>
-          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-200">
-            {t("evaluation_start_uploaded_answer_sheets")}
-          </h3>
-          </div>
-          <div>
-          {uploadedFiles.length > 0 && (
-            <Button
-              variant="ghost"
-              onClick={onClearAnswerSheets}
-              disabled={isUploading}
-              className="flex items-center gap-2"
-            >
-              <X size={18} />
-              {t("evaluation_start_clear_answer_sheets")}
-            </Button>
-          )}
-          </div>
-        </div>
-        
-        {uploadedFiles.length > 0 ? (
-          <div className="space-y-3">
-            {uploadedFiles.map((file, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#1a1a1a] rounded-lg">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-blue-600">
-                    <File size={20} />
-                  </div>
-                  <span className="text-sm text-gray-600 dark:text-gray-300 truncate">
-                    {file.name}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-4">
-                  <button
-                    onClick={() => onReviewMappedAnswers(index)}
-                    disabled={isUploading}
-                    className="flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Eye size={14} />
-                    {t("evaluation_start_review_mapped")}
-                  </button>
-                  <button 
-                    onClick={() => triggerReplaceUpload(index)}
-                    disabled={isUploading}
-                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {step.status === "completed" ? (
-                      <Check size={22} />
-                    ) : (
-                      <step.icon size={22} />
-                    )}
-                  </button>
-                  <span
-                    className={`absolute -bottom-8 text-xs font-medium whitespace-nowrap transition-colors duration-300 ${
-                      step.status === "completed"
-                        ? "text-blue-600 dark:text-blue-400"
-                        : isNext
-                          ? "text-blue-500 dark:text-blue-400 font-bold"
-                          : "text-gray-400 dark:text-gray-500"
-                    }`}
-                  >
-                    {t(step.labelKey)}
-                  </span>
-                </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
 
         {/* Uploaded Answer Sheets Card */}
         <div className="w-full bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-[#2a2a2a] p-6 mt-20 mb-10">
