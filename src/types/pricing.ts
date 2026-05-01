@@ -22,11 +22,32 @@ export interface PricingPlan {
   cta: string;
   note: string;
   isPopular: boolean;
+  isActive: boolean;
   limits: PricingLimits;
 }
 
 export interface PricingPlansResponse {
   plans: PricingPlan[];
+}
+
+export interface PricingLimitsUpdate {
+  learningRequestsPerHour?: number;
+  evaluationSessionsPerDay?: number;
+  evaluationsPerSession?: number | null;
+  allowEvaluationOverage?: boolean;
+}
+
+export interface PricingPlanUpdate {
+  name?: string;
+  priceLabel?: string;
+  description?: string;
+  badge?: string;
+  features?: string[];
+  cta?: string;
+  note?: string;
+  limits?: PricingLimitsUpdate;
+  isPopular?: boolean;
+  isActive?: boolean;
 }
 
 /**

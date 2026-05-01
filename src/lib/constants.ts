@@ -2,7 +2,7 @@
  * Pricing Plan Constants
  */
 
-import { UserTier } from "@/types/pricing";
+import { PricingPlan, UserTier } from "@/types/pricing";
 
 export const PRICING_TIERS: Record<
   UserTier,
@@ -12,46 +12,59 @@ export const PRICING_TIERS: Record<
     color: string;
     description: string;
     features: string[];
+    priceLabel: string;
+    cta: string;
+    note: string;
+    isPopular: boolean;
   }
 > = {
   basic: {
-    name: "Starter",
+    name: "Basic Plan",
     badge: "Starter",
     color: "bg-blue-50",
-    description: "Free forever plan",
+    description: "A lightweight plan for getting started with Learning Mode",
     features: [
-      "5 learning requests/hour",
-      "1 evaluation session/day",
-      "10 evaluations per session",
-      "Community support",
+      "Learning mode: 5 requests per hour",
+      "Evaluation mode: 1 session per day",
+      "Up to 10 evaluations per session",
+      "Perfect for getting started",
     ],
+    priceLabel: "Free / forever",
+    cta: "Start Free",
+    note: "No credit card required",
+    isPopular: false,
   },
   intermediate: {
-    name: "Professional",
+    name: "Intermediate Plan",
     badge: "Most Popular",
     color: "bg-purple-50",
-    description: "For serious learners",
+    description: "For regular users who need more daily usage",
     features: [
-      "20 learning requests/hour",
-      "5 evaluation sessions/day",
-      "Unlimited evaluations per session",
-      "Priority support",
-      "Advanced analytics",
+      "Learning mode: 20 requests per hour",
+      "Evaluation mode: 5 sessions per day",
+      "Built for steady classroom or personal use",
+      "Priority access during busy periods",
     ],
+    priceLabel: "5000 LKR / tier",
+    cta: "Choose Intermediate",
+    note: "Usage resets apply",
+    isPopular: true,
   },
   enterprise: {
-    name: "Enterprise",
+    name: "Enterprise Plan",
     badge: "Best for Scale",
     color: "bg-amber-50",
-    description: "For institutions and organizations",
+    description: "For teams and institutions that need the highest limits",
     features: [
-      "50 learning requests/hour",
-      "10 evaluation sessions/day",
-      "Unlimited evaluations",
-      "Dedicated support",
-      "Custom integrations",
-      "Bulk user management",
+      "Learning mode: 50 requests per hour",
+      "Evaluation mode: 10 sessions per day",
+      "Next evaluations are charged",
+      "Designed for larger deployments",
     ],
+    priceLabel: "10000 LKR onwards / tier",
+    cta: "Contact Sales",
+    note: "Usage resets apply",
+    isPopular: false,
   },
 };
 
@@ -96,5 +109,50 @@ export const TIER_LIMITS = {
     evaluationSessionsPerDay: 10,
     evaluationsPerSession: null,
     allowEvaluationOverage: true,
+  },
+};
+
+export const DEFAULT_PRICING_PLANS: Record<UserTier, PricingPlan> = {
+  basic: {
+    id: "basic",
+    tier: "basic",
+    name: PRICING_TIERS.basic.name,
+    priceLabel: PRICING_TIERS.basic.priceLabel,
+    description: PRICING_TIERS.basic.description,
+    badge: PRICING_TIERS.basic.badge,
+    features: PRICING_TIERS.basic.features,
+    cta: PRICING_TIERS.basic.cta,
+    note: PRICING_TIERS.basic.note,
+    isPopular: PRICING_TIERS.basic.isPopular,
+    isActive: true,
+    limits: TIER_LIMITS.basic,
+  },
+  intermediate: {
+    id: "intermediate",
+    tier: "intermediate",
+    name: PRICING_TIERS.intermediate.name,
+    priceLabel: PRICING_TIERS.intermediate.priceLabel,
+    description: PRICING_TIERS.intermediate.description,
+    badge: PRICING_TIERS.intermediate.badge,
+    features: PRICING_TIERS.intermediate.features,
+    cta: PRICING_TIERS.intermediate.cta,
+    note: PRICING_TIERS.intermediate.note,
+    isPopular: PRICING_TIERS.intermediate.isPopular,
+    isActive: true,
+    limits: TIER_LIMITS.intermediate,
+  },
+  enterprise: {
+    id: "enterprise",
+    tier: "enterprise",
+    name: PRICING_TIERS.enterprise.name,
+    priceLabel: PRICING_TIERS.enterprise.priceLabel,
+    description: PRICING_TIERS.enterprise.description,
+    badge: PRICING_TIERS.enterprise.badge,
+    features: PRICING_TIERS.enterprise.features,
+    cta: PRICING_TIERS.enterprise.cta,
+    note: PRICING_TIERS.enterprise.note,
+    isPopular: PRICING_TIERS.enterprise.isPopular,
+    isActive: true,
+    limits: TIER_LIMITS.enterprise,
   },
 };

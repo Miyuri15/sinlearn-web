@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
 import {
   AlertCircle,
   BarChart3,
@@ -10,20 +9,28 @@ import {
   CheckCircle2,
   Clock,
   Database,
+  Edit3,
   Loader2,
   RefreshCw,
   Search,
   Shield,
   Users,
+  X,
 } from "lucide-react";
-import { fetchAdminUsers, updateUserTier } from "@/lib/api";
+import { fetchAdminUsers, updatePricingPlan, updateUserTier } from "@/lib/api";
 import {
   useCurrentUser,
-  usePricingPlans,
+  useAdminPricingPlans,
   useUserUsage,
 } from "@/hooks/usePricing";
+
 import { TierBadge } from "@/components/pricing/TierBadge";
-import { UserProfile } from "@/types/pricing";
+import {
+  PricingPlan,
+  PricingPlanUpdate,
+  UserProfile,
+  UserTier,
+} from "@/types/pricing";
 
 const USER_PAGE_SIZE = 10;
 
@@ -34,6 +41,23 @@ function userDisplayName(user: UserProfile): string {
 
 type UsageData = NonNullable<ReturnType<typeof useUserUsage>["usage"]>;
 
+type PlanEditorForm = {
+  tier: UserTier;
+  name: string;
+  priceLabel: string;
+  description: string;
+  badge: string;
+  featuresText: string;
+  cta: string;
+  note: string;
+  learningRequestsPerHour: string;
+  evaluationSessionsPerDay: string;
+  evaluationsPerSession: string;
+  allowEvaluationOverage: boolean;
+  isPopular: boolean;
+  isActive: boolean;
+};
+
 function getUsageLabel(
   usage: UsageData | null,
   loading: boolean,
@@ -41,6 +65,345 @@ function getUsageLabel(
 ): string {
   if (usage) return valueSelector(usage);
   return loading ? "Loading" : "Unavailable";
+}
+
+function toPlanEditorForm(plan: PricingPlan): PlanEditorForm {
+  return {
+    tier: plan.tier,
+    name: plan.name,
+    priceLabel: plan.priceLabel,
+    description: plan.description,
+    badge: plan.badge,
+    featuresText: plan.features.join("\n"),
+    cta: plan.cta,
+    note: plan.note,
+    learningRequestsPerHour: String(plan.limits.learningRequestsPerHour),
+    evaluationSessionsPerDay: String(plan.limits.evaluationSessionsPerDay),
+    evaluationsPerSession:
+      plan.limits.evaluationsPerSession === null
+        ? ""
+        : String(plan.limits.evaluationsPerSession),
+    allowEvaluationOverage: plan.limits.allowEvaluationOverage,
+    isPopular: plan.isPopular,
+    isActive: plan.isActive,
+  };
+}
+
+function toPricingPlanUpdate(form: PlanEditorForm): PricingPlanUpdate {
+  const evaluationsPerSession = form.evaluationsPerSession.trim();
+
+  return {
+    name: form.name.trim(),
+    priceLabel: form.priceLabel.trim(),
+    description: form.description.trim(),
+    badge: form.badge.trim(),
+    features: form.featuresText
+      .split("\n")
+      .map((feature) => feature.trim())
+      .filter(Boolean),
+    cta: form.cta.trim(),
+    note: form.note.trim(),
+    limits: {
+      learningRequestsPerHour: Number(form.learningRequestsPerHour),
+      evaluationSessionsPerDay: Number(form.evaluationSessionsPerDay),
+      evaluationsPerSession:
+        evaluationsPerSession === "" ? null : Number(evaluationsPerSession),
+      allowEvaluationOverage: form.allowEvaluationOverage,
+    },
+    isPopular: form.isPopular,
+    isActive: form.isActive,
+  };
+}
+
+function PlanEditModal({
+  open,
+  plans,
+  form,
+  saving,
+  error,
+  onClose,
+  onSelectPlan,
+  onChange,
+  onSubmit,
+}: Readonly<{
+  open: boolean;
+  plans: PricingPlan[];
+  form: PlanEditorForm | null;
+  saving: boolean;
+  error: string | null;
+  onClose: () => void;
+  onSelectPlan: (tier: UserTier) => void;
+  onChange: (patch: Partial<PlanEditorForm>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}>) {
+  if (!open || !form) return null;
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <button
+        type="button"
+        aria-label="Close plan editor"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <form
+          onSubmit={onSubmit}
+          className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+        >
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-300">
+                Admin Pricing
+              </p>
+              <h2 className="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                Edit Pricing Plan
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Changes are saved through the admin plan PATCH endpoint.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label="Close modal"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="space-y-5 p-5">
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
+                {error}
+              </div>
+            )}
+
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Plan to edit
+              </span>
+              <select
+                value={form.tier}
+                onChange={(event) =>
+                  onSelectPlan(event.target.value as UserTier)
+                }
+                className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+              >
+                {plans.map((plan) => (
+                  <option key={plan.tier} value={plan.tier}>
+                    {plan.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <TextField
+                label="Name"
+                value={form.name}
+                onChange={(name) => onChange({ name })}
+              />
+              <TextField
+                label="Price label"
+                value={form.priceLabel}
+                onChange={(priceLabel) => onChange({ priceLabel })}
+              />
+              <TextField
+                label="Badge"
+                value={form.badge}
+                onChange={(badge) => onChange({ badge })}
+              />
+              <TextField
+                label="CTA"
+                value={form.cta}
+                onChange={(cta) => onChange({ cta })}
+              />
+            </div>
+
+            <TextAreaField
+              label="Description"
+              value={form.description}
+              rows={3}
+              onChange={(description) => onChange({ description })}
+            />
+
+            <TextAreaField
+              label="Features"
+              helper="One feature per line."
+              value={form.featuresText}
+              rows={5}
+              onChange={(featuresText) => onChange({ featuresText })}
+            />
+
+            <TextField
+              label="Note"
+              value={form.note}
+              onChange={(note) => onChange({ note })}
+            />
+
+            <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+              <h3 className="mb-3 text-sm font-bold text-gray-900 dark:text-white">
+                Plan Limits
+              </h3>
+              <div className="grid gap-4 md:grid-cols-3">
+                <TextField
+                  label="Learning req/hour"
+                  type="number"
+                  min={0}
+                  value={form.learningRequestsPerHour}
+                  onChange={(learningRequestsPerHour) =>
+                    onChange({ learningRequestsPerHour })
+                  }
+                />
+                <TextField
+                  label="Eval sessions/day"
+                  type="number"
+                  min={0}
+                  value={form.evaluationSessionsPerDay}
+                  onChange={(evaluationSessionsPerDay) =>
+                    onChange({ evaluationSessionsPerDay })
+                  }
+                />
+                <TextField
+                  label="Evaluations/session"
+                  type="number"
+                  min={0}
+                  placeholder="Blank = unlimited"
+                  value={form.evaluationsPerSession}
+                  onChange={(evaluationsPerSession) =>
+                    onChange({ evaluationsPerSession })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <CheckboxField
+                label="Allow overage"
+                checked={form.allowEvaluationOverage}
+                onChange={(allowEvaluationOverage) =>
+                  onChange({ allowEvaluationOverage })
+                }
+              />
+              <CheckboxField
+                label="Mark popular"
+                checked={form.isPopular}
+                onChange={(isPopular) => onChange({ isPopular })}
+              />
+              <CheckboxField
+                label="Active plan"
+                checked={form.isActive}
+                onChange={(isActive) => onChange({ isActive })}
+              />
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 flex justify-end gap-3 border-t border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60"
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Save Plan
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  min,
+  placeholder,
+}: Readonly<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: "text" | "number";
+  min?: number;
+  placeholder?: string;
+}>) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+        {label}
+      </span>
+      <input
+        type={type}
+        min={min}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+      />
+    </label>
+  );
+}
+
+function TextAreaField({
+  label,
+  helper,
+  value,
+  rows,
+  onChange,
+}: Readonly<{
+  label: string;
+  helper?: string;
+  value: string;
+  rows: number;
+  onChange: (value: string) => void;
+}>) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+        {label}
+      </span>
+      {helper && <span className="ml-2 text-xs text-gray-500">{helper}</span>}
+      <textarea
+        rows={rows}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+      />
+    </label>
+  );
+}
+
+function CheckboxField({
+  label,
+  checked,
+  onChange,
+}: Readonly<{
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}>) {
+  return (
+    <label className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-4 w-4 rounded border-gray-300 text-blue-600"
+      />
+      {label}
+    </label>
+  );
 }
 
 // --- Sub-components ---
@@ -312,8 +675,15 @@ export default function AdminDashboard() {
     plans,
     isLoading: plansLoading,
     error: plansError,
-  } = usePricingPlans();
+    refetch: refetchPlans,
+  } = useAdminPricingPlans();
   const { usage, isLoading: usageLoading } = useUserUsage();
+  const [planEditorOpen, setPlanEditorOpen] = useState(false);
+  const [planEditorForm, setPlanEditorForm] = useState<PlanEditorForm | null>(
+    null,
+  );
+  const [planEditorSaving, setPlanEditorSaving] = useState(false);
+  const [planEditorError, setPlanEditorError] = useState<string | null>(null);
 
   if (userLoading || (!user && !userError)) {
     return (
@@ -351,9 +721,70 @@ export default function AdminDashboard() {
     usageLoading,
     (u) => `${u.today.evaluationSessions}/${u.today.limit}`,
   );
+  const availablePlans = plans?.plans ?? [];
+
+  function openPlanEditor(plan?: PricingPlan) {
+    const planToEdit = plan ?? availablePlans[0];
+    if (!planToEdit) return;
+
+    setPlanEditorForm(toPlanEditorForm(planToEdit));
+    setPlanEditorError(null);
+    setPlanEditorOpen(true);
+  }
+
+  function handlePlanEditorSelect(tier: UserTier) {
+    const selectedPlan = availablePlans.find((plan) => plan.tier === tier);
+    if (!selectedPlan) return;
+
+    setPlanEditorForm(toPlanEditorForm(selectedPlan));
+    setPlanEditorError(null);
+  }
+
+  function handlePlanEditorChange(patch: Partial<PlanEditorForm>) {
+    setPlanEditorForm((current) =>
+      current ? { ...current, ...patch } : current,
+    );
+  }
+
+  async function handlePlanEditorSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!planEditorForm) return;
+
+    setPlanEditorSaving(true);
+    setPlanEditorError(null);
+    try {
+      await updatePricingPlan(
+        planEditorForm.tier,
+        toPricingPlanUpdate(planEditorForm),
+      );
+      await refetchPlans({ force: true });
+      setPlanEditorOpen(false);
+      setPlanEditorForm(null);
+    } catch (error) {
+      setPlanEditorError(
+        error instanceof Error
+          ? error.message
+          : "Failed to update pricing plan",
+      );
+    } finally {
+      setPlanEditorSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
+      <PlanEditModal
+        open={planEditorOpen}
+        plans={availablePlans}
+        form={planEditorForm}
+        saving={planEditorSaving}
+        error={planEditorError}
+        onClose={() => setPlanEditorOpen(false)}
+        onSelectPlan={handlePlanEditorSelect}
+        onChange={handlePlanEditorChange}
+        onSubmit={handlePlanEditorSubmit}
+      />
+
       {/* Header Banner */}
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/40 dark:bg-blue-900/20">
         <div className="flex items-center justify-between">
@@ -409,12 +840,15 @@ export default function AdminDashboard() {
               <h3 className="font-bold text-gray-900 dark:text-white">
                 Plan Reference
               </h3>
-              <Link
-                href="/settings/plan"
-                className="text-xs text-blue-600 hover:underline"
+              <button
+                type="button"
+                onClick={() => openPlanEditor()}
+                disabled={availablePlans.length === 0}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline disabled:cursor-not-allowed disabled:text-gray-400"
               >
+                <Edit3 className="h-3.5 w-3.5" />
                 Edit Plans
-              </Link>
+              </button>
             </div>
 
             {plansError ? (
@@ -424,7 +858,7 @@ export default function AdminDashboard() {
                 {plans?.plans.map((p) => (
                   <div
                     key={p.tier}
-                    className="flex items-center justify-between border-b border-gray-50 pb-3 last:border-0 dark:border-gray-700"
+                    className="flex items-center justify-between gap-3 border-b border-gray-50 pb-3 last:border-0 dark:border-gray-700"
                   >
                     <div>
                       <p className="text-sm font-medium dark:text-white">
@@ -434,7 +868,16 @@ export default function AdminDashboard() {
                         {p.limits.learningRequestsPerHour} req/hr
                       </p>
                     </div>
-                    <TierBadge tier={p.tier} size="sm" />
+                    <div className="flex items-center gap-2">
+                      <TierBadge tier={p.tier} size="sm" />
+                      <button
+                        type="button"
+                        onClick={() => openPlanEditor(p)}
+                        className="rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

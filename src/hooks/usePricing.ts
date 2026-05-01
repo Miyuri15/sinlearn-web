@@ -9,7 +9,12 @@ import {
   PricingPlansResponse,
   LimitExceededError,
 } from "@/types/pricing";
-import { fetchPricingPlans, fetchUserUsage, fetchCurrentUser } from "@/lib/api";
+import {
+  fetchPricingPlans,
+  fetchAdminPricingPlans,
+  fetchUserUsage,
+  fetchCurrentUser,
+} from "@/lib/api";
 import { LimitExceededErrorClass } from "@/lib/api";
 import { CACHE_DURATIONS } from "@/lib/constants";
 
@@ -19,13 +24,15 @@ interface PricingContextData {
   usage: UserUsage | null;
   isLoading: boolean;
   error: Error | null;
-  refetchPlans: () => Promise<void>;
+  refetchPlans: (options?: { force?: boolean }) => Promise<void>;
   refetchUsage: () => Promise<void>;
   refetchUser: () => Promise<void>;
 }
 
 class PricingCache {
   private plans: PricingPlansResponse | null = null;
+  private adminPlans: PricingPlansResponse | null = null;
+  private adminPlansExpiry: number = 0;
   private plansExpiry: number = 0;
   private user: UserProfile | null = null;
   private userExpiry: number = 0;
@@ -42,6 +49,11 @@ class PricingCache {
     this.plansExpiry = Date.now() + CACHE_DURATIONS.PRICING_PLANS;
   }
 
+  clearPlans(): void {
+    this.plans = null;
+    this.plansExpiry = 0;
+  }
+
   getUser(): UserProfile | null {
     if (this.user && this.userExpiry > Date.now()) {
       return this.user;
@@ -56,9 +68,28 @@ class PricingCache {
 
   clearAll(): void {
     this.plans = null;
+    this.adminPlans = null;
     this.user = null;
     this.plansExpiry = 0;
+    this.adminPlansExpiry = 0;
     this.userExpiry = 0;
+  }
+
+  getAdminPlans(): PricingPlansResponse | null {
+    if (this.adminPlans && this.adminPlansExpiry > Date.now()) {
+      return this.adminPlans;
+    }
+    return null;
+  }
+
+  setAdminPlans(plans: PricingPlansResponse): void {
+    this.adminPlans = plans;
+    this.adminPlansExpiry = Date.now() + CACHE_DURATIONS.PRICING_PLANS;
+  }
+
+  clearAdminPlans(): void {
+    this.adminPlans = null;
+    this.adminPlansExpiry = 0;
   }
 }
 
@@ -73,7 +104,11 @@ export function usePricingPlans() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const refetch = useCallback(async () => {
+  const refetch = useCallback(async (options: { force?: boolean } = {}) => {
+    if (options.force) {
+      pricingCache.clearPlans();
+    }
+
     // Check cache first
     const cached = pricingCache.getPlans();
     if (cached) {
@@ -86,6 +121,47 @@ export function usePricingPlans() {
     try {
       const data = await fetchPricingPlans();
       pricingCache.setPlans(data);
+      setPlans(data);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Unknown error"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { plans, isLoading, error, refetch };
+}
+
+/**
+ * Hook: useAdminPricingPlans
+ * Fetch and cache all pricing plans for admin panel
+ */
+export function useAdminPricingPlans() {
+  const [plans, setPlans] = useState<PricingPlansResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const refetch = useCallback(async (options: { force?: boolean } = {}) => {
+    if (options.force) {
+      pricingCache.clearAdminPlans();
+    }
+
+    const cached = pricingCache.getAdminPlans();
+    if (cached) {
+      setPlans(cached);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await fetchAdminPricingPlans();
+      pricingCache.setAdminPlans(data);
       setPlans(data);
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Unknown error"));

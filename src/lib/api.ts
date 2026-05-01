@@ -11,6 +11,8 @@ import {
   PricingPlansResponse,
   LimitExceededError,
   UserTier,
+  PricingPlan,
+  PricingPlanUpdate,
 } from "@/types/pricing";
 
 type BackendPlanLimits = {
@@ -31,10 +33,31 @@ type BackendPricingPlan = {
   note: string;
   limits: BackendPlanLimits;
   is_popular: boolean;
+  is_active?: boolean;
 };
 
 type BackendPricingPlansResponse = {
   plans: BackendPricingPlan[];
+};
+
+type BackendPlanLimitsUpdate = {
+  learning_requests_per_hour?: number;
+  evaluation_sessions_per_day?: number;
+  evaluations_per_session?: number | null;
+  allow_evaluation_overage?: boolean;
+};
+
+type BackendPricingPlanUpdate = {
+  name?: string;
+  price_label?: string;
+  description?: string;
+  badge?: string;
+  features?: string[];
+  cta?: string;
+  note?: string;
+  limits?: BackendPlanLimitsUpdate;
+  is_popular?: boolean;
+  is_active?: boolean;
 };
 
 type BackendUsageWindow = {
@@ -67,19 +90,54 @@ function normalizePricingPlans(
   response: BackendPricingPlansResponse,
 ): PricingPlansResponse {
   return {
-    plans: response.plans.map((plan) => ({
-      id: plan.tier,
-      tier: plan.tier,
-      name: plan.name,
-      priceLabel: plan.price_label,
-      description: plan.description,
-      badge: plan.badge,
-      features: plan.features,
-      cta: plan.cta,
-      note: plan.note,
-      isPopular: plan.is_popular,
-      limits: normalizeLimits(plan.limits),
-    })),
+    plans: response.plans.map(normalizePricingPlan),
+  };
+}
+
+function normalizePricingPlan(plan: BackendPricingPlan): PricingPlan {
+  return {
+    id: plan.tier,
+    tier: plan.tier,
+    name: plan.name,
+    priceLabel: plan.price_label,
+    description: plan.description,
+    badge: plan.badge,
+    features: plan.features,
+    cta: plan.cta,
+    note: plan.note,
+    isPopular: plan.is_popular,
+    isActive: plan.is_active ?? true,
+    limits: normalizeLimits(plan.limits),
+  };
+}
+
+function serializePlanLimitsUpdate(
+  limits: PricingPlanUpdate["limits"],
+): BackendPlanLimitsUpdate | undefined {
+  if (!limits) return undefined;
+
+  return {
+    learning_requests_per_hour: limits.learningRequestsPerHour,
+    evaluation_sessions_per_day: limits.evaluationSessionsPerDay,
+    evaluations_per_session: limits.evaluationsPerSession,
+    allow_evaluation_overage: limits.allowEvaluationOverage,
+  };
+}
+
+function serializePricingPlanUpdate(
+  update: PricingPlanUpdate,
+): BackendPricingPlanUpdate {
+  return {
+    name: update.name,
+    price_label: update.priceLabel,
+    description: update.description,
+    badge: update.badge,
+    features: update.features,
+    cta: update.cta,
+    note: update.note,
+    limits: serializePlanLimitsUpdate(update.limits),
+    is_popular: update.isPopular,
+    is_active: update.isActive,
   };
 }
 
@@ -165,6 +223,35 @@ export async function fetchPricingPlans(): Promise<PricingPlansResponse> {
     },
   );
   return normalizePricingPlans(response);
+}
+
+export async function fetchAdminPricingPlans(): Promise<PricingPlansResponse> {
+  const response = await apiFetch<BackendPricingPlansResponse>(
+    `${API_BASE_URL}/api/v1/pricing/admin/plans`,
+    {
+      method: "GET",
+    },
+  );
+  return normalizePricingPlans(response);
+}
+
+/**
+ * Update a pricing plan (admin only)
+ * PATCH /api/v1/pricing/admin/plans/{tier}
+ */
+export async function updatePricingPlan(
+  tier: UserTier,
+  update: PricingPlanUpdate,
+): Promise<PricingPlan> {
+  const response = await apiFetch<BackendPricingPlan>(
+    `${API_BASE_URL}/api/v1/pricing/admin/plans/${tier}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(serializePricingPlanUpdate(update)),
+    },
+  );
+
+  return normalizePricingPlan(response);
 }
 
 /**
