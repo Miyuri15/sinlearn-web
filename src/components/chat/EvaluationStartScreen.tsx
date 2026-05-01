@@ -282,16 +282,16 @@ export default function EvaluationStartScreen({
   const needsReprocessing = processingStatus === "needs_reprocessing";
   const displayedProcessPercent = processProgress && processProgress.total > 0
     ? Math.max(
-        0,
-        Math.min(
-          100,
-          Math.round(
-            typeof processProgress.percent === "number"
-              ? processProgress.percent
-              : (processProgress.current / processProgress.total) * 100
-          )
+      0,
+      Math.min(
+        100,
+        Math.round(
+          typeof processProgress.percent === "number"
+            ? processProgress.percent
+            : (processProgress.current / processProgress.total) * 100
         )
       )
+    )
     : 10;
   const displayedProcessCurrent = processProgress && processProgress.total > 0
     ? Math.min(processProgress.total, Math.max(1, processProgress.current || 1))
@@ -332,14 +332,14 @@ export default function EvaluationStartScreen({
     {
       labelKey: "evaluation_start_step_process",
       icon: Settings,
-      action: isReadyToProcess ? onProcess : () => {},
+      action: isReadyToProcess ? onProcess : () => { },
       status: isProcessingCompleted ? "completed" : "pending",
       disabled: !isReadyToProcess || isUploading,
     },
     {
       labelKey: "evaluation_start_step_marks",
       icon: Edit3,
-      action: isProcessingCompleted ? onOpenMarks : () => {},
+      action: isProcessingCompleted ? onOpenMarks : () => { },
       status: isPaperConfigLoading
         ? "loading"
         : hasMarks
@@ -351,7 +351,7 @@ export default function EvaluationStartScreen({
       labelKey: "evaluation_start_step_schema",
       icon: ScrollText,
       action:
-        isProcessingCompleted && hasMarks ? onOpenMarkingSchema : () => {},
+        isProcessingCompleted && hasMarks ? onOpenMarkingSchema : () => { },
       status: isMarkingSchemaLoading
         ? "loading"
         : hasMarkingSchema
@@ -441,45 +441,45 @@ export default function EvaluationStartScreen({
           </div>
         )}
 
-      {/* Processing Banner */}
-      {processingStatus === "processing" && (
-        <div
-          className="w-full bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/30 rounded-xl p-5 flex items-center gap-4 shadow-sm"
-          aria-live="polite"
-          aria-busy="true"
-        >
-          <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-full text-blue-600">
-            <Sparkles size={20} className="animate-pulse" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-center mb-2">
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                {processProgress && processProgress.total > 0
-                  ? `Processing ${displayedProcessCurrent} of ${processProgress.total} documents...`
-                  : t("evaluation_start_processing")}
+        {/* Processing Banner */}
+        {processingStatus === "processing" && (
+          <div
+            className="w-full bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/30 rounded-xl p-5 flex items-center gap-4 shadow-sm"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-full text-blue-600">
+              <Sparkles size={20} className="animate-pulse" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                  {processProgress && processProgress.total > 0
+                    ? `Processing ${displayedProcessCurrent} of ${processProgress.total} documents...`
+                    : t("evaluation_start_processing")}
+                </p>
+                {processProgress && processProgress.total > 0 && (
+                  <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                    {displayedProcessPercent}%
+                  </span>
+                )}
+              </div>
+              <div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-600 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(37,99,235,0.5)]"
+                  style={{
+                    width: processProgress && processProgress.total > 0
+                      ? `${displayedProcessPercent}%`
+                      : "10%"
+                  }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {processProgress?.message || "Analyzing student answers and mapping to the rubric. This may take a few moments."}
               </p>
-              {processProgress && processProgress.total > 0 && (
-                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                  {displayedProcessPercent}%
-                </span>
-              )}
             </div>
-            <div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-blue-600 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(37,99,235,0.5)]" 
-                style={{ 
-                  width: processProgress && processProgress.total > 0 
-                    ? `${displayedProcessPercent}%` 
-                    : "10%" 
-                }} 
-              />
-            </div>
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              {processProgress?.message || "Analyzing student answers and mapping to the rubric. This may take a few moments."}
-            </p>
           </div>
-        </div>
-      )}
+        )}
 
         {/* Stepper */}
 
@@ -496,11 +496,10 @@ export default function EvaluationStartScreen({
                 {/* Connecting Line */}
                 {index > 0 && (
                   <div
-                    className={`flex-1 h-0.5 mx-2 transition-all duration-500 ${
-                      steps[index - 1].status === "completed"
+                    className={`flex-1 h-0.5 mx-2 transition-all duration-500 ${steps[index - 1].status === "completed"
                         ? "bg-blue-600"
                         : "bg-gray-200 dark:bg-gray-700"
-                    }`}
+                      }`}
                   />
                 )}
 
@@ -510,34 +509,32 @@ export default function EvaluationStartScreen({
                     disabled={step.disabled}
                     className={`
                     w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 z-10 active:scale-95
-                    ${
-                      step.status === "completed"
+                    ${step.status === "completed"
                         ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-blue-900/20 scale-105"
                         : step.disabled
                           ? "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed"
                           : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 hover:border-blue-400 hover:text-blue-400 hover:shadow-md"
-                    }
+                      }
                     ${isNext ? "ring-4 ring-blue-100 dark:ring-blue-900/30 border-blue-500 text-blue-500 animate-pulse" : ""}
                   `}
-                >
-                  {step.status === 'completed' ? (
-                    <Check size={22} />
-                  ) : (
-                    <step.icon size={22} />
-                  )}
-                </button>
-                <span className={`absolute -bottom-8 text-xs font-medium whitespace-nowrap transition-colors duration-300 ${
-                  step.status === 'completed' ? 'text-blue-600 dark:text-blue-400' :
-                  isNext ? 'text-blue-500 dark:text-blue-400 font-bold' :
-                  'text-gray-400 dark:text-gray-500'
-                }`}>
-                  {t(step.labelKey)}
-                </span>
-              </div>
-            </React.Fragment>
-          );
-        })}
-      </div>
+                  >
+                    {step.status === 'completed' ? (
+                      <Check size={22} />
+                    ) : (
+                      <step.icon size={22} />
+                    )}
+                  </button>
+                  <span className={`absolute -bottom-8 text-xs font-medium whitespace-nowrap transition-colors duration-300 ${step.status === 'completed' ? 'text-blue-600 dark:text-blue-400' :
+                      isNext ? 'text-blue-500 dark:text-blue-400 font-bold' :
+                        'text-gray-400 dark:text-gray-500'
+                    }`}>
+                    {t(step.labelKey)}
+                  </span>
+                </div>
+              </React.Fragment>
+            );
+          })}
+        </div>
 
         {/* Uploaded Answer Sheets Card */}
         <div className="w-full bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-[#2a2a2a] p-6 mt-20 mb-10">
@@ -583,6 +580,16 @@ export default function EvaluationStartScreen({
                     </span>
                   </button>
                   <div className="flex items-center gap-4">
+                    {isProcessingCompleted && (
+                      <button
+                        onClick={() => onReviewMappedAnswers(index)}
+                        className="flex items-center gap-1 text-sm text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-medium"
+                        title={`View Mapped Answers for ${file.name}`}
+                      >
+                        <ScrollText size={14} />
+                        View Mapped
+                      </button>
+                    )}
                     <button
                       onClick={() => void handlePreviewAnswerSheet(file, index)}
                       className="flex items-center gap-1 text-sm text-gray-600 hover:text-blue-700 dark:text-gray-300 dark:hover:text-blue-400 font-medium"
@@ -653,11 +660,10 @@ export default function EvaluationStartScreen({
               isUploading
             }
             className={`w-full h-12 rounded-full text-lg font-medium flex items-center justify-center gap-2
-            ${
-              !isReadyToProcess || processingStatus === "processing"
+            ${!isReadyToProcess || processingStatus === "processing"
                 ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-500 dark:text-gray-400"
                 : "bg-blue-700 hover:bg-blue-800 text-white"
-            }
+              }
           `}
           >
             <Sparkles size={20} />
@@ -774,13 +780,12 @@ function StatusItem({
       </div>
       <span
         className={`px-3 py-1 rounded-full text-xs font-medium transition-colors duration-300
-        ${
-          isCompleted
+        ${isCompleted
             ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
             : isActive
               ? "bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400"
               : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-        }
+          }
       `}
       >
         {status}
