@@ -20,6 +20,7 @@ import {
   CheckCircle,
   Activity,
 } from "lucide-react";
+import Link from "next/link";
 import { fetchAdminUsers, updatePricingPlan, updateUserTier } from "@/lib/api";
 import {
   useCurrentUser,
@@ -417,28 +418,43 @@ function MetricCard({
   value,
   helper,
   icon: Icon,
+  color = "blue",
 }: Readonly<{
   label: string;
   value: string;
   helper: string;
   icon: typeof Shield;
+  color?: "blue" | "emerald" | "amber" | "purple" | "rose";
 }>) {
+  const colorClasses = {
+    blue: "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 shadow-blue-500/10",
+    emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 shadow-emerald-500/10",
+    amber: "bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400 shadow-amber-500/10",
+    purple: "bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400 shadow-purple-500/10",
+    rose: "bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400 shadow-rose-500/10",
+  };
+
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+    <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl dark:border-gray-800 dark:bg-gray-900">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
             {label}
           </p>
-          <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
+          <p className="mt-2 text-3xl font-black text-gray-950 dark:text-white">
             {value}
           </p>
         </div>
-        <div className="rounded-lg bg-blue-50 p-2 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300">
-          <Icon className="h-5 w-5" aria-hidden="true" />
+        <div className={`rounded-2xl p-3 shadow-inner ${colorClasses[color as keyof typeof colorClasses]}`}>
+          <Icon className="h-6 w-6" aria-hidden="true" />
         </div>
       </div>
-      <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">{helper}</p>
+      <p className="mt-4 text-xs font-medium text-gray-500 dark:text-gray-400">{helper}</p>
+      
+      {/* Decorative background element */}
+      <div className={`absolute -right-4 -bottom-4 h-16 w-16 opacity-[0.03] transition-transform group-hover:scale-150 ${color === 'blue' ? 'text-blue-600' : 'text-gray-600'}`}>
+        <Icon className="h-full w-full" />
+      </div>
     </div>
   );
 }
@@ -517,7 +533,7 @@ function AdminUserManagement() {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+    <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
           <div className="mb-3 inline-flex rounded-lg bg-purple-50 p-2 text-purple-600 dark:bg-purple-900/20 dark:text-purple-300">
@@ -563,7 +579,7 @@ function AdminUserManagement() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+      <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-gray-800">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-900/40">
             <tr>
@@ -786,21 +802,46 @@ export default function AdminDashboard() {
       />
 
       {/* Header Banner */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/40 dark:bg-blue-900/20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Shield className="h-6 w-6 text-blue-600" />
+      <div className="relative overflow-hidden rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm dark:border-blue-900/40 dark:bg-blue-900/20">
+        {/* Background Glow */}
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-400/10 blur-3xl dark:bg-blue-400/5" />
+        <div className="absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-blue-600/10 blur-3xl dark:bg-blue-600/5" />
+
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm dark:bg-gray-900">
+              <Shield className="h-8 w-8 text-blue-600" />
+            </div>
             <div>
-              <h1 className="font-bold text-blue-950 dark:text-blue-100">
+              <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">
+                Authorized Access
+              </p>
+              <h1 className="text-2xl font-black text-blue-950 dark:text-blue-100">
                 Administrator Console
               </h1>
-              <p className="text-sm text-blue-800/80 dark:text-blue-200/80">
-                Logged in as {user.email}
+              <p className="mt-1 text-sm font-medium text-blue-800/60 dark:text-blue-200/60">
+                Management hub for {user.email}
               </p>
             </div>
           </div>
-          <TierBadge tier={user.tier} size="md" />
+          <div className="hidden sm:block">
+            <TierBadge tier={user.tier} size="md" />
+          </div>
         </div>
+      </div>
+
+      {/* Stats Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+          System Metrics
+        </h3>
+        <Link
+          href="/admin/analytics"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+        >
+          View Detailed Analytics
+          <ChevronRight className="h-4 w-4" />
+        </Link>
       </div>
 
       {/* Stats Row */}
@@ -810,10 +851,11 @@ export default function AdminDashboard() {
           value={
             apiUsageLoading
               ? "..."
-              : String(apiUsageSummary?.total_requests ?? 0)
+              : (apiUsageSummary?.total_requests ?? 0).toLocaleString()
           }
-          helper="Total API requests"
+          helper="Total platform API calls"
           icon={Activity}
+          color="blue"
         />
 
         <MetricCard
@@ -821,8 +863,9 @@ export default function AdminDashboard() {
           value={
             apiUsageLoading ? "..." : `${apiUsageSummary?.success_rate ?? 0}%`
           }
-          helper="Successful API calls"
+          helper="Request success percentage"
           icon={CheckCircle}
+          color="emerald"
         />
 
         <MetricCard
@@ -830,19 +873,23 @@ export default function AdminDashboard() {
           value={
             apiUsageLoading
               ? "..."
-              : String(apiUsageSummary?.failed_requests ?? 0)
+              : (apiUsageSummary?.failed_requests ?? 0).toLocaleString()
           }
-          helper="Failed API calls"
+          helper="API errors encountered"
           icon={AlertCircle}
+          color="rose"
         />
 
         <MetricCard
           label="Total Tokens"
           value={
-            apiUsageLoading ? "..." : String(apiUsageSummary?.total_tokens ?? 0)
+            apiUsageLoading 
+              ? "..." 
+              : (apiUsageSummary?.total_tokens ?? 0).toLocaleString()
           }
-          helper="Total token usage"
+          helper="LLM token consumption"
           icon={Zap}
+          color="amber"
         />
       </div>
 
@@ -856,19 +903,19 @@ export default function AdminDashboard() {
         {/* Right Column: Secondary Content */}
         <div className="space-y-6">
           {/* Simplified Pricing Card */}
-          <div className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-bold text-gray-900 dark:text-white">
+          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="font-black text-gray-950 dark:text-white">
                 Plan Reference
               </h3>
               <button
                 type="button"
                 onClick={() => openPlanEditor()}
                 disabled={availablePlans.length === 0}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline disabled:cursor-not-allowed disabled:text-gray-400"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 transition-colors hover:text-blue-700 disabled:text-gray-400"
               >
                 <Edit3 className="h-3.5 w-3.5" />
-                Edit Plans
+                Configure
               </button>
             </div>
 
@@ -906,9 +953,9 @@ export default function AdminDashboard() {
           </div>
 
           {/* Quick Tasks / Status */}
-          <div className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
-            <h3 className="mb-3 font-bold text-gray-900 dark:text-white">
-              System Logs
+          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <h3 className="mb-4 font-black text-gray-950 dark:text-white">
+              System Health
             </h3>
             <div className="space-y-3">
               <div className="flex gap-3 text-sm">

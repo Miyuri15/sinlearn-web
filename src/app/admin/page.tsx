@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { Settings } from "lucide-react";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 
 export default function AdminDashboardPage() {
@@ -23,7 +23,7 @@ export default function AdminDashboardPage() {
               href="/settings/general"
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
             >
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              <Settings className="h-4 w-4" aria-hidden="true" />
               Settings
             </Link>
           </div>

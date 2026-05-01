@@ -3,7 +3,15 @@
  * Uses centralized apiFetch with token refresh, caching, and offline support
  */
 
-import { ApiUsageSummary } from "@/types/admin";
+import {
+  ApiUsageByProvider,
+  ApiUsageByService,
+  ApiUsageFilters,
+  ApiUsageLogsResponse,
+  ApiUsageSummary,
+  ApiUsageTrendGroup,
+  ApiUsageTrendPoint,
+} from "@/types/admin";
 import { apiFetch, ApiError } from "./api/client";
 import { API_BASE_URL } from "./config";
 import {
@@ -353,6 +361,90 @@ export async function fetchAdminApiUsageSummary(params?: {
     : `${API_BASE_URL}/api/v1/admin/api-usage/summary`;
 
   return apiFetch<ApiUsageSummary>(url, {
+    method: "GET",
+  });
+}
+
+function buildApiUsageSearchParams(
+  params: ApiUsageFilters & {
+    page?: number;
+    page_size?: number;
+    group_by?: ApiUsageTrendGroup;
+  } = {},
+): URLSearchParams {
+  const searchParams = new URLSearchParams();
+
+  if (params.page) searchParams.set("page", String(params.page));
+  if (params.page_size) searchParams.set("page_size", String(params.page_size));
+  if (params.group_by) searchParams.set("group_by", params.group_by);
+  if (params.from_date) searchParams.set("from_date", params.from_date);
+  if (params.to_date) searchParams.set("to_date", params.to_date);
+  if (params.provider) searchParams.set("provider", params.provider);
+  if (params.service_name) searchParams.set("service_name", params.service_name);
+  if (params.model_name) searchParams.set("model_name", params.model_name);
+  if (params.status) searchParams.set("status", params.status);
+  if (params.user_id) searchParams.set("user_id", params.user_id);
+  if (params.session_id) searchParams.set("session_id", params.session_id);
+
+  return searchParams;
+}
+
+function buildAdminApiUsageUrl(
+  path: string,
+  params?: Parameters<typeof buildApiUsageSearchParams>[0],
+): string {
+  const searchParams = buildApiUsageSearchParams(params);
+  const queryString = searchParams.toString();
+  const baseUrl = `${API_BASE_URL}/api/v1/admin/api-usage/${path}`;
+
+  return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+}
+
+export async function fetchAdminApiUsageLogs(
+  params: ApiUsageFilters & {
+    page?: number;
+    page_size?: number;
+  } = {},
+): Promise<ApiUsageLogsResponse> {
+  return apiFetch<ApiUsageLogsResponse>(buildAdminApiUsageUrl("logs", params), {
+    method: "GET",
+  });
+}
+
+export async function fetchAdminApiUsageByService(
+  params: Pick<
+    ApiUsageFilters,
+    "from_date" | "to_date" | "provider" | "model_name"
+  > = {},
+): Promise<ApiUsageByService[]> {
+  return apiFetch<ApiUsageByService[]>(
+    buildAdminApiUsageUrl("by-service", params),
+    {
+      method: "GET",
+    },
+  );
+}
+
+export async function fetchAdminApiUsageByProvider(
+  params: Pick<
+    ApiUsageFilters,
+    "from_date" | "to_date" | "service_name" | "model_name"
+  > = {},
+): Promise<ApiUsageByProvider[]> {
+  return apiFetch<ApiUsageByProvider[]>(
+    buildAdminApiUsageUrl("by-provider", params),
+    {
+      method: "GET",
+    },
+  );
+}
+
+export async function fetchAdminApiUsageTrend(
+  params: ApiUsageFilters & {
+    group_by?: ApiUsageTrendGroup;
+  } = {},
+): Promise<ApiUsageTrendPoint[]> {
+  return apiFetch<ApiUsageTrendPoint[]>(buildAdminApiUsageUrl("trend", params), {
     method: "GET",
   });
 }
