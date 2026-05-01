@@ -66,6 +66,11 @@ class PricingCache {
     this.userExpiry = Date.now() + CACHE_DURATIONS.USER_PROFILE;
   }
 
+  clearUser(): void {
+    this.user = null;
+    this.userExpiry = 0;
+  }
+
   clearAll(): void {
     this.plans = null;
     this.adminPlans = null;
@@ -94,6 +99,10 @@ class PricingCache {
 }
 
 const pricingCache = new PricingCache();
+
+export function clearCurrentUserCache(): void {
+  pricingCache.clearUser();
+}
 
 /**
  * Hook: usePricingPlans

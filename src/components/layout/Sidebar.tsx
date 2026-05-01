@@ -22,7 +22,7 @@ import {
   logout as logoutLocal,
   setSelectedChatType,
 } from "@/lib/localStore";
-import { useCurrentUser } from "@/hooks/usePricing";
+import { clearCurrentUserCache, useCurrentUser } from "@/hooks/usePricing";
 import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
 import ActionButton from "@/components/sidebar/ActionButton";
 import FooterButton from "@/components/sidebar/FooterButton";
@@ -95,6 +95,7 @@ export default function Sidebar({
     } finally {
       // Clear local storage and redirect
       logoutLocal();
+      clearCurrentUserCache();
       setIsLogoutModalOpen(false);
       setIsLoggingOut(false);
       router.push("/auth/sign-in");

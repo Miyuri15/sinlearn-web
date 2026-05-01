@@ -12,7 +12,8 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 import { LogOut } from "lucide-react";
 import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
 import { signout } from "@/lib/api/auth";
-import { logout as logoutLocal } from "@/lib/localStore";
+import { isStoredAdmin, logout as logoutLocal } from "@/lib/localStore";
+import { clearCurrentUserCache, useCurrentUser } from "@/hooks/usePricing";
 
 const baseTabs = [
   { id: "general", label: "settings.general" },
@@ -31,6 +32,7 @@ export default function SettingsNav({ children }: Readonly<SettingsNavProps>) {
   const { t } = useTranslation("common");
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useCurrentUser();
   const [isTabTransitioning, setIsTabTransitioning] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -44,6 +46,7 @@ export default function SettingsNav({ children }: Readonly<SettingsNavProps>) {
       console.error("Signout API call failed:", error);
     } finally {
       logoutLocal();
+      clearCurrentUserCache();
       setIsLogoutModalOpen(false);
       setIsLoggingOut(false);
       router.push("/auth/sign-in");
@@ -52,7 +55,8 @@ export default function SettingsNav({ children }: Readonly<SettingsNavProps>) {
 
   // Extract active tab from pathname (/settings/[tab] -> tab)
   const activeTab = pathname.split("/").pop() || "general";
-  const tabs = baseTabs;
+  const isAdmin = user?.role === "admin" || isStoredAdmin();
+  const tabs = isAdmin ? baseTabs.filter((tab) => tab.id !== "plan") : baseTabs;
 
   useEffect(() => {
     // Skip artificial delay on initial mount; apply only between tab changes.
@@ -69,12 +73,24 @@ export default function SettingsNav({ children }: Readonly<SettingsNavProps>) {
     return () => globalThis.clearTimeout(timeoutId);
   }, [pathname]);
 
+  useEffect(() => {
+    if (isAdmin && activeTab === "plan") {
+      router.replace("/settings/general");
+    }
+  }, [activeTab, isAdmin, router]);
+
   return (
     <>
       {/* Header - Sticky */}
       <div className="sticky top-0 bg-linear-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 sm:-mx-6 md:-mx-8 lg:-mx-10 px-4 sm:px-6 md:px-8 lg:px-10 z-10">
         <button
-          onClick={() => router.push("/chat")}
+          onClick={() => {
+            if (isAdmin) {
+              router.back();
+            } else {
+              router.push("/chat");
+            }
+          }}
           className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition mb-4 text-sm sm:text-base"
         >
           <svg

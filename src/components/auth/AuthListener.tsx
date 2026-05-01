@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import UpdatedToast from "@/components/ui/updatedtoast";
+import { clearCurrentUserCache } from "@/hooks/usePricing";
 
 /**
  * AuthListener - Listens for auth:logout events and redirects to sign-in
@@ -15,6 +16,7 @@ export default function AuthListener() {
 
   useEffect(() => {
     const handleLogout = () => {
+      clearCurrentUserCache();
       try {
         const key = "sinlearn_last_redirect_to_signin";
         const now = Date.now();

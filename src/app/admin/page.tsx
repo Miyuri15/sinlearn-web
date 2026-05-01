@@ -11,7 +11,7 @@ export default function AdminDashboardPage() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
-              SinLearn Admin
+              SinhalaLearn Admin
             </p>
             <h1 className="mt-1 text-2xl font-bold text-gray-950 dark:text-white sm:text-3xl">
               Dashboard
@@ -19,13 +19,6 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/chat"
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
-            >
-              <MessageSquare className="h-4 w-4" aria-hidden="true" />
-              Chat
-            </Link>
             <Link
               href="/settings/general"
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
