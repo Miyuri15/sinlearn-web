@@ -954,6 +954,7 @@ export default function ChatPage({
         modality: "voice",
         content: "🔄 Processing voice...", // Will be replaced with transcription
         resource_ids: uploadedResources.map((r) => r.resource_id),
+        grade_level: responseLevel,
       } as ChatMessage;
 
       // Add to messages
@@ -981,6 +982,7 @@ export default function ChatPage({
             modality: "voice",
             content: transcribedText,
             resource_ids: currentResourceIds,
+            grade_level: responseLevel,
           } as ChatMessage;
           return newMessages;
         });
@@ -1023,6 +1025,7 @@ export default function ChatPage({
           text: transcribedText, // Use the transcribed text instead of audio
           session_id: activeSessionId ?? "undefined",
           resource_ids: uploadedResources.map((r) => r.resource_id),
+          grade_level: responseLevel,
         });
 
         // Sync session if voice-first
@@ -1032,18 +1035,19 @@ export default function ChatPage({
         }
 
         // Step 6: Replace the thinking message with the actual answer
-        setLearningMessages((prev) => {
-          const newMessages = [...prev];
-          // Remove the thinking message and add the real assistant message
-          newMessages.pop(); // Remove thinking message
-          newMessages.push({
-            role: "assistant",
-            modality: "text",
-            content: data.answer,
-            safety_summary: data.safety_summary,
-          } as ChatMessage);
-          return newMessages;
-        });
+          setLearningMessages((prev) => {
+            const newMessages = [...prev];
+            // Remove the thinking message and add the real assistant message
+            newMessages.pop(); // Remove thinking message
+            newMessages.push({
+              role: "assistant",
+              modality: "text",
+              content: data.answer,
+              safety_summary: data.safety_summary,
+              grade_level: data?.grade_level ?? responseLevel,
+            } as ChatMessage);
+            return newMessages;
+          });
       } catch (qaError) {
         console.error("QA processing failed", qaError);
 
@@ -2364,7 +2368,6 @@ export default function ChatPage({
                 }}
               />
             )}
-            {!pendingVoice && (
               <div className="mb-3">
                 <label className="mr-2 text-sm">{t("response_level")}:</label>
                 <select
@@ -2378,7 +2381,6 @@ export default function ChatPage({
                   <option value="university">University Level</option>
                 </select>
               </div>
-            )}
 
             {/* Processing progress banner */}
             {isAutoProcessing && lastProgress && (

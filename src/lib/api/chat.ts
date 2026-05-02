@@ -130,6 +130,7 @@ export type VoiceQAResponse = {
   answer: string;
   retrieved_chunks?: any[];
   safety_summary?: SafetySummary;
+  grade_level?: string;
 };
 
 export type GeneratedMessageResponse = {
@@ -175,8 +176,9 @@ export async function postVoiceQAFromText(params: {
   text: string;
   session_id: string;
   resource_ids?: string[];
+  grade_level?: string;
 }): Promise<VoiceQAResponse> {
-  const { text, session_id, resource_ids = [] } = params;
+  const { text, session_id, resource_ids = [], grade_level } = params;
 
   const formData = new FormData();
   formData.append("text", text);  // Send text instead of audio
@@ -184,6 +186,10 @@ export async function postVoiceQAFromText(params: {
 
   if (resource_ids.length > 0) {
     formData.append("resource_ids", resource_ids.join(","));
+  }
+
+  if (grade_level) {
+    formData.append("grade_level", grade_level);
   }
 
   return apiFetch<VoiceQAResponse>(
