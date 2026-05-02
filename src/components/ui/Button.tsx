@@ -11,7 +11,7 @@ export default function Button({
   className = "",
   ...props 
 }: ButtonProps) {
-  const baseClasses = "w-full py-3 px-4 rounded-xl font-medium transition-colors duration-200";
+  const baseClasses = "w-full py-3 px-4 rounded-xl font-medium transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed";
   
   const variants = {
     primary: "bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600",

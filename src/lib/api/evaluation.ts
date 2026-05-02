@@ -1,0 +1,1274 @@
+import { API_BASE_URL } from "../config";
+import { getAccessToken } from "../localStore";
+import { OfflineError, apiFetch, assertOnline, isLikelyNetworkError } from "./client";
+import type {
+  MarkingSchema,
+  MarkingSchemaQuestion,
+  PaperPart,
+  Question,
+  SubQuestion,
+} from "@/lib/models/chat";
+
+export type EvaluationResourceType =
+  | "question_paper"
+  | "syllabus"
+  | "answer_sheet";
+
+export type UploadedResource = {
+  resource_id: string;
+  filename?: string;
+  size_bytes?: number;
+  mime_type?: string;
+};
+
+function coerceBoolean(value: unknown, fallback = false): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return fallback;
+}
+
+function extractUploads(payload: any): UploadedResource[] {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload as UploadedResource[];
+
+  const candidates = [
+    payload.uploads,
+    payload.uploaded_resources,
+    payload.uploaded,
+    payload.resources,
+    payload.data,
+    payload.result,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate as UploadedResource[];
+    if (candidate && Array.isArray(candidate.uploads))
+      return candidate.uploads as UploadedResource[];
+    if (candidate && Array.isArray(candidate.resources))
+      return candidate.resources as UploadedResource[];
+  }
+
+  return [];
+}
+
+export async function uploadEvaluationResources(params: {
+  chatSessionId?: string;
+  resourceType?: EvaluationResourceType;
+  files: File[];
+}): Promise<UploadedResource[]> {
+  const { chatSessionId, resourceType, files } = params;
+  const formData = new FormData();
+  files.forEach((f) => formData.append("files", f));
+
+  let url = `${API_BASE_URL}/api/v1/resources/upload`;
+  const queryParams = new URLSearchParams();
+
+  if (resourceType) {
+    queryParams.append("resource_type", resourceType);
+  }
+  if (chatSessionId) {
+    queryParams.append("chat_session_id", chatSessionId);
+  }
+
+  const queryString = queryParams.toString();
+  if (queryString) {
+    url += `?${queryString}`;
+  }
+
+  const payload = await apiFetch<any>(
+    url,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  return extractUploads(payload);
+}
+
+export type RubricCriterion = {
+  criterion: string;
+  weight_percentage: number;
+};
+
+export type CreateRubricPayload = {
+  name: string;
+  rubric_type: "system" | "custom";
+  criteria: RubricCriterion[];
+  description?: string;
+  source?: string;
+};
+
+function extractRubricId(payload: any): string | null {
+  if (!payload) return null;
+  const direct = payload.id || payload.rubric_id || payload.rubricId;
+  if (typeof direct === "string") return direct;
+
+  const nestedCandidates = [payload.rubric, payload.data, payload.result];
+  for (const n of nestedCandidates) {
+    if (!n) continue;
+    const nested = n.id || n.rubric_id || n.rubricId;
+    if (typeof nested === "string") return nested;
+  }
+
+  return null;
+}
+
+export async function createRubric(params: {
+  chatSessionId: string;
+  payload: CreateRubricPayload;
+}): Promise<string> {
+  const { chatSessionId, payload } = params;
+
+  const resp = await apiFetch<any>(
+    `${API_BASE_URL}/api/v1/rubrics/?chat_session_id=${encodeURIComponent(
+      chatSessionId
+    )}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+
+  const rubricId = extractRubricId(resp);
+  if (!rubricId) {
+    throw new Error("Rubric creation succeeded but no rubric id returned");
+  }
+
+  return rubricId;
+}
+
+export async function attachRubricToSession(params: {
+  chatSessionId: string;
+  rubricId: string;
+}): Promise<void> {
+  const { chatSessionId, rubricId } = params;
+  await apiFetch<void>(`${API_BASE_URL}/api/v1/chat/sessions/${chatSessionId}`, {
+    method: "PUT",
+    body: JSON.stringify({ rubric_id: rubricId }),
+  });
+}
+
+export async function detachRubricFromSession(params: {
+  chatSessionId: string;
+}): Promise<void> {
+  const { chatSessionId } = params;
+  await apiFetch<void>(`${API_BASE_URL}/api/v1/chat/sessions/${chatSessionId}`, {
+    method: "PUT",
+    body: JSON.stringify({ rubric_id: null }),
+  });
+}
+
+export async function removeAttachedRubricFromSession(params: {
+  chatSessionId: string;
+}): Promise<void> {
+  const { chatSessionId } = params;
+  await apiFetch<void>(
+    `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(chatSessionId)}/rubric`,
+    { method: "DELETE" }
+  );
+}
+
+export async function removeAttachedResourceFromSession(params: {
+  chatSessionId: string;
+  resourceType: "syllabus" | "question_paper" | "answer_sheet";
+}): Promise<void> {
+  const { chatSessionId, resourceType } = params;
+  await apiFetch<void>(
+    `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(
+      chatSessionId
+    )}/resources/${encodeURIComponent(resourceType)}`,
+    { method: "DELETE" }
+  );
+}
+
+export type ChatSessionDetails = {
+  id: string;
+  rubric_id?: string | null;
+  resources?: any[];
+  question_paper?: any;
+  syllabus?: any;
+};
+
+export async function getRubricById(rubricId: string) {
+  return apiFetch<any>(`${API_BASE_URL}/api/v1/rubrics/${encodeURIComponent(rubricId)}`);
+}
+
+export async function getChatSessionDetails(sessionId: string) {
+  return apiFetch<ChatSessionDetails>(
+    `${API_BASE_URL}/api/v1/chat/sessions/${sessionId}`
+  );
+}
+
+export async function listChatSessionResources(sessionId: string) {
+  return apiFetch<any[]>(`${API_BASE_URL}/api/v1/chat/sessions/${sessionId}/resources`);
+}
+
+function coerceNumber(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return fallback;
+}
+
+function normalizePaperConfigPayload(payload: any): PaperPart[] {
+  const raw =
+    payload?.paper_config ??
+    payload?.paperConfig ??
+    payload?.config ??
+    payload?.data?.paper_config ??
+    payload?.data?.paperConfig ??
+    payload?.result?.paper_config ??
+    payload?.result?.paperConfig ??
+    payload;
+
+  if (!raw) return [];
+  const parts = Array.isArray(raw) ? raw : raw?.paper_parts ?? raw?.parts ?? [];
+  if (!Array.isArray(parts)) return [];
+
+  return parts.map((p: any, partIndex: number) => {
+    const partId = String(p?.id ?? p?.part_id ?? `ocr-part-${partIndex}`);
+    const name = String(
+      p?.paper_part ??
+      p?.paperPart ??
+      p?.name ??
+      p?.title ??
+      p?.part_name ??
+      `Paper_${partIndex + 1}`
+    );
+    const totalMarks = coerceNumber(p?.totalMarks ?? p?.total_marks ?? p?.total ?? p?.marks, 0);
+    const mainQuestionsCount = coerceNumber(
+      p?.total_main_questions ??
+      p?.mainQuestionsCount ??
+      p?.main_questions_count ??
+      p?.main_questions ??
+      p?.mainQuestions,
+      0
+    );
+    const selectionRules = p?.selection_rules ?? p?.selectionRules ?? null;
+    const chooseAny =
+      selectionRules && typeof selectionRules === "object"
+        ? coerceNumber(
+          (selectionRules as any).choose_any ??
+          (selectionRules as any).chooseAny ??
+          (selectionRules as any).choose,
+          0
+        )
+        : 0;
+    const requiredQuestionsCount =
+      chooseAny > 0
+        ? chooseAny
+        : coerceNumber(
+          p?.requiredQuestionsCount ??
+          p?.required_questions_count ??
+          p?.required_questions ??
+          p?.requiredQuestions,
+          0
+        );
+
+    const rawQuestions = Array.isArray(p?.questions)
+      ? p.questions
+      : Array.isArray(p?.main_questions)
+        ? p.main_questions
+        : Array.isArray(p?.items)
+          ? p.items
+          : [];
+
+    const questions: Question[] = rawQuestions.map((q: any, qIndex: number) => {
+      const questionId = String(q?.id ?? q?.question_id ?? `ocr-q-${partIndex}-${qIndex}`);
+      const label = String(q?.label ?? q?.name ?? q?.question_label ?? q?.question_no ?? `Q${qIndex + 1}`);
+
+      const rawSub = Array.isArray(q?.subQuestions)
+        ? q.subQuestions
+        : Array.isArray(q?.sub_questions)
+          ? q.sub_questions
+          : Array.isArray(q?.subparts)
+            ? q.subparts
+            : [];
+
+      const subQuestions: SubQuestion[] = rawSub.map((sq: any, sqIndex: number) => ({
+        id: String(sq?.id ?? sq?.sub_question_id ?? `ocr-sq-${partIndex}-${qIndex}-${sqIndex}`),
+        label: String(sq?.label ?? sq?.name ?? sq?.sub_label ?? String.fromCharCode(97 + sqIndex)),
+        marks: coerceNumber(sq?.marks ?? sq?.mark ?? sq?.score ?? 0, 0),
+      }));
+
+      const hasSubQuestions =
+        typeof q?.hasSubQuestions === "boolean"
+          ? q.hasSubQuestions
+          : typeof q?.has_sub_questions === "boolean"
+            ? q.has_sub_questions
+            : subQuestions.length > 0;
+
+      const marks = hasSubQuestions
+        ? subQuestions.reduce((sum, s) => sum + (s.marks || 0), 0)
+        : coerceNumber(q?.marks ?? q?.mark ?? q?.score ?? 0, 0);
+
+      return {
+        id: questionId,
+        label,
+        marks,
+        hasSubQuestions,
+        subQuestions,
+      };
+    });
+
+    return {
+      id: partId,
+      name,
+      totalMarks,
+      mainQuestionsCount: mainQuestionsCount || questions.length,
+      requiredQuestionsCount: requiredQuestionsCount || 0,
+      questions,
+    };
+  });
+}
+
+function normalizePaperQuestionsPayload(payload: any): PaperPart[] {
+  if (!payload) return [];
+
+  const root =
+    payload?.data ??
+    payload?.result ??
+    payload?.paper_structure ??
+    payload?.paperStructure ??
+    payload;
+
+  const rawParts = Array.isArray(root)
+    ? root
+    : Array.isArray(root?.parts)
+      ? root.parts
+      : Array.isArray(root?.paper_parts)
+        ? root.paper_parts
+        : Array.isArray(root?.sections)
+          ? root.sections
+          : Array.isArray(root?.paperParts)
+            ? root.paperParts
+            : [];
+
+  if (!Array.isArray(rawParts)) return [];
+
+  return rawParts.map((p: any, partIndex: number) => {
+    const partId = String(p?.id ?? p?.part_id ?? `qs-part-${partIndex}`);
+    const name = String(
+      p?.name ??
+      p?.part_name ??
+      p?.title ??
+      p?.section ??
+      p?.section_name ??
+      `Part ${partIndex + 1}`
+    );
+
+    const totalMarks = coerceNumber(
+      p?.totalMarks ?? p?.total_marks ?? p?.marks ?? p?.total ?? 0,
+      0
+    );
+
+    const mainQuestionsCount = coerceNumber(
+      p?.mainQuestionsCount ?? p?.main_questions ?? p?.main_question_count ?? p?.questions_count ?? 0,
+      0
+    );
+
+    const requiredQuestionsCount = coerceNumber(
+      p?.requiredQuestionsCount ?? p?.required_questions ?? p?.choose ?? p?.choose_count ?? 0,
+      0
+    );
+
+    const rawQuestions = Array.isArray(p?.questions)
+      ? p.questions
+      : Array.isArray(p?.main_questions)
+        ? p.main_questions
+        : Array.isArray(p?.items)
+          ? p.items
+          : Array.isArray(p?.question_structure)
+            ? p.question_structure
+            : Array.isArray(p?.questionStructure)
+              ? p.questionStructure
+              : [];
+
+    const questions: Question[] = (rawQuestions as any[]).map((q: any, qIndex: number) => {
+      const questionId = String(q?.id ?? q?.question_id ?? `qs-q-${partIndex}-${qIndex}`);
+      const label = String(
+        q?.label ??
+        q?.name ??
+        q?.question_label ??
+        q?.question_no ??
+        q?.question_number ??
+        q?.question ??
+        `Q${qIndex + 1}`
+      );
+
+      const rawSub = Array.isArray(q?.subQuestions)
+        ? q.subQuestions
+        : Array.isArray(q?.sub_questions)
+          ? q.sub_questions
+          : Array.isArray(q?.subparts)
+            ? q.subparts
+            : Array.isArray(q?.sub)
+              ? q.sub
+              : [];
+
+      const subQuestions: SubQuestion[] = (rawSub as any[]).map((sq: any, sqIndex: number) => ({
+        id: String(sq?.id ?? sq?.sub_question_id ?? `qs-sq-${partIndex}-${qIndex}-${sqIndex}`),
+        label: String(
+          sq?.label ?? sq?.name ?? sq?.sub_label ?? sq?.sub_question_no ?? String.fromCharCode(97 + sqIndex)
+        ),
+        marks: coerceNumber(sq?.marks ?? sq?.mark ?? sq?.score ?? 0, 0),
+      }));
+
+      const hasSubQuestions =
+        typeof q?.hasSubQuestions === "boolean"
+          ? q.hasSubQuestions
+          : typeof q?.has_sub_questions === "boolean"
+            ? q.has_sub_questions
+            : subQuestions.length > 0;
+
+      const marks = hasSubQuestions
+        ? subQuestions.reduce((sum, s) => sum + (s.marks || 0), 0)
+        : coerceNumber(q?.marks ?? q?.mark ?? q?.score ?? 0, 0);
+
+      return {
+        id: questionId,
+        label,
+        marks,
+        hasSubQuestions,
+        subQuestions,
+      };
+    });
+
+    return {
+      id: partId,
+      name,
+      totalMarks,
+      mainQuestionsCount: mainQuestionsCount || questions.length,
+      requiredQuestionsCount: requiredQuestionsCount || 0,
+      questions,
+    };
+  });
+}
+
+type FlatQuestionApi = {
+  id?: string;
+  question_id?: string;
+  question_number?: string | number;
+  question_text?: string;
+  max_marks?: number;
+  sub_questions?: Array<{
+    id?: string;
+    sub_question_id?: string;
+    label?: string;
+    max_marks?: number;
+    sub_question_text?: string;
+    children?: any[];
+  }>;
+};
+
+function looksLikeFlatQuestionsArray(payload: any): payload is FlatQuestionApi[] {
+  if (!Array.isArray(payload) || payload.length === 0) return false;
+  const first = payload[0];
+  return (
+    first &&
+    ("question_number" in first || "question_text" in first || "max_marks" in first)
+  );
+}
+
+function normalizeFlatQuestions(payload: any): Question[] {
+  if (!looksLikeFlatQuestionsArray(payload)) return [];
+
+  return payload.map((q: FlatQuestionApi, idx: number) => {
+    const qNo = q?.question_number ?? idx + 1;
+    const qNoStr = String(qNo);
+    const label = qNoStr.toLowerCase().startsWith("q") ? qNoStr : `Q${qNoStr}`;
+
+    const rawSubs = Array.isArray(q?.sub_questions) ? q.sub_questions : [];
+    const subQuestions: SubQuestion[] = rawSubs.map((sq, sidx) => ({
+      id: String(sq?.id ?? sq?.sub_question_id ?? `qs-sq-${idx}-${sidx}`),
+      label: String(sq?.label ?? String.fromCharCode(97 + sidx)),
+      marks: coerceNumber(sq?.max_marks ?? 0, 0),
+    }));
+
+    const hasSubQuestions = subQuestions.length > 0;
+    const marks = hasSubQuestions
+      ? subQuestions.reduce((sum, s) => sum + (s.marks || 0), 0)
+      : coerceNumber(q?.max_marks ?? 0, 0);
+
+    return {
+      id: String(q?.id ?? q?.question_id ?? `qs-q-${idx}`),
+      label,
+      marks,
+      hasSubQuestions,
+      subQuestions,
+    };
+  });
+}
+
+function sortQuestionsByNumber(questions: Question[]): Question[] {
+  const parse = (label: string) => {
+    const m = String(label).match(/(\d+)/);
+    return m ? Number(m[1]) : Number.NaN;
+  };
+  return [...questions].sort((a, b) => {
+    const na = parse(a.label);
+    const nb = parse(b.label);
+    if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+    return a.label.localeCompare(b.label);
+  });
+}
+
+function smartSortQuestions(flatQuestions: Question[], paperConfigParts: PaperPart[]): Question[] {
+  // 1. Partition
+  const simple = sortQuestionsByNumber(flatQuestions.filter(q => !q.hasSubQuestions));
+  const complex = sortQuestionsByNumber(flatQuestions.filter(q => q.hasSubQuestions));
+
+  // If we don't have distinct groups, or config is missing, just return numeric sort
+  if (simple.length === 0 || complex.length === 0 || paperConfigParts.length === 0) {
+    return sortQuestionsByNumber(flatQuestions);
+  }
+
+  // 2. Generate candidates
+  const candidates = [
+    { name: 'simple_first', qs: [...simple, ...complex] },
+    { name: 'complex_first', qs: [...complex, ...simple] },
+  ];
+
+  // 3. Score
+  let bestOrder = candidates[0].qs;
+  let bestScore = -1;
+
+  for (const cand of candidates) {
+    let cursor = 0;
+    let totalScore = 0;
+    let partsChecked = 0;
+
+    for (const part of paperConfigParts) {
+      const count = part.mainQuestionsCount || 0;
+      if (count <= 0) continue;
+
+      const slice = cand.qs.slice(cursor, cursor + count);
+      cursor += count;
+
+      if (slice.length === 0) break;
+
+      // Calculate homogeneity: 
+      // 1.0 if all simple OR all complex
+      // < 1.0 if mixed
+      const simpleCount = slice.filter(q => !q.hasSubQuestions).length;
+      const complexCount = slice.filter(q => q.hasSubQuestions).length;
+
+      const majority = Math.max(simpleCount, complexCount);
+      const homogeneity = majority / slice.length;
+
+      totalScore += homogeneity;
+      partsChecked++;
+    }
+
+    const avgScore = partsChecked > 0 ? totalScore / partsChecked : 0;
+    console.log(`SmartSort candidate ${cand.name}: score=${avgScore}`);
+
+    if (avgScore > bestScore) {
+      bestScore = avgScore;
+      bestOrder = cand.qs;
+    }
+  }
+
+  // If ambiguous (scores equal), prefer simple_first as it's the standard convention (Paper I = MCQ/Short)
+  return bestOrder;
+}
+
+function splitFlatQuestionsIntoParts(params: {
+  paperConfigParts: PaperPart[];
+  flatQuestions: Question[];
+}): PaperPart[] {
+  const { paperConfigParts, flatQuestions } = params;
+  if (!Array.isArray(paperConfigParts) || paperConfigParts.length === 0) {
+    return [];
+  }
+
+  // Use smart sort to align questions with parts
+  const sorted = smartSortQuestions(flatQuestions, paperConfigParts);
+  let cursor = 0;
+
+  return paperConfigParts.map((p, idx) => {
+    const take = Math.max(0, p.mainQuestionsCount || 0);
+    const slice = take > 0 ? sorted.slice(cursor, cursor + take) : [];
+    cursor += slice.length;
+
+    // If counts don't add up, put leftovers into the last part.
+    const questions =
+      idx === paperConfigParts.length - 1 && cursor < sorted.length
+        ? [...slice, ...sorted.slice(cursor)]
+        : slice;
+
+    if (idx === paperConfigParts.length - 1) {
+      cursor = sorted.length;
+    }
+
+    return {
+      id: p.id,
+      name: p.name,
+      totalMarks: p.totalMarks,
+      mainQuestionsCount: p.mainQuestionsCount,
+      requiredQuestionsCount: p.requiredQuestionsCount,
+      questions,
+    };
+  });
+}
+
+function normalizeMatchKey(s: unknown): string {
+  return String(s ?? "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findQuestionByLabel(questions: Question[], label: string): Question | undefined {
+  const key = normalizeMatchKey(label);
+  if (!key) return undefined;
+  return questions.find((q) => normalizeMatchKey(q.label) === key);
+}
+
+export function mergePaperConfigWithQuestionStructure(params: {
+  paperConfigParts: PaperPart[];
+  questionStructureParts: PaperPart[];
+}): PaperPart[] {
+  const { paperConfigParts, questionStructureParts } = params;
+  if (!Array.isArray(paperConfigParts) || paperConfigParts.length === 0) {
+    return Array.isArray(questionStructureParts) ? questionStructureParts : [];
+  }
+  if (!Array.isArray(questionStructureParts) || questionStructureParts.length === 0) {
+    return paperConfigParts;
+  }
+
+  return paperConfigParts.map((basePart, partIndex) => {
+    const matched =
+      questionStructureParts.find((p) => p.id === basePart.id) ??
+      questionStructureParts.find((p) => normalizeMatchKey(p.name) === normalizeMatchKey(basePart.name)) ??
+      questionStructureParts[partIndex];
+
+    if (!matched) return basePart;
+
+    const mergedQuestions: Question[] =
+      basePart.questions && basePart.questions.length > 0
+        ? basePart.questions.map((baseQ) => {
+          const q2 =
+            matched.questions.find((q) => q.id === baseQ.id) ??
+            findQuestionByLabel(matched.questions, baseQ.label);
+
+          if (!q2) return baseQ;
+
+          // Keep label/id from base (user-visible), but pull marks allocations from structure.
+          return {
+            ...baseQ,
+            marks: typeof q2.marks === "number" ? q2.marks : baseQ.marks,
+            hasSubQuestions: q2.hasSubQuestions ?? baseQ.hasSubQuestions,
+            subQuestions: Array.isArray(q2.subQuestions) && q2.subQuestions.length > 0 ? q2.subQuestions : baseQ.subQuestions,
+          };
+        })
+        : matched.questions;
+
+    return {
+      ...basePart,
+      // Prefer base counts/totals (from paper-config), but fall back if missing.
+      totalMarks: basePart.totalMarks || matched.totalMarks,
+      mainQuestionsCount: basePart.mainQuestionsCount || matched.mainQuestionsCount,
+      requiredQuestionsCount: basePart.requiredQuestionsCount || matched.requiredQuestionsCount,
+      questions: mergedQuestions,
+    };
+  });
+}
+
+export async function getPaperConfigFromOCR(params: {
+  chatSessionId: string;
+}): Promise<PaperPart[]> {
+  const { chatSessionId } = params;
+  const payload = await apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(chatSessionId)}/paper-config`,
+    { method: "GET" }
+  );
+  return normalizePaperConfigPayload(payload);
+}
+
+export async function getPaperQuestionStructure(params: {
+  chatSessionId: string;
+  paperConfigParts?: PaperPart[];
+}): Promise<PaperPart[]> {
+  const { chatSessionId, paperConfigParts } = params;
+  const payload = await apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(chatSessionId)}/questions`,
+    { method: "GET" }
+  );
+
+  // Your backend currently returns a flat list of questions.
+  if (looksLikeFlatQuestionsArray(payload)) {
+    const flat = normalizeFlatQuestions(payload);
+    if (paperConfigParts && paperConfigParts.length > 0) {
+      return splitFlatQuestionsIntoParts({
+        paperConfigParts,
+        flatQuestions: flat,
+      });
+    }
+
+    // Fallback: one part containing all questions.
+    return [
+      {
+        id: "questions",
+        name: "Questions",
+        totalMarks: flat.reduce((sum, q) => sum + (q.marks || 0), 0),
+        mainQuestionsCount: flat.length,
+        requiredQuestionsCount: 0,
+        questions: flat,
+      },
+    ];
+  }
+
+  // Backward/alternative shape support (already grouped into parts)
+  return normalizePaperQuestionsPayload(payload);
+}
+
+export async function confirmPaperConfig(params: {
+  chatSessionId: string;
+  config: PaperPart[];
+}): Promise<void> {
+  const { chatSessionId, config } = params;
+
+  // Map back to backend expected shape
+  const payload = {
+    paper_parts: config.map((p) => ({
+      part_id: p.id,
+      paper_part: p.name,
+      total_marks: p.totalMarks,
+      main_questions_count: p.mainQuestionsCount,
+      selection_rules: {
+        choose_any: p.requiredQuestionsCount || 0,
+      },
+      questions: p.questions.map((q) => ({
+        question_id: q.id,
+        label: q.label,
+        marks: q.marks,
+        has_sub_questions: q.hasSubQuestions,
+        sub_questions: q.subQuestions.map((sq) => ({
+          sub_question_id: sq.id,
+          label: sq.label,
+          marks: sq.marks,
+        })),
+      })),
+    })),
+  };
+
+  await apiFetch<void>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(
+      chatSessionId
+    )}/paper-config/confirm`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+function normalizeMarkingSchemaQuestion(
+  payload: any,
+  index: number
+): MarkingSchemaQuestion {
+  return {
+    id: String(
+      payload?.id ??
+        payload?.question_id ??
+        payload?.questionId ??
+        `schema-question-${index}`
+    ),
+    questionId:
+      payload?.question_id ?? payload?.questionId ?? payload?.target_question_id,
+    questionNumber: String(
+      payload?.question_number ??
+        payload?.questionNumber ??
+        payload?.display_number ??
+        payload?.label ??
+        `Q${index + 1}`
+    ),
+    questionText: String(
+      payload?.question_text ??
+        payload?.questionText ??
+        payload?.text ??
+        payload?.question ??
+        ""
+    ),
+    referenceText: String(
+      payload?.reference_text ??
+        payload?.referenceText ??
+        payload?.reference ??
+        payload?.marking_reference ??
+        payload?.content ??
+        ""
+    ),
+    maxMarks:
+      typeof payload?.max_marks === "number"
+        ? payload.max_marks
+        : typeof payload?.maxMarks === "number"
+          ? payload.maxMarks
+          : undefined,
+    partName:
+      payload?.part_name ?? payload?.partName ?? payload?.paper_part ?? undefined,
+  };
+}
+
+function normalizeMarkingSchema(payload: any, sessionId: string): MarkingSchema {
+  const root =
+    payload?.data ??
+    payload?.result ??
+    payload?.marking_schema ??
+    payload?.markingSchema ??
+    payload ??
+    {};
+
+  const rawQuestions = Array.isArray(root?.questions)
+    ? root.questions
+    : Array.isArray(root?.references)
+      ? root.references
+      : Array.isArray(root)
+        ? root
+        : [];
+
+  return {
+    id: root?.id ?? root?.schema_id ?? root?.schemaId ?? undefined,
+    sessionId: String(
+      root?.session_id ?? root?.sessionId ?? root?.chat_session_id ?? sessionId
+    ),
+    resourceId:
+      root?.resource_id ?? root?.resourceId ?? root?.session_resource_id ?? null,
+    isConfirmed: coerceBoolean(
+      root?.is_confirmed ?? root?.confirmed ?? root?.isConfirmed,
+      false
+    ),
+    createdAt: root?.created_at ?? root?.createdAt ?? undefined,
+    updatedAt: root?.updated_at ?? root?.updatedAt ?? undefined,
+    questions: rawQuestions.map((item: any, index: number) =>
+      normalizeMarkingSchemaQuestion(item, index)
+    ),
+  };
+}
+
+export async function getSessionMarkingSchema(sessionId: string): Promise<MarkingSchema> {
+  const payload = await apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(
+      sessionId
+    )}/marking-schema`,
+    {
+      method: "GET",
+    }
+  );
+
+  return normalizeMarkingSchema(payload, sessionId);
+}
+
+export async function saveSessionMarkingSchema(params: {
+  sessionId: string;
+  questions: MarkingSchemaQuestion[];
+}): Promise<MarkingSchema> {
+  const { sessionId, questions } = params;
+  const payload = await apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(
+      sessionId
+    )}/marking-schema`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        questions: questions.map((question) => ({
+          id: question.id,
+          question_id: question.questionId,
+          question_number: question.questionNumber,
+          question_text: question.questionText,
+          reference_text: question.referenceText,
+          max_marks: question.maxMarks,
+          part_name: question.partName,
+        })),
+      }),
+    }
+  );
+
+  return normalizeMarkingSchema(payload, sessionId);
+}
+
+export async function confirmSessionMarkingSchema(params: {
+  sessionId: string;
+  questions: MarkingSchemaQuestion[];
+}): Promise<MarkingSchema> {
+  const { sessionId, questions } = params;
+  const payload = await apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(
+      sessionId
+    )}/marking-schema/confirm`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        questions: questions.map((question) => ({
+          id: question.id,
+          question_id: question.questionId,
+          question_number: question.questionNumber,
+          question_text: question.questionText,
+          reference_text: question.referenceText,
+          max_marks: question.maxMarks,
+          part_name: question.partName,
+        })),
+      }),
+    }
+  );
+
+  return normalizeMarkingSchema(payload, sessionId);
+}
+
+export async function deleteSessionMarkingSchema(sessionId: string): Promise<void> {
+  await apiFetch<void>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${encodeURIComponent(
+      sessionId
+    )}/marking-schema`,
+    {
+      method: "DELETE",
+    }
+  );
+}
+
+export type ProcessDocumentsRequest = {
+  chat_session_id: string;
+  answer_resource_ids: string[];
+};
+
+export type StartEvaluationRequest = {
+  chat_session_id: string;
+  answer_resource_ids: string[];
+};
+
+export async function processDocumentsStreamWithProgress(params: {
+  body: ProcessDocumentsRequest;
+  onEvent: (evt: StreamProgressEvent) => void;
+  signal?: AbortSignal;
+}): Promise<any> {
+  const { body, onEvent, signal } = params;
+  const token = getAccessToken();
+  const url = `${API_BASE_URL}/api/v1/evaluation/process-documents/stream`;
+
+  assertOnline(url);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || "Failed to process documents");
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) {
+    const text = await res.text();
+    onEvent({ raw: text, step: guessStepFromLine(text) });
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      const payload = trimmed.startsWith("data:")
+        ? trimmed.slice("data:".length).trim()
+        : trimmed;
+
+      onEvent({ raw: payload, step: guessStepFromLine(payload) });
+    }
+  }
+
+  const finalText = buffer.trim();
+  if (finalText) {
+    onEvent({ raw: finalText, step: guessStepFromLine(finalText) });
+    try {
+      return JSON.parse(finalText);
+    } catch {
+      return finalText;
+    }
+  }
+
+  return null;
+}
+
+export async function processDocumentsStream(
+  body: ProcessDocumentsRequest
+): Promise<string> {
+  const token = getAccessToken();
+  const url = `${API_BASE_URL}/api/v1/evaluation/process-documents/stream`;
+
+  assertOnline(url);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || "Failed to process documents");
+  }
+
+  return await res.text();
+}
+
+export type EvaluationProgressStep =
+  | "evaluating_answer_sheets"
+  | "calculating_marks"
+  | "generating_feedback"
+  | "preparing_report"
+  | "completed";
+
+export type StreamProgressEvent = {
+  raw: string;
+  step?: EvaluationProgressStep;
+};
+
+function guessStepFromLine(line: string): EvaluationProgressStep | undefined {
+  const s = line.toLowerCase();
+  if (s.includes("evaluat") && s.includes("answer")) return "evaluating_answer_sheets";
+  if (s.includes("calculat") && s.includes("mark")) return "calculating_marks";
+  if (s.includes("feedback")) return "generating_feedback";
+  if (s.includes("report")) return "preparing_report";
+  if (s.includes("complete") || s.includes("done") || s.includes("success")) return "completed";
+  return undefined;
+}
+
+export async function startEvaluationStream(params: {
+  payload: StartEvaluationRequest;
+  onEvent: (evt: StreamProgressEvent) => void;
+  signal?: AbortSignal;
+}): Promise<any> {
+  const { payload, onEvent, signal } = params;
+  const token = getAccessToken();
+  const url = `${API_BASE_URL}/api/v1/evaluation/start/stream`;
+
+  assertOnline(url);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+      signal,
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || "Failed to start evaluation stream");
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) {
+    // Fallback: no streaming body
+    const text = await res.text();
+    onEvent({ raw: text, step: guessStepFromLine(text) });
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    // Split on newlines, process complete lines
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      // SSE-like: "data: ..."
+      const data = trimmed.startsWith("data:")
+        ? trimmed.slice("data:".length).trim()
+        : trimmed;
+
+      onEvent({ raw: data, step: guessStepFromLine(data) });
+    }
+  }
+
+  // Attempt to parse final buffer as JSON result
+  const finalText = buffer.trim();
+  if (finalText) {
+    onEvent({ raw: finalText, step: guessStepFromLine(finalText) });
+    try {
+      return JSON.parse(finalText);
+    } catch {
+      return finalText;
+    }
+  }
+
+  return null;
+}
+
+export async function startEvaluation(params: StartEvaluationRequest): Promise<any> {
+  return apiFetch<any>(`${API_BASE_URL}/api/v1/evaluation/start`, {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export async function evaluateAnswerStream(params: {
+  answerId: string;
+  onEvent: (evt: StreamProgressEvent) => void;
+  signal?: AbortSignal;
+}): Promise<void> {
+  const { answerId, onEvent, signal } = params;
+  const token = getAccessToken();
+  const url = `${API_BASE_URL}/api/v1/evaluation/answers/${answerId}/evaluate/stream`;
+
+  assertOnline(url);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      signal,
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Failed to start evaluation stream for answer ${answerId}`);
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) {
+    // Fallback or immediate completion if no body
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      // SSE format: data: ...
+      const payload = trimmed.startsWith("data:")
+        ? trimmed.slice("data:".length).trim()
+        : trimmed;
+
+      onEvent({ raw: payload, step: guessStepFromLine(payload) });
+    }
+  }
+
+  // Process any remaining buffer
+  const finalText = buffer.trim();
+  if (finalText) {
+    const payload = finalText.startsWith("data:")
+      ? finalText.slice("data:".length).trim()
+      : finalText;
+    onEvent({ raw: payload, step: guessStepFromLine(payload) });
+  }
+}
+
+export async function getEvaluationResult(answerDocumentId: string): Promise<any> {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/answers/${answerDocumentId}/result`
+  );
+}
+
+export async function getEvaluationSessionResults(evaluationId: string): Promise<any> {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${evaluationId}/results`
+  );
+}
+
+export async function getEvaluationAnswerScore(answerId: string): Promise<any> {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/answers/${answerId}/score`
+  );
+}
+
+export async function getEvaluationAnswerFeedback(answerId: string): Promise<any> {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/answers/${answerId}/feedback`
+  );
+}
+
+export async function getAnswerDocuments(evaluationSessionId: string): Promise<any[]> {
+  return apiFetch<any[]>(
+    `${API_BASE_URL}/api/v1/evaluation/sessions/${evaluationSessionId}/answers`
+  );
+}
+
+export async function generateEvaluationFeedback(answerId: string): Promise<any> {
+  return apiFetch<any>(
+    `${API_BASE_URL}/api/v1/evaluation/answers/${answerId}/generate-feedback`,
+    {
+      method: "POST",
+    }
+  );
+}

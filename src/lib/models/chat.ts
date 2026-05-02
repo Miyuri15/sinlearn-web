@@ -2,8 +2,18 @@
  * Chat models and helpers
  * Centralized types for chat messages and chat objects used across the app.
  */
+// src/lib/models/chat.ts
+
+// Import XAI types
+import type { XAIExplanation } from "./xai";
 
 export type Role = "user" | "assistant" | "evaluation";
+
+export type SafetySummary = {
+  overall_severity: "low" | "medium" | "high";
+  confidence_score: number;
+  reliability: "fully_supported" | "partially_supported" | "likely_unsupported";
+};
 
 // Lightweight file representation for messages that include files
 export type FileMeta = {
@@ -14,6 +24,49 @@ export type FileMeta = {
   resource_id?: string;
 };
 
+export interface SubQuestion {
+  id: string;
+  label: string;
+  marks: number;
+}
+
+export interface Question {
+  id: string;
+  label: string;
+  marks: number;
+  hasSubQuestions: boolean;
+  subQuestions: SubQuestion[];
+}
+
+export interface PaperPart {
+  id: string;
+  name: string;
+  totalMarks: number;
+  mainQuestionsCount: number;
+  requiredQuestionsCount?: number;
+  questions: Question[];
+}
+
+export interface MarkingSchemaQuestion {
+  id: string;
+  questionId?: string;
+  questionNumber: string;
+  questionText: string;
+  referenceText: string;
+  maxMarks?: number;
+  partName?: string;
+}
+
+export interface MarkingSchema {
+  id?: string;
+  sessionId: string;
+  resourceId?: string | null;
+  isConfirmed: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  questions: MarkingSchemaQuestion[];
+}
+
 export type TextMessage = {
   id?: string;
   role: "user" | "assistant";
@@ -21,14 +74,24 @@ export type TextMessage = {
   file?: FileMeta | File;
   timestamp?: string;
   grade_level?: string;
+  parent_msg_id?: string;
+  safety_summary?: SafetySummary;
+  has_processing_log?: boolean;
+};
+
+// Add this new type - extending TextMessage for assistant messages with XAI
+export type AssistantTextMessage = TextMessage & {
+  role: "assistant"; // override to ensure it's assistant
+  xai_explanation?: XAIExplanation;
 };
 
 export type EvaluationInputContent = {
-  totalMarks: number;
-  mainQuestions: number;
-  requiredQuestions: number;
-  subQuestions: number;
+  totalMarks?: number;
+  mainQuestions?: number;
+  requiredQuestions?: number;
+  subQuestions?: number;
   subQuestionMarks?: number[] | number[][];
+  paperConfig?: PaperPart[];
 };
 
 export type EvaluationInputMessage = {
@@ -36,6 +99,7 @@ export type EvaluationInputMessage = {
   role: "user";
   content: EvaluationInputContent;
   timestamp?: string;
+  safety_summary?: SafetySummary;
 };
 
 export type EvaluationResultContent = {
@@ -54,10 +118,13 @@ export type EvaluationResultMessage = {
   role: "evaluation";
   content: EvaluationResultContent;
   timestamp?: string;
+  safety_summary?: SafetySummary;
 };
 
+// Update ChatMessage union to include the new type
 export type ChatMessage =
   | TextMessage
+  | AssistantTextMessage // 👈 add this
   | EvaluationInputMessage
   | EvaluationResultMessage;
 
@@ -104,13 +171,13 @@ export function addMessage(chat: Chat, message: ChatMessage): Chat {
 }
 
 export function isEvaluationResultMessage(
-  m: ChatMessage
+  m: ChatMessage,
 ): m is EvaluationResultMessage {
   return (m as EvaluationResultMessage).role === "evaluation";
 }
 
 export function isEvaluationInputMessage(
-  m: ChatMessage
+  m: ChatMessage,
 ): m is EvaluationInputMessage {
   // evaluation input messages are sent by user but carry structured content
   return (
@@ -125,4 +192,26 @@ export function isTextMessage(m: ChatMessage): m is TextMessage {
     (m as TextMessage).role === "user" ||
     (m as TextMessage).role === "assistant"
   );
+}
+
+// Add new helper functions at the bottom
+export function isAssistantTextMessage(
+  m: ChatMessage,
+): m is AssistantTextMessage {
+  return m.role === "assistant" && "xai_explanation" in m;
+}
+
+export function hasXAIExplanation(m: ChatMessage): boolean {
+  return (
+    m.role === "assistant" &&
+    "xai_explanation" in m &&
+    (m as any).xai_explanation !== undefined
+  );
+}
+
+export function getXAIExplanation(m: ChatMessage): XAIExplanation | undefined {
+  if (m.role === "assistant" && "xai_explanation" in m) {
+    return (m as AssistantTextMessage).xai_explanation;
+  }
+  return undefined;
 }

@@ -6,9 +6,11 @@ import Input from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
 import LanguageToggle from "@/components/language/LanguageToggle";
 import Link from "next/link";
-import { getLanguage, setAuthTokens } from "@/lib/localStore";
+import { getLanguage, setAuthTokens, setUser } from "@/lib/localStore";
 import { GraduationCap } from "lucide-react";
 import { signup, signin } from "@/lib/api/auth";
+import { fetchCurrentUser } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/api/client";
 
 interface AuthPageProps {
   readonly defaultTab?: "signin" | "signup";
@@ -129,6 +131,8 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
     setLoading(true);
 
     try {
+      let isAdmin = false;
+
       if (tab === "signup") {
         const res = await signup({
           email,
@@ -137,15 +141,41 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
         });
 
         setAuthTokens(res);
-        router.push("/chat");
       } else {
         const res = await signin(email, password);
 
         setAuthTokens(res);
-        router.push("/chat");
       }
-    } catch (err: any) {
-      setError(err.message || "Authentication failed");
+
+      try {
+        const profile = await fetchCurrentUser();
+        isAdmin = profile.role === "admin";
+        setUser({
+          id: profile.id,
+          name: profile.full_name || profile.email,
+          full_name: profile.full_name,
+          email: profile.email,
+          accountRole: profile.role || "user",
+          tier: profile.tier,
+        });
+      } catch (profileError) {
+        console.error("Failed to load signed-in user profile:", profileError);
+        setUser({
+          name: fullName || email,
+          email,
+          accountRole: "user",
+        });
+      }
+
+      router.push(isAdmin ? "/admin" : "/chat");
+    } catch (err: unknown) {
+      setError(
+        getApiErrorMessage(
+          err,
+          t("errors.authentication_failed"),
+          t("errors.offline"),
+        ),
+      );
     } finally {
       setLoading(false);
     }

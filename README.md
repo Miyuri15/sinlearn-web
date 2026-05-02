@@ -3,7 +3,6 @@
 🌐 **Live Web App**: https://web.sinhalalearn.online  
 🏠 **Project Home**: https://www.sinhalalearn.online
 
-
 [![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://web.sinhalalearn.online)
 ![Next.js](https://img.shields.io/badge/Next.js-16.x-black)
 ![React](https://img.shields.io/badge/React-19.x-61DAFB)
@@ -66,13 +65,13 @@ All non-`/auth/*` routes are protected by a client-side auth gate:
 - **Auth flows**: sign up, sign in, sign out
 - **Chat sessions**: create, rename, delete, and list chat sessions
 - **Modes**:
-	- **Learning** mode (chat-based learning support)
-	- **Evaluation** mode (document-driven evaluation)
+  - **Learning** mode (chat-based learning support)
+  - **Evaluation** mode (document-driven evaluation)
 - **Evaluation workflow UI**:
-	- Upload rubric/syllabus/question paper/answer sheets
-	- Trigger backend processing
-	- Enter marks and start evaluation
-	- View results, analytics, and local history
+  - Upload rubric/syllabus/question paper/answer sheets
+  - Trigger backend processing
+  - Enter marks and start evaluation
+  - View results, analytics, and local history
 - **File uploads**: PDF/DOC/DOCX/PNG/JPG/JPEG supported in the evaluation flow
 - **Voice interactions** (UI support): recording and voice Q&A requests (backend-dependent)
 - **UI/UX**: dark/light theme support, toasts, responsive sidebar panels
@@ -83,18 +82,18 @@ The **Evaluation** mode is a guided, document-driven flow implemented in the cha
 
 1. **Create / open an evaluation chat session**
 2. **Attach configuration inputs**
-	- Rubric (create/select and attach to the session)
-	- Syllabus
-	- Question paper / question structure
-	- Answer sheets (one or more files)
+   - Rubric (create/select and attach to the session)
+   - Syllabus
+   - Question paper / question structure
+   - Answer sheets (one or more files)
 3. **Process documents** (backend-driven OCR/extraction)
 4. **Enter marks** and confirm allocations
 5. **Start evaluation**
-	- Either via a standard request or a streaming endpoint that emits progress text
+   - Either via a standard request or a streaming endpoint that emits progress text
 6. **View results**
-	- Results screen supports per-question breakdown and bilingual feedback display when provided by backend
+   - Results screen supports per-question breakdown and bilingual feedback display when provided by backend
 7. **Analytics & history**
-	- The UI maintains a lightweight client-side evaluation history per session
+   - The UI maintains a lightweight client-side evaluation history per session
 
 ## Tech Stack
 
@@ -296,8 +295,8 @@ Evaluation history is also persisted per session via a key shaped like:
 
 - Supported languages: **English (`en`)** and **Sinhala (`si`)**
 - Translation files live in:
-	- `public/locales/en/*.json`
-	- `public/locales/si/*.json`
+  - `public/locales/en/*.json`
+  - `public/locales/si/*.json`
 - The runtime i18n loader fetches JSON from `/locales/{{lng}}/{{ns}}.json`.
 
 ## Authentication

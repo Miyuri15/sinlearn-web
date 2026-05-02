@@ -1,17 +1,32 @@
+// chat/page.tsx
+
 "use client";
 import { useTranslation } from "react-i18next";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import InputBar from "@/components/chat/InputBar";
 import EvaluationInputs from "@/components/chat/EvaluationInputs";
+import EvaluationMarkingSchemaModal from "@/components/chat/EvaluationMarkingSchemaModal";
 import EvaluationMarksModal from "@/components/chat/EvaluationMarksModal";
+import EvaluationStartScreen from "@/components/chat/EvaluationStartScreen";
+import EvaluationProgressScreen from "@/components/chat/EvaluationProgressScreen";
+import EvaluationResultsScreen, {
+  generateMockResult,
+} from "@/components/chat/EvaluationResultsScreen";
+import EvaluationAnalyticsScreen from "@/components/chat/EvaluationAnalyticsScreen";
+import EvaluationHistoryScreen, {
+  EvaluationSession,
+} from "@/components/chat/EvaluationHistoryScreen";
 import Sidebar from "@/components/layout/Sidebar";
 import RubricSidebar from "@/components/chat/RubricSidebar";
 import SyllabusPanelpage from "@/components/chat/SyllabusPanel";
 import QuestionsPanelpage from "@/components/chat/QuestionsPanelpage";
+import SessionResourcesModal, {
+  SessionResourceItem,
+} from "@/components/chat/SessionResourcesModal";
 import Header from "@/components/header/Header";
 import RecordBar from "@/components/chat/RecordBar";
-import { ChatMessage } from "@/lib/models/chat";
+import { ChatMessage, MarkingSchema, PaperPart } from "@/lib/models/chat";
 import MessagesList from "@/components/chat/MessagesList";
 import ChatAreaSkeleton from "@/components/chat/ChatAreaSkeleton";
 import SubMarksModal from "@/components/chat/SubMarksModal";
@@ -19,7 +34,10 @@ import EmptyState from "@/components/chat/EmptyState";
 import UpdatedToast from "@/components/ui/updatedtoast";
 import EditModal from "@/components/ui/EditModal";
 import DeleteModal from "@/components/ui/DeleteModal";
+import ProcessingLogsModal from "@/components/chat/ProcessingLogsModal";
+import ChatResourcePreviewModal from "@/components/chat/ChatResourcePreviewModal";
 import useChatInit from "@/hooks/useChatInit";
+import { useProcessingProgressWS } from "@/hooks/useProcessingProgressWS";
 import {
   postMessage,
   listChatSessions,
@@ -28,12 +46,82 @@ import {
   deleteChatSession,
   uploadResources,
   ResourceUploadResponse,
+  postVoiceQA,
+  generateMessageResponse,
+  createChatSession,
+  postVoiceTranscribe,
+  postVoiceQAFromText,
 } from "@/lib/api/chat";
+import {
+  processMessageAttachments,
+  processResourcesBatch,
+  detachAnswerScriptsFromSession,
+  detachAnswerSheetFromSession,
+  deleteResource,
+} from "@/lib/api/resource";
+import {
+  uploadEvaluationResources,
+  createRubric,
+  getChatSessionDetails,
+  attachRubricToSession,
+  EvaluationResourceType,
+  getRubricById,
+  listChatSessionResources,
+  removeAttachedRubricFromSession,
+  getPaperConfigFromOCR,
+  getPaperQuestionStructure,
+  confirmPaperConfig,
+  confirmSessionMarkingSchema,
+  deleteSessionMarkingSchema,
+  getSessionMarkingSchema,
+  mergePaperConfigWithQuestionStructure,
+  saveSessionMarkingSchema,
+  startEvaluation,
+  startEvaluationStream,
+  processDocumentsStreamWithProgress,
+  getAnswerDocuments,
+} from "@/lib/api/evaluation";
 import { formatDistanceToNow } from "date-fns";
 import { getSelectedChatType } from "@/lib/localStore";
+import { getApiErrorMessage, isOfflineError } from "@/lib/api/client";
+import {
+  readCachedSidebarChats,
+  SidebarChatItem,
+  writeCachedSidebarChats,
+} from "@/lib/sidebarChatCache";
+import {
+  readCachedSessionMessages,
+  removeCachedSessionMessages,
+  writeCachedSessionMessages,
+} from "@/lib/messageHistoryCache";
+import {
+  enqueueTextMessage,
+  getQueuedTextMessages,
+  OfflineTextMessage,
+  removeQueuedTextMessage,
+} from "@/lib/offlineMessageQueue";
+import { useConnectivityStatus } from "@/hooks/useConnectivityStatus";
 
 const RIGHT_PANEL_WIDTH_CLASS = "w-[85vw] md:w-[400px]";
 const RIGHT_PANEL_MARGIN_CLASS = "md:mr-[400px]";
+
+function queuedTextMessageToChatMessage(
+  message: OfflineTextMessage,
+): ChatMessage {
+  return {
+    id: message.id,
+    role: "user",
+    content: message.content,
+    grade_level: message.gradeLevel,
+    created_at: message.createdAt,
+    offline_status: "pending",
+    offline_files: message.files.map((item) => ({
+      name: item.name,
+      size: item.size,
+      type: item.type,
+    })),
+  } as ChatMessage;
+}
 
 interface ChatPageProps {
   chatId?: string;
@@ -45,9 +133,27 @@ export default function ChatPage({
   initialMessages = [],
 }: Readonly<ChatPageProps>) {
   const { t } = useTranslation("chat");
-  const chatType = getSelectedChatType() || "learning";
+  const apiErrorMessage = useCallback(
+    (error: unknown, key: string) =>
+      getApiErrorMessage(error, t(key), t("errors.offline")),
+    [t],
+  );
+
+  const [chatType, setChatType] = useState<"learning" | "evaluation">(
+    () => getSelectedChatType() || "learning",
+  );
   // ✅ ADD THIS: active server session id for the current chat
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const getCurrentQueueSessionId = useCallback(() => {
+    if (activeSessionId) return activeSessionId;
+    if (chatId && !chatId.startsWith("local-") && !chatId.startsWith("new-")) {
+      return chatId;
+    }
+    return null;
+  }, [activeSessionId, chatId]);
+
+  const evaluationHistoryStorageKey = (sessionId: string) =>
+    `sinlearn.evaluationHistory.v1.${sessionId}`;
 
   // STATES
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -56,11 +162,23 @@ export default function ChatPage({
   const [isRubricOpen, setIsRubricOpen] = useState(false);
   const [isSyllabusOpen, setIsSyllabusOpen] = useState(false);
   const [isQuestionsOpen, setIsQuestionsOpen] = useState(false);
+  const [isSessionResourcesModalOpen, setIsSessionResourcesModalOpen] =
+    useState(false);
+  const [isSessionResourcesLoading, setIsSessionResourcesLoading] =
+    useState(false);
+  const [sessionResources, setSessionResources] = useState<
+    SessionResourceItem[]
+  >([]);
+  const [sessionResourcesError, setSessionResourcesError] = useState<
+    string | null
+  >(null);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [message, setMessage] = useState("");
   const [creating, setCreating] = useState(false);
-  const [chats, setChats] = useState<SidebarChatItem[]>([]);
+  const [chats, setChats] = useState<SidebarChatItem[]>(() =>
+    readCachedSidebarChats(),
+  );
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState<
     "success" | "error" | "info" | "warning"
@@ -71,16 +189,125 @@ export default function ChatPage({
   const [editingTitle, setEditingTitle] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingChat, setDeletingChat] = useState<SidebarChatItem | null>(
-    null
+    null,
   );
   const [isDeletingChat, setIsDeletingChat] = useState(false);
+  const [isAutoProcessing, setIsAutoProcessing] = useState(false);
+  const [pendingVoice, setPendingVoice] = useState<Blob | null>(null);
+  const [isMessageGenerating, setIsMessageGenerating] = useState(false);
+  const [isSyncingMessages, setIsSyncingMessages] = useState(false);
 
-  type SidebarChatItem = {
-    id: string;
-    title: string;
-    type: "learning" | "evaluation";
-    time: string;
-  };
+  // Helper to ensure we have a session ID before uploading
+  const ensureSessionId = useCallback(async (): Promise<string | null> => {
+    if (activeSessionId) return activeSessionId;
+
+    // If no session, create one
+    try {
+      console.log("Creating new evaluation session on demand...");
+      const session = await createChatSession({
+        mode: "evaluation",
+        title: t("new_evaluation_chat"),
+      });
+      console.log("Created session:", session.id);
+
+      // Keep UI in evaluation mode (this route may not remount when using pushState)
+      setChatType("evaluation");
+
+      // Update state immediately
+      setActiveSessionId(session.id);
+
+      // Ensure the newly created session exists in sidebar list so it can be highlighted
+      setChats((prev) => {
+        const next = prev.filter((c) => c.id !== session.id);
+        const updated: SidebarChatItem[] = [
+          {
+            id: session.id,
+            title: session.title || t("new_evaluation_chat"),
+            type: "evaluation",
+            time: formatDistanceToNow(new Date(), { addSuffix: true }),
+          },
+          ...next,
+        ];
+        writeCachedSidebarChats(updated);
+        return updated;
+      });
+
+      // Update URL without full reload to keep state
+      window.history.pushState({}, "", `/chat/${session.id}`);
+
+      return session.id;
+    } catch (error) {
+      console.error("Failed to create session on demand", error);
+      setToastMessage(apiErrorMessage(error, "errors.create_chat_session"));
+      setToastType("error");
+      setIsToastVisible(true);
+      return null;
+    }
+  }, [activeSessionId]);
+
+  // Evaluation specific states
+  const [isEvaluationStarted, setIsEvaluationStarted] = useState(false);
+  const [evaluationStatus, setEvaluationStatus] = useState<
+    "setup" | "in_progress" | "results" | "analytics" | "history"
+  >("setup");
+  const [evaluationHistory, setEvaluationHistory] = useState<
+    EvaluationSession[]
+  >([]);
+  const [currentEvaluationResult, setCurrentEvaluationResult] = useState<
+    any[] | undefined
+  >(undefined);
+  const [analyticsResults, setAnalyticsResults] = useState<any[]>([]);
+  const [rubricSet, setRubricSet] = useState(false);
+  const [attachedRubricId, setAttachedRubricId] = useState<string | null>(null);
+  // Add state for evaluation session and answer resource ids
+  const [evaluationSessionId, setEvaluationSessionId] = useState<string | null>(
+    null,
+  );
+  const [evaluationAnswerResourceIds, setEvaluationAnswerResourceIds] =
+    useState<string[]>([]);
+  const [syllabusSet, setSyllabusSet] = useState(false);
+  const [syllabusCount, setSyllabusCount] = useState(0);
+  const [questionsSet, setQuestionsSet] = useState(false);
+  const [questionPaperName, setQuestionPaperName] = useState<
+    string | undefined
+  >(undefined);
+  const [processingStatus, setProcessingStatus] = useState<
+    "idle" | "processing" | "completed" | "needs_reprocessing"
+  >("idle");
+  const processingStatusRef = useRef(processingStatus);
+  const hydratedEvaluationSessionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    processingStatusRef.current = processingStatus;
+  }, [processingStatus]);
+
+  // WebSocket: listen for processing_progress events from the backend
+  const { connectionStatus, lastProgress, progressLog } =
+    useProcessingProgressWS();
+  const connectivityStatus = useConnectivityStatus(connectionStatus);
+  const [isProgressLogModalOpen, setIsProgressLogModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!lastProgress) return;
+    const { stage } = lastProgress;
+    if (stage === "Processing Completed") {
+      setProcessingStatus("completed");
+    } else {
+      setProcessingStatus("processing");
+    }
+  }, [lastProgress]);
+
+  // Sync activeSessionId with chatId prop
+  useEffect(() => {
+    console.log("ChatPage: chatId changed to", chatId);
+    if (chatId && !chatId.startsWith("local-")) {
+      console.log("ChatPage: Setting activeSessionId to", chatId);
+      setActiveSessionId(chatId);
+    } else {
+      console.log("ChatPage: Clearing activeSessionId");
+      setActiveSessionId(null);
+    }
+  }, [chatId]);
 
   const {
     mode,
@@ -96,11 +323,252 @@ export default function ChatPage({
     initialMessages,
   });
 
+  // Fetch session details on load (hydrate setup state per chat session)
+  useEffect(() => {
+    if (!activeSessionId || mode !== "evaluation") return;
+    if (hydratedEvaluationSessionRef.current === activeSessionId) return;
+
+    const run = async () => {
+      try {
+        hydratedEvaluationSessionRef.current = activeSessionId;
+
+        // Restore evaluation history for this chat session (client-side persistence)
+        try {
+          const raw = localStorage.getItem(
+            evaluationHistoryStorageKey(activeSessionId),
+          );
+          if (raw) {
+            const parsed = JSON.parse(raw) as Array<{
+              id: string;
+              timestamp: number;
+              fileNames: string[];
+              resourceIds?: string[];
+              results: any[];
+              averageScore: number;
+            }>;
+
+            if (Array.isArray(parsed)) {
+              const restored: EvaluationSession[] = parsed
+                .filter((s) => s && typeof s.id === "string")
+                .map((s) => ({
+                  id: s.id,
+                  timestamp: Number(s.timestamp) || Date.now(),
+                  files: (s.fileNames || []).map((name) => new File([], name)),
+                  resourceIds: Array.isArray(s.resourceIds)
+                    ? s.resourceIds
+                    : [],
+                  results: Array.isArray(s.results) ? s.results : [],
+                  averageScore: Number(s.averageScore) || 0,
+                }));
+              setEvaluationHistory(restored);
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to restore evaluation history", e);
+        }
+
+        const normalizeResourceType = (value: unknown): string => {
+          const s = (value ?? "").toString().trim().toLowerCase();
+          return s.replace(/[\s-]+/g, "_");
+        };
+
+        const getResourceFilename = (r: any): string => {
+          return (
+            r?.filename ||
+            r?.file_name ||
+            r?.name ||
+            r?.original_filename ||
+            r?.originalFilename ||
+            ""
+          ).toString();
+        };
+
+        const classifyByFilename = (
+          filename: string,
+        ): "syllabus" | "question_paper" | "answer_sheet" | "rubric" | null => {
+          const f = filename.toLowerCase();
+          if (/syllabus|syllabi|textbook|guide/.test(f)) return "syllabus";
+          if (/rubric/.test(f)) return "rubric";
+          if (
+            /\bmodel\b|\bquestion\b|\bqp\b|\bquestion[_\s-]?paper\b|\bmodel[_\s-]?paper\b/.test(
+              f,
+            )
+          ) {
+            return "question_paper";
+          }
+          // Only classify as answer_sheet if it has common patterns or we have no reason to think it's something else
+          // In the hydration logic below, we will be more strict.
+          if (/answer|script|st\d+|paper[_\s-]?part/i.test(f))
+            return "answer_sheet";
+
+          return null;
+        };
+
+        const details = await getChatSessionDetails(activeSessionId);
+
+        const rubricId = details?.rubric_id ?? null;
+        setAttachedRubricId(rubricId);
+        setRubricSet(!!rubricId);
+
+        const qp = details?.question_paper;
+        const qpFilenameFromDetails: string | undefined =
+          qp?.filename || qp?.file_name || qp?.name;
+
+        const sy = details?.syllabus;
+        const syFilenameFromDetails: string | undefined =
+          sy?.filename || sy?.file_name || sy?.name;
+
+        // Prefer session.details fields, but fall back to session resources list
+        let qpFilename: string | undefined = qpFilenameFromDetails;
+        let hasQuestionPaper = !!qpFilenameFromDetails;
+        let syllabusCountFromResources = 0;
+        let hasSyllabus = !!syFilenameFromDetails;
+
+        try {
+          const resources = await listChatSessionResources(activeSessionId);
+          const qpResource = (resources || []).find((r: any) => {
+            const type = normalizeResourceType(r?.resource_type ?? r?.type);
+            if (type) {
+              return (
+                type === "question_paper" ||
+                type === "questionpaper" ||
+                type === "question" ||
+                type === "questions"
+              );
+            }
+            const filename = getResourceFilename(r);
+            return classifyByFilename(filename) === "question_paper";
+          });
+
+          const syllabusResources = (resources || []).filter((r: any) => {
+            const type = normalizeResourceType(r?.resource_type ?? r?.type);
+            if (type) {
+              return type === "syllabus" || type === "syllabi";
+            }
+            const filename = getResourceFilename(r);
+            return classifyByFilename(filename) === "syllabus";
+          });
+
+          syllabusCountFromResources = syllabusResources.length;
+          hasSyllabus = hasSyllabus || syllabusCountFromResources > 0;
+
+          if (!hasQuestionPaper && qpResource) {
+            qpFilename = getResourceFilename(qpResource) || undefined;
+            hasQuestionPaper = !!qpFilename;
+          }
+
+          // If details didn't have a syllabus filename but resources exist, mark as set.
+          if (!hasSyllabus && syllabusCountFromResources > 0) {
+            hasSyllabus = true;
+          }
+        } catch (e) {
+          console.warn(
+            "Failed to list session resources for setup hydration",
+            e,
+          );
+        }
+
+        setQuestionsSet(hasQuestionPaper);
+        setQuestionPaperName(qpFilename);
+
+        setSyllabusSet(hasSyllabus);
+        setSyllabusCount(
+          syFilenameFromDetails ? 1 : syllabusCountFromResources,
+        );
+
+        // Fetch rubric details if attached (requested API behavior)
+        if (rubricId) {
+          try {
+            await getRubricById(rubricId);
+          } catch (e) {
+            console.warn("Failed to fetch rubric details", e);
+          }
+        }
+
+        // Restore previously uploaded answer sheets from server resources.
+        // We only hydrate if the UI doesn't already have local selections.
+        if (selectedFiles.length === 0 && answerResourceIds.length === 0) {
+          try {
+            const resources = await listChatSessionResources(activeSessionId);
+            const answerResources = (resources || []).filter((r: any) => {
+              const type = normalizeResourceType(r?.resource_type ?? r?.type);
+              const filename = getResourceFilename(r);
+              const classified = classifyByFilename(filename);
+
+              // If explicitly tagged, trust it
+              if (type === "answer_sheet") return true;
+              if (
+                type === "syllabus" ||
+                type === "question_paper" ||
+                type === "rubric"
+              )
+                return false;
+
+              // If fallback to filename, ensure it's categorized as answer_sheet and NOT something else
+              return classified === "answer_sheet";
+            });
+
+            const restoredIds: string[] = [];
+            const restoredFiles: File[] = [];
+
+            answerResources.forEach((r: any, idx: number) => {
+              const rid: string | undefined = r?.resource_id || r?.id;
+              const filename: string | undefined =
+                getResourceFilename(r) || undefined;
+              if (!rid) return;
+              restoredIds.push(rid);
+              restoredFiles.push(
+                new File([], filename || `Answer Sheet ${idx + 1}`),
+              );
+            });
+
+            if (restoredIds.length > 0) {
+              setAnswerResourceIds(restoredIds);
+              setSelectedFiles(restoredFiles);
+              setEvaluationUploadedFilesCount(restoredFiles.length);
+            }
+          } catch (e) {
+            console.warn("Failed to restore answer sheets", e);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    void run();
+  }, [activeSessionId, mode]);
+
+  // Persist evaluation history whenever it changes (per chat session)
+  useEffect(() => {
+    if (!activeSessionId || mode !== "evaluation") return;
+
+    try {
+      const toStore = (evaluationHistory || []).map((s) => ({
+        id: s.id,
+        timestamp: s.timestamp,
+        fileNames: (s.files || []).map((f) => f.name),
+        resourceIds: s.resourceIds || [],
+        results: s.results ?? [],
+        averageScore: s.averageScore ?? 0,
+      }));
+      localStorage.setItem(
+        evaluationHistoryStorageKey(activeSessionId),
+        JSON.stringify(toStore),
+      );
+    } catch (e) {
+      console.warn("Failed to persist evaluation history", e);
+    }
+  }, [activeSessionId, mode, evaluationHistory]);
+
   const router = useRouter();
   const endRef = useRef<HTMLDivElement | null>(null);
+  const learningMessageCacheSessionRef = useRef<string | null>(null);
   const [responseLevel, setResponseLevel] = useState("grade_9_11");
 
   // Evaluation inputs state
+  const [paperConfig, setPaperConfig] = useState<PaperPart[]>([]);
+  const [isPaperConfigLoading, setIsPaperConfigLoading] = useState(false);
   const [totalMarks, setTotalMarks] = useState<number>(0);
   const [mainQuestions, setMainQuestions] = useState<number>(0);
   const [requiredQuestions, setRequiredQuestions] = useState<number>(0);
@@ -110,11 +578,181 @@ export default function ChatPage({
   const [isSubMarksModalOpen, setIsSubMarksModalOpen] = useState(false);
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [answerResourceIds, setAnswerResourceIds] = useState<string[]>([]);
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
+  const [isMarkingSchemaModalOpen, setIsMarkingSchemaModalOpen] =
+    useState(false);
+  const [marksConfirmed, setMarksConfirmed] = useState(false);
+  const [markingSchema, setMarkingSchema] = useState<MarkingSchema | null>(
+    null,
+  );
+  const [isMarkingSchemaLoading, setIsMarkingSchemaLoading] = useState(false);
+  const [isMarkingSchemaSubmitting, setIsMarkingSchemaSubmitting] =
+    useState(false);
+  const [markingSchemaConfirmed, setMarkingSchemaConfirmed] = useState(false);
   const [evaluationUploadedFilesCount, setEvaluationUploadedFilesCount] =
     useState(0);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [processProgress, setProcessProgress] = useState<{
+    current: number;
+    total: number;
+    percent?: number;
+    message?: string;
+  }>({ current: 0, total: 0 });
+  const [answerDocumentIds, setAnswerDocumentIds] = useState<Record<string, string>>({});
+
+  const showToast = useCallback((message: string, type: "success" | "error" | "warning" = "error") => {
+    setToastMessage(message);
+    setToastType(type);
+    setIsToastVisible(true);
+  }, []);
+
+  const extractAnswerDocumentId = useCallback((payload: unknown, resourceId: string): string | null => {
+    const seen = new Set<unknown>();
+
+    const visit = (value: unknown): string | null => {
+      if (!value || typeof value !== "object" || seen.has(value)) return null;
+      seen.add(value);
+
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          const found = visit(item);
+          if (found) return found;
+        }
+        return null;
+      }
+
+      const record = value as Record<string, unknown>;
+      const direct =
+        record.answer_document_id ||
+        record.answerDocumentId ||
+        record.answer_doc_id ||
+        record.answerDocId;
+
+      if (typeof direct === "string" && direct.trim()) {
+        return direct;
+      }
+
+      const matchingResource =
+        record.resource_id === resourceId ||
+        record.resourceId === resourceId ||
+        record.answer_resource_id === resourceId ||
+        record.answerResourceId === resourceId;
+
+      if (matchingResource && typeof record.id === "string" && record.id.trim()) {
+        return record.id;
+      }
+
+      for (const [key, nested] of Object.entries(record)) {
+        const lowerKey = key.toLowerCase();
+        const looksLikeAnswerDocument =
+          lowerKey.includes("answerdocument") ||
+          lowerKey.includes("answer_document") ||
+          lowerKey.includes("answerdoc") ||
+          lowerKey.includes("answer_doc");
+
+        if (
+          looksLikeAnswerDocument &&
+          nested &&
+          typeof nested === "object" &&
+          !Array.isArray(nested) &&
+          typeof (nested as Record<string, unknown>).id === "string"
+        ) {
+          return (nested as Record<string, string>).id;
+        }
+
+        const found = visit(nested);
+        if (found) return found;
+      }
+
+      return null;
+    };
+
+    return visit(payload);
+  }, []);
+
+  const parseStreamPayload = useCallback((raw: string): unknown => {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      const jsonStart = trimmed.search(/[\[{]/);
+      if (jsonStart >= 0) {
+        try {
+          return JSON.parse(trimmed.slice(jsonStart));
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }
+  }, []);
+
+  const getStreamProgressPercent = useCallback((payload: unknown): number | null => {
+    if (!payload || typeof payload !== "object") return null;
+    const value = (payload as any).progress ?? (payload as any).percent;
+    const numeric = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    return Math.max(0, Math.min(100, numeric));
+  }, []);
+
+  const getStreamProgressMessage = useCallback((payload: unknown): string | undefined => {
+    if (!payload || typeof payload !== "object") return undefined;
+    const message = (payload as any).message || (payload as any).detail?.message;
+    return typeof message === "string" && message.trim() ? message : undefined;
+  }, []);
+
+  const fetchAnswerDocumentIdMap = useCallback(async (
+    sessionId: string,
+    resourceIds: string[],
+  ): Promise<Record<string, string>> => {
+    const answerDocs = await getAnswerDocuments(sessionId);
+    const next: Record<string, string> = {};
+
+    (Array.isArray(answerDocs) ? answerDocs : []).forEach((doc: any) => {
+      const resourceId =
+        doc?.resource_id ||
+        doc?.resourceId ||
+        doc?.answer_resource_id ||
+        doc?.answerResourceId;
+      const answerDocumentId =
+        doc?.id ||
+        doc?.answer_document_id ||
+        doc?.answerDocumentId ||
+        doc?.answer_doc_id ||
+        doc?.answerDocId;
+
+      if (
+        typeof resourceId === "string" &&
+        resourceIds.includes(resourceId) &&
+        typeof answerDocumentId === "string" &&
+        answerDocumentId.trim()
+      ) {
+        next[resourceId] = answerDocumentId;
+      }
+    });
+
+    return next;
+  }, []);
+
+  const removeAnswerSheetResource = useCallback(async (
+    resourceId: string,
+    sessionId?: string | null,
+  ) => {
+    if (sessionId) {
+      try {
+        await detachAnswerSheetFromSession({ sessionId, resourceId });
+      } catch (error) {
+        console.warn("Failed to detach answer sheet before deleting resource", error);
+      }
+    }
+
+    await deleteResource(resourceId);
+  }, []);
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
   useEffect(() => {
@@ -122,24 +760,38 @@ export default function ChatPage({
       if (!chatId) return;
       if (chatId.startsWith("local-") || chatId.startsWith("new-")) return;
 
+      // Evaluation chats don't use the messages API.
+      if (mode !== "learning") {
+        return;
+      }
+
       setIsLoadingMessages(true);
+      const cachedMessages = readCachedSessionMessages(chatId);
+      learningMessageCacheSessionRef.current = chatId;
+
+      if (cachedMessages.length > 0) {
+        setLearningMessages(cachedMessages);
+      } else {
+        setLearningMessages([]);
+      }
+
       try {
         const messages = await listSessionMessages(chatId);
 
         // ✅ SORT BY created_at (oldest → newest)
         const sorted = messages.sort(
           (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
         );
 
-        if (mode === "learning") {
-          setLearningMessages(sorted);
-        } else {
-          setEvaluationMessages(sorted);
+        writeCachedSessionMessages(chatId, sorted);
+        setLearningMessages(sorted);
+      } catch (error) {
+        if (cachedMessages.length === 0 && !isOfflineError(error)) {
+          router.replace("/chat");
         }
-      } catch {
-        router.replace("/chat");
-        setToastMessage("Failed to load chat messages. Please try again.");
+
+        setToastMessage(apiErrorMessage(error, "errors.load_chat_messages"));
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -153,27 +805,70 @@ export default function ChatPage({
   }, [chatId, mode]);
 
   useEffect(() => {
+    if (mode !== "learning") return;
+
+    const cacheSessionId = learningMessageCacheSessionRef.current;
+    if (!cacheSessionId) return;
+
+    writeCachedSessionMessages(cacheSessionId, learningMessages);
+  }, [learningMessages, mode]);
+
+  useEffect(() => {
     const loadChats = async () => {
       try {
         const sessions = await listChatSessions();
+        const sortedSessions = [...sessions].sort(
+          (a, b) =>
+            new Date(b.updated_at || b.created_at).getTime() -
+            new Date(a.updated_at || a.created_at).getTime(),
+        );
 
-        const mapped = sessions.map((s) => ({
+        const mapped = sortedSessions.map((s) => ({
           id: s.id,
-          title: s.title || "Untitled Chat",
+          title: s.title || t("untitled_chat"),
           type: s.mode,
           time: formatDistanceToNow(new Date(s.updated_at || s.created_at), {
             addSuffix: true,
           }),
         }));
 
+        writeCachedSidebarChats(mapped);
         setChats(mapped);
+
+        // On the root /chat route, automatically load the most recent real session
+        // instead of leaving the user on the empty non-session screen.
+        if (!chatId && mapped.length > 0) {
+          const latest = mapped[0];
+          setChatType(latest.type);
+          setActiveSessionId(latest.id);
+          router.replace(`/chat/${latest.id}`);
+          return;
+        }
+
+        // If we are on a specific chat URL, keep chatType in sync with its real session mode.
+        if (
+          chatId &&
+          !chatId.startsWith("local-") &&
+          !chatId.startsWith("new-")
+        ) {
+          const current = mapped.find((c) => c.id === chatId);
+          if (current) {
+            setChatType((prev) =>
+              prev !== current.type ? current.type : prev,
+            );
+          }
+        }
       } catch (err) {
         console.error("Failed to load chat history", err);
+        setChats((prev) => {
+          if (prev.length > 0) return prev;
+          return readCachedSidebarChats();
+        });
       }
     };
 
     loadChats();
-  }, []);
+  }, [chatId, router, t]);
 
   useEffect(() => {
     // ✅ If URL contains a real UUID chatId, use it
@@ -184,10 +879,46 @@ export default function ChatPage({
     }
   }, [chatId]);
 
-  const handleSend = () => {
-    const run = async () => {
-      if (mode === "learning" && !message.trim()) return;
+  useEffect(() => {
+    if (mode !== "learning") return;
 
+    let cancelled = false;
+
+    const hydrateQueuedMessages = async () => {
+      const queued = await getQueuedTextMessages(getCurrentQueueSessionId());
+      if (cancelled || queued.length === 0) return;
+
+      setLearningMessages((prev) => {
+        const existingIds = new Set(
+          prev.map((item) => item.id).filter(Boolean),
+        );
+        const missing = queued
+          .filter((item) => !existingIds.has(item.id))
+          .map(queuedTextMessageToChatMessage);
+
+        return missing.length > 0 ? [...prev, ...missing] : prev;
+      });
+    };
+
+    void hydrateQueuedMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getCurrentQueueSessionId, mode, setLearningMessages]);
+
+  const handleSend = (configOverride?: PaperPart[]) => {
+    const run = async () => {
+      // Messages are only supported in learning mode.
+      if (mode !== "learning") return;
+
+      if (!message.trim()) return;
+
+      if (pendingVoice) {
+        await handleVoiceSend(pendingVoice);
+        setPendingVoice(null);
+        return;
+      }
       /**
        * CHANGE 1️⃣
        * We no longer treat "existing chat" differently.
@@ -196,19 +927,67 @@ export default function ChatPage({
       setCreating(true);
 
       let uploadedResources: ResourceUploadResponse[] = [];
+      let pendingNavigateSessionId: string | null = null;
 
       // Upload pending files before sending the message so backend receives resource ids
-      if (mode === "learning" && pendingFiles.length > 0) {
+      const filesToUpload = mode === "learning" ? pendingFiles : selectedFiles;
+      const shouldQueueOffline =
+        mode === "learning" && connectivityStatus !== "online";
+
+      if (shouldQueueOffline) {
+        const queued = await enqueueTextMessage({
+          sessionId: getCurrentQueueSessionId(),
+          content: message,
+          gradeLevel: responseLevel,
+          files: filesToUpload,
+        });
+
+        setLearningMessages((prev) => [
+          ...prev,
+          queuedTextMessageToChatMessage(queued),
+        ]);
+        setToastMessage(t("offline_message_queued"));
+        setToastType("info");
+        setIsToastVisible(true);
+        setCreating(false);
+        setMessage("");
+        clearPendingFiles();
+        return;
+      }
+
+      if (filesToUpload.length > 0) {
         setIsUploading(true);
         try {
-          uploadedResources = await uploadResources(pendingFiles);
+          uploadedResources = await uploadResources(filesToUpload);
         } catch (error) {
           console.error("Failed to upload files", error);
-          let message = "Failed to upload files. Please try again.";
-          if (error instanceof Error) {
-            message = error.message;
+          if (mode === "learning" && isOfflineError(error)) {
+            const queued = await enqueueTextMessage({
+              sessionId: getCurrentQueueSessionId(),
+              content: message,
+              gradeLevel: responseLevel,
+              files: filesToUpload,
+            });
+
+            setLearningMessages((prev) => [
+              ...prev,
+              queuedTextMessageToChatMessage(queued),
+            ]);
+            setToastMessage(t("offline_message_queued"));
+            setToastType("info");
+            setIsToastVisible(true);
+            setCreating(false);
+            setIsUploading(false);
+            setMessage("");
+            clearPendingFiles();
+            return;
           }
-          setToastMessage(message);
+
+          const uploadErrorMessage = apiErrorMessage(
+            error,
+            "errors.upload_files",
+          );
+          setToastMessage(uploadErrorMessage);
           setToastType("error");
           setIsToastVisible(true);
           setCreating(false);
@@ -236,19 +1015,39 @@ export default function ChatPage({
             },
           ]);
         } else {
+          const evalContent = configOverride
+            ? { paperConfig: configOverride }
+            : paperConfig.length > 0
+              ? { paperConfig }
+              : {
+                  totalMarks,
+                  mainQuestions,
+                  requiredQuestions,
+                  subQuestions,
+                  subQuestionMarks,
+                };
+
+          // If we are starting evaluation, add the files to the message
+          const fileMessages = selectedFiles.map((file) => ({
+            role: "user" as const,
+            content: `📎 Uploaded file: ${file.name}`,
+            file,
+          }));
+
+          // If we haven't started yet, we need to show the files as messages now
+          if (!isEvaluationStarted && fileMessages.length > 0) {
+            setEvaluationMessages((prev) => [...prev, ...fileMessages]);
+          }
+
           setEvaluationMessages((prev) => [
             ...prev,
             {
               role: "user",
-              content: {
-                totalMarks,
-                mainQuestions,
-                requiredQuestions,
-                subQuestions,
-                subQuestionMarks,
-              },
+              content: evalContent,
             },
           ]);
+
+          setIsEvaluationStarted(true);
         }
 
         /**
@@ -276,15 +1075,32 @@ export default function ChatPage({
               : {}),
           };
         } else {
+          const evalContent = configOverride
+            ? { paperConfig: configOverride }
+            : paperConfig.length > 0
+              ? { paperConfig }
+              : {
+                  totalMarks,
+                  mainQuestions,
+                  requiredQuestions,
+                  subQuestions,
+                  subQuestionMarks,
+                };
+
+          const resourceAttachments = uploadedResources.map((item, index) => ({
+            resource_id: item.resource_id,
+            display_name: selectedFiles[index]?.name ?? "Attachment",
+            attachment_type: selectedFiles[index]?.type?.startsWith("image/")
+              ? "image"
+              : "file",
+          }));
+
           payload = {
-            content: {
-              totalMarks,
-              mainQuestions,
-              requiredQuestions,
-              subQuestions,
-              subQuestionMarks,
-            },
+            content: evalContent,
             modality: "text",
+            ...(resourceAttachments.length
+              ? { attachments: resourceAttachments }
+              : {}),
           };
         }
         /**
@@ -294,18 +1110,17 @@ export default function ChatPage({
          */
         const resp = await postMessage(activeSessionId ?? undefined, payload);
 
-        /**
-         * CHANGE 5️⃣
-         * Extract session id safely from backend response.
-         */
+        // Extract identifiers from the backend response for follow-up actions
         const newSessionId =
           resp?.session_id || resp?.session?.id || resp?.chat_id || resp?.id;
+        const createdMessageId =
+          resp?.message_id || resp?.message?.id || resp?.id || null;
 
         if (newSessionId) {
           setActiveSessionId(newSessionId);
 
           if (chatId?.startsWith("local-")) {
-            router.replace(`/chat/${newSessionId}`);
+            pendingNavigateSessionId = newSessionId;
           }
         }
 
@@ -321,9 +1136,115 @@ export default function ChatPage({
             setEvaluationMessages((prev) => [...prev, resp.assistant_message]);
           }
         }
+
+        /**
+         * NEW: process message attachments, then refresh to pick up the AI response
+         * emitted by the backend after attachments are processed.
+         */
+        const sessionToRefresh = newSessionId ?? activeSessionId;
+
+        if (createdMessageId) {
+          setIsAutoProcessing(true);
+          try {
+            await processMessageAttachments(createdMessageId);
+          } catch (err) {
+            console.error("Failed to process attachments", err);
+            setToastMessage(
+              (err instanceof Error ? err.message : null) ||
+                "Failed to process attachments.",
+            );
+            setToastType("error");
+            setIsToastVisible(true);
+          } finally {
+            setIsAutoProcessing(false);
+          }
+        }
+
+        if (createdMessageId) {
+          setIsMessageGenerating(true);
+          try {
+            const generated = await generateMessageResponse(createdMessageId);
+            const generatedMessage = generated?.message;
+
+            if (generatedMessage) {
+              const messageToRender: ChatMessage = {
+                id: generatedMessage.id,
+                role: (generatedMessage.role ?? "assistant") as
+                  | "user"
+                  | "assistant",
+                content: generatedMessage.content ?? "",
+                grade_level: generatedMessage.grade_level,
+                safety_summary: generatedMessage.safety_summary,
+              };
+
+              setLearningMessages((prev) => [...prev, messageToRender]);
+            }
+          } catch (err) {
+            console.error("Failed to generate assistant reply", err);
+            setToastMessage(
+              apiErrorMessage(err, "errors.generate_assistant_reply"),
+            );
+            setToastType("error");
+            setIsToastVisible(true);
+          } finally {
+            setIsMessageGenerating(false);
+          }
+        }
+
+        if (sessionToRefresh) {
+          setIsSyncingMessages(true);
+          try {
+            const messages = await listSessionMessages(sessionToRefresh);
+            const sorted = messages.sort(
+              (a, b) =>
+                new Date(a.created_at).getTime() -
+                new Date(b.created_at).getTime(),
+            );
+
+            learningMessageCacheSessionRef.current = sessionToRefresh;
+            writeCachedSessionMessages(sessionToRefresh, sorted);
+            setLearningMessages(sorted);
+          } catch (err) {
+            console.error("Failed to refresh messages", err);
+          } finally {
+            setIsSyncingMessages(false);
+          }
+        }
+
+        if (pendingNavigateSessionId) {
+          router.replace(`/chat/${pendingNavigateSessionId}`);
+        }
       } catch (error) {
         console.error("Failed to send message", error);
-        setToastMessage("Failed to send message. Please try again.");
+        if (mode === "learning" && isOfflineError(error)) {
+          const queued = await enqueueTextMessage({
+            sessionId: getCurrentQueueSessionId(),
+            content: message,
+            gradeLevel: responseLevel,
+            files: [],
+          });
+
+          setLearningMessages((prev) => {
+            const withoutOptimistic = prev.filter(
+              (item) =>
+                !(
+                  item.role === "user" &&
+                  item.content === message &&
+                  !String(item.id ?? "").startsWith("offline-")
+                ),
+            );
+            return [
+              ...withoutOptimistic,
+              queuedTextMessageToChatMessage(queued),
+            ];
+          });
+          setToastMessage(t("offline_message_queued"));
+          setToastType("info");
+          setIsToastVisible(true);
+          return;
+        }
+
+        setToastMessage(apiErrorMessage(error, "errors.send_message"));
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -336,19 +1257,516 @@ export default function ChatPage({
     void run();
   };
 
+  const flushOfflineTextMessages = useCallback(async () => {
+    if (connectivityStatus !== "online" || mode !== "learning") return;
+
+    const queueSessionId = getCurrentQueueSessionId();
+    const queued = await getQueuedTextMessages(queueSessionId);
+    if (queued.length === 0) return;
+
+    setIsSyncingMessages(true);
+    let sessionToRefresh = activeSessionId ?? queueSessionId;
+    let pendingNavigateSessionId: string | null = null;
+
+    try {
+      for (const queuedMessage of queued) {
+        setLearningMessages((prev) =>
+          prev.map((item) =>
+            item.id === queuedMessage.id
+              ? ({
+                  ...item,
+                  offline_status: "syncing",
+                } as unknown as ChatMessage)
+              : item,
+          ),
+        );
+
+        let queuedUploads: ResourceUploadResponse[] = [];
+        if (queuedMessage.files.length > 0) {
+          queuedUploads = await uploadResources(
+            queuedMessage.files.map((item) => item.file),
+          );
+        }
+
+        const attachments = queuedUploads.map((item, index) => ({
+          resource_id: item.resource_id,
+          display_name: queuedMessage.files[index]?.name ?? "Attachment",
+          attachment_type: queuedMessage.files[index]?.type?.startsWith(
+            "image/",
+          )
+            ? "image"
+            : "file",
+        }));
+
+        const resp = await postMessage(
+          queuedMessage.sessionId ?? activeSessionId ?? undefined,
+          {
+            content: queuedMessage.content,
+            modality: "text",
+            grade_level: queuedMessage.gradeLevel,
+            ...(attachments.length ? { attachments } : {}),
+          },
+        );
+
+        const newSessionId =
+          resp?.session_id || resp?.session?.id || resp?.chat_id || resp?.id;
+        const createdMessageId =
+          resp?.message_id || resp?.message?.id || resp?.id || null;
+
+        if (newSessionId) {
+          sessionToRefresh = newSessionId;
+          setActiveSessionId(newSessionId);
+          if (!activeSessionId && !queueSessionId) {
+            pendingNavigateSessionId = newSessionId;
+          }
+        }
+
+        await removeQueuedTextMessage(queuedMessage.id);
+
+        if (resp?.assistant_message) {
+          setLearningMessages((prev) => [...prev, resp.assistant_message]);
+        } else if (createdMessageId) {
+          try {
+            const generated = await generateMessageResponse(createdMessageId);
+            const generatedMessage = generated?.message;
+            if (generatedMessage) {
+              setLearningMessages((prev) => [
+                ...prev,
+                {
+                  id: generatedMessage.id,
+                  role: (generatedMessage.role ?? "assistant") as
+                    | "user"
+                    | "assistant",
+                  content: generatedMessage.content ?? "",
+                  grade_level: generatedMessage.grade_level,
+                  safety_summary: generatedMessage.safety_summary,
+                } as ChatMessage,
+              ]);
+            }
+          } catch (error) {
+            console.error("Failed to generate queued assistant reply", error);
+          }
+        }
+      }
+
+      if (sessionToRefresh) {
+        const messages = await listSessionMessages(sessionToRefresh);
+        const sorted = messages.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        );
+        learningMessageCacheSessionRef.current = sessionToRefresh;
+        writeCachedSessionMessages(sessionToRefresh, sorted);
+        setLearningMessages(sorted);
+      }
+
+      if (pendingNavigateSessionId) {
+        router.replace(`/chat/${pendingNavigateSessionId}`);
+      }
+
+      setToastMessage(t("offline_messages_synced"));
+      setToastType("success");
+      setIsToastVisible(true);
+    } catch (error) {
+      console.error("Failed to sync offline messages", error);
+      setLearningMessages((prev) =>
+        prev.map((item) =>
+          String(item.id ?? "").startsWith("offline-")
+            ? ({ ...item, offline_status: "pending" } as unknown as ChatMessage)
+            : item,
+        ),
+      );
+      setToastMessage(apiErrorMessage(error, "errors.sync_offline_messages"));
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setIsSyncingMessages(false);
+    }
+  }, [
+    activeSessionId,
+    apiErrorMessage,
+    connectivityStatus,
+    getCurrentQueueSessionId,
+    mode,
+    router,
+    setLearningMessages,
+    t,
+  ]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      void flushOfflineTextMessages();
+    };
+
+    window.addEventListener("online", handleOnline);
+    if (connectivityStatus === "online") {
+      void flushOfflineTextMessages();
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [connectivityStatus, flushOfflineTextMessages]);
+
+  const handleVoiceSend = async (audioBlob: Blob) => {
+    // Voice QA is only supported in learning mode.
+    if (mode !== "learning") return;
+
+    try {
+      setCreating(true);
+
+      // Step 1: Upload any pending files first
+      let uploadedResources: ResourceUploadResponse[] = [];
+      if (pendingFiles.length > 0) {
+        uploadedResources = await uploadResources(pendingFiles);
+      }
+
+      if (uploadedResources.length > 0) {
+        setIsAutoProcessing(true);
+        try {
+          await processResourcesBatch(
+            uploadedResources.map((r) => r.resource_id),
+          );
+        } catch (err) {
+          console.error("Failed to process resources batch", err);
+          setToastMessage(
+            apiErrorMessage(err, "errors.process_uploaded_resources"),
+          );
+          setToastType("error");
+          setIsToastVisible(true);
+          return;
+        } finally {
+          setIsAutoProcessing(false);
+        }
+      }
+
+      // Step 2: Show a temporary "Processing voice..." message immediately
+      setIsMessageGenerating(true);
+
+      // Store the index of this message for later updates
+      const messageIndex = learningMessages.length; // Current length before adding
+
+      // Create a temporary user message with loading indicator
+      const tempUserMessage = {
+        role: "user",
+        modality: "voice",
+        content: "🔄 Processing voice...", // Will be replaced with transcription
+        resource_ids: uploadedResources.map((r) => r.resource_id),
+      } as ChatMessage;
+
+      // Add to messages
+      setLearningMessages((prev) => [...prev, tempUserMessage]);
+
+      // Step 3: Transcribe the audio (ONCE)
+      let transcribedText = "";
+      try {
+        const transcriptionResult = await postVoiceTranscribe(audioBlob);
+        transcribedText = transcriptionResult.standard;
+
+        // Update the message with transcribed text - THIS IS THE FINAL USER QUESTION
+        setLearningMessages((prev) => {
+          const newMessages = [...prev];
+          newMessages[messageIndex] = {
+            role: "user",
+            modality: "voice",
+            content: transcribedText,
+            resource_ids: uploadedResources.map((r) => r.resource_id),
+          } as ChatMessage;
+          return newMessages;
+        });
+      } catch (transcribeError) {
+        console.error("Transcription failed", transcribeError);
+
+        // Update to show error
+        setLearningMessages((prev) => {
+          const newMessages = [...prev];
+          newMessages[messageIndex] = {
+            role: "user",
+            modality: "voice",
+            content: "❌ Failed to transcribe audio",
+            resource_ids: uploadedResources.map((r) => r.resource_id),
+          } as ChatMessage;
+          return newMessages;
+        });
+
+        setToastMessage(
+          apiErrorMessage(transcribeError, "errors.transcribe_voice"),
+        );
+        setToastType("error");
+        setIsToastVisible(true);
+        return; // Stop here if transcription fails
+      }
+
+      // Step 4: Add a temporary assistant "thinking" message
+      const thinkingIndex = learningMessages.length; // Current length after user message
+
+      setLearningMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          modality: "text",
+          content: "🤔 Thinking...",
+        } as ChatMessage,
+      ]);
+
+      // Step 5: Call QA endpoint with the TRANSCRIBED TEXT (not audio)
+      try {
+        const data = await postVoiceQAFromText({
+          text: transcribedText, // Use the transcribed text instead of audio
+          session_id: activeSessionId ?? "undefined",
+          resource_ids: uploadedResources.map((r) => r.resource_id),
+        });
+
+        // Sync session if voice-first
+        if (data.session_id && !activeSessionId) {
+          setActiveSessionId(data.session_id);
+          router.replace(`/chat/${data.session_id}`);
+        }
+
+        // Step 6: Replace the thinking message with the actual answer
+        setLearningMessages((prev) => {
+          const newMessages = [...prev];
+          // Remove the thinking message and add the real assistant message
+          newMessages.pop(); // Remove thinking message
+          newMessages.push({
+            role: "assistant",
+            modality: "text",
+            content: data.answer,
+            safety_summary: data.safety_summary,
+          } as ChatMessage);
+          return newMessages;
+        });
+      } catch (qaError) {
+        console.error("QA processing failed", qaError);
+
+        // Replace thinking message with error, but KEEP the transcribed text
+        setLearningMessages((prev) => {
+          const newMessages = [...prev];
+          newMessages.pop(); // Remove thinking message
+          newMessages.push({
+            role: "assistant",
+            modality: "text",
+            content: "❌ Failed to generate answer. Please try again.",
+          } as ChatMessage);
+          return newMessages;
+        });
+
+        setToastMessage(apiErrorMessage(qaError, "errors.voice_answer"));
+        setToastType("error");
+        setIsToastVisible(true);
+      }
+    } catch (error) {
+      console.error(error);
+      setToastMessage(apiErrorMessage(error, "errors.voice_processing"));
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setCreating(false);
+      setIsMessageGenerating(false);
+      clearPendingFiles();
+    }
+  };
+
+  const handleStartEvaluationProcess = async () => {
+    if (mode !== "evaluation") return;
+
+    const sessionId = activeSessionId ?? (await ensureSessionId());
+    if (!sessionId) {
+      setToastMessage("Please create an evaluation chat first.");
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    if (processingStatus !== "completed") {
+      setToastMessage("Please process documents before sending.");
+      setToastType("warning");
+      setIsToastVisible(true);
+      return;
+    }
+
+    if (!marksConfirmed) {
+      setToastMessage(
+        "Please confirm the paper config (marks) before sending.",
+      );
+      setToastType("warning");
+      setIsToastVisible(true);
+      return;
+    }
+
+    if (!markingSchemaConfirmed) {
+      await handleOpenMarkingSchema();
+      setToastMessage("Review and confirm the marking schema before grading.");
+      setToastType("warning");
+      setIsToastVisible(true);
+      return;
+    }
+
+    if (answerResourceIds.length === 0) {
+      setToastMessage("Please upload answer sheets before sending.");
+      setToastType("warning");
+      setIsToastVisible(true);
+      return;
+    }
+
+    try {
+      setIsAutoProcessing(true);
+      const response = await startEvaluation({
+        chat_session_id: sessionId,
+        answer_resource_ids: answerResourceIds,
+      });
+
+      const capturedEvaluationSessionId = response?.id;
+      if (!capturedEvaluationSessionId) {
+        throw new Error("Failed to start evaluation session");
+      }
+
+      const results = selectedFiles.map((f) => generateMockResult(f.name));
+      const avgScore =
+        results.length > 0
+          ? Math.round(
+              results.reduce((acc, curr) => acc + curr.overallScore, 0) /
+                results.length,
+            )
+          : 0;
+
+      const newSession: EvaluationSession = {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        timestamp: Date.now(),
+        files: [...selectedFiles],
+        resourceIds: [...evaluationAnswerResourceIds],
+        results,
+        averageScore: avgScore,
+      };
+
+      setEvaluationSessionId(capturedEvaluationSessionId);
+      setEvaluationAnswerResourceIds(answerResourceIds);
+      setEvaluationHistory((prev) => [newSession, ...prev]);
+      setCurrentEvaluationResult(results);
+      setIsEvaluationStarted(true);
+      setEvaluationStatus("in_progress");
+    } catch (error) {
+      console.error("Failed to start evaluation", error);
+      setToastMessage(apiErrorMessage(error, "errors.start_evaluation"));
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setIsAutoProcessing(false);
+    }
+  };
+
+  const handleStartNewAnswerEvaluation = useCallback(async () => {
+    // Navigate back to setup screen
+    setEvaluationStatus("setup");
+    setIsEvaluationStarted(false);
+    setCurrentEvaluationResult(undefined);
+
+    // Snapshot ids before clearing local state
+    const sessionId = activeSessionId;
+    const idsFromState = [...answerResourceIds];
+
+    // Clear ONLY answer sheets locally
+    setSelectedFiles([]);
+    setAnswerResourceIds([]);
+    setAnswerDocumentIds({});
+    setEvaluationUploadedFilesCount(0);
+    setProcessingStatus("idle");
+    setMarksConfirmed(false);
+    resetMarkingSchemaState();
+
+    // Best-effort server cleanup so answer sheets don't rehydrate after relogin
+    if (!sessionId) return;
+
+    // Detach answer scripts from this chat session, then delete known uploads.
+    try {
+      await detachAnswerScriptsFromSession({ sessionId });
+    } catch (e) {
+      console.warn("Failed to detach answer scripts from session", e);
+      // Fallback: detach ids we currently know about.
+      for (const resourceId of idsFromState) {
+        try {
+          await detachAnswerSheetFromSession({ sessionId, resourceId });
+        } catch (err) {
+          console.warn("Failed to detach answer sheet resource", err);
+        }
+      }
+    }
+
+    for (const resourceId of idsFromState) {
+      try {
+        await deleteResource(resourceId);
+      } catch (err) {
+        console.warn("Failed to delete cleared answer sheet resource", err);
+      }
+    }
+  }, [activeSessionId, answerResourceIds]);
+
+  const handleUnifiedSend = (configOverride?: PaperPart[]) => {
+    // 🎙️ Voice has priority
+    if (pendingVoice) {
+      handleVoiceSend(pendingVoice);
+      setPendingVoice(null);
+      return;
+    }
+
+    // ✍️ Otherwise, text
+    handleSend(configOverride);
+  };
+
+  const handleRegenerateAssistant = async (messageId?: string) => {
+    // Regeneration is only supported in learning mode.
+    if (mode !== "learning") return;
+
+    if (!messageId) {
+      setToastMessage("Cannot regenerate this message right now.");
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    setIsMessageGenerating(true);
+
+    try {
+      const generated = await generateMessageResponse(messageId);
+      const generatedMessage = generated?.message;
+
+      if (generatedMessage) {
+        const nextMessage: ChatMessage = {
+          id: generatedMessage.id ?? messageId,
+          role: (generatedMessage.role ?? "assistant") as "assistant" | "user",
+          content: generatedMessage.content ?? "",
+          grade_level: generatedMessage.grade_level,
+          safety_summary: generatedMessage.safety_summary,
+        };
+
+        setLearningMessages((prev) =>
+          prev.map((msg) => (msg.id === messageId ? nextMessage : msg)),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to regenerate assistant reply", error);
+      setToastMessage(
+        apiErrorMessage(error, "errors.regenerate_assistant_reply"),
+      );
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setIsMessageGenerating(false);
+    }
+  };
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [learningMessages, evaluationMessages]);
+  }, [
+    learningMessages,
+    evaluationMessages,
+    isAutoProcessing,
+    isMessageGenerating,
+  ]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setMessage(value);
-    if (value.trim() === "") {
-      e.target.style.height = "auto";
-      return;
-    }
-    e.target.style.height = "auto";
-    e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
   const handleStopRecording = () => {
@@ -373,6 +1791,67 @@ export default function ChatPage({
     setIsSyllabusOpen(false);
   };
 
+  const loadSessionResources = useCallback(async () => {
+    if (!activeSessionId) return;
+
+    setIsSessionResourcesLoading(true);
+    setSessionResourcesError(null);
+
+    try {
+      const resources = await listChatSessionResources(activeSessionId);
+      const normalized = (
+        Array.isArray(resources) ? resources : []
+      ) as SessionResourceItem[];
+      normalized.sort((a, b) => {
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bTime - aTime;
+      });
+      setSessionResources(normalized);
+    } catch (error) {
+      console.error("Failed to load session resources", error);
+      setSessionResourcesError(
+        apiErrorMessage(error, "errors.load_session_resources"),
+      );
+      setSessionResources([]);
+    } finally {
+      setIsSessionResourcesLoading(false);
+    }
+  }, [activeSessionId]);
+
+  const closeSessionResourcesModal = useCallback(() => {
+    setIsSessionResourcesModalOpen(false);
+    if (!activeSessionId) return;
+
+    const basePath = `/chat/${activeSessionId}`;
+    if (globalThis.location.pathname !== basePath) {
+      globalThis.history.pushState({}, "", basePath);
+    }
+  }, [activeSessionId]);
+
+  const toggleSessionResourcesModal = useCallback(() => {
+    if (isSessionResourcesModalOpen) {
+      closeSessionResourcesModal();
+      return;
+    }
+
+    if (!activeSessionId) {
+      setToastMessage("Please create a learning chat first.");
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    setIsSessionResourcesModalOpen(true);
+    globalThis.history.pushState({}, "", `/chat/${activeSessionId}/resources`);
+    void loadSessionResources();
+  }, [
+    activeSessionId,
+    closeSessionResourcesModal,
+    isSessionResourcesModalOpen,
+    loadSessionResources,
+  ]);
+
   const isAnyRightPanelOpen = isRubricOpen || isSyllabusOpen || isQuestionsOpen;
 
   const handleCancelRecording = () => {
@@ -380,23 +1859,47 @@ export default function ChatPage({
     setTranscript("");
   };
 
-  const handleRubricSelect = (rubricId: string) => {
+  const handleRubricSelect = async (rubricId: string) => {
     console.log("Selected rubric:", rubricId);
-    // You can implement rubric selection logic here
-    // For example: setSelectedRubric(rubricId);
+    const isClearing = !rubricId;
+
+    if (isClearing) {
+      if (activeSessionId) {
+        try {
+          await removeAttachedRubricFromSession({
+            chatSessionId: activeSessionId,
+          });
+        } catch (e) {
+          console.error("Failed to detach rubric", e);
+          setToastMessage(apiErrorMessage(e, "errors.remove_rubric"));
+          setToastType("error");
+          setIsToastVisible(true);
+          return;
+        }
+      }
+
+      setRubricSet(false);
+      setAttachedRubricId(null);
+    } else {
+      setRubricSet(true);
+    }
+
+    if (processingStatus === "completed") {
+      setProcessingStatus("needs_reprocessing");
+      setMarksConfirmed(false);
+      resetMarkingSchemaState();
+    }
   };
 
   const handleRubricUpload = () => {
     console.log("Upload rubric");
-    // Implement file upload logic here
-  };
-
-  // Auto-fill transcript simulation
-  useEffect(() => {
-    if (isRecording) {
-      setTranscript("student asking about solar systems…");
+    setRubricSet(true);
+    if (processingStatus === "completed") {
+      setProcessingStatus("needs_reprocessing");
+      setMarksConfirmed(false);
+      resetMarkingSchemaState();
     }
-  }, [isRecording]);
+  };
 
   // Handle sub question modal logic
   useEffect(() => {
@@ -425,43 +1928,432 @@ export default function ChatPage({
     setSubQuestionMarks([]);
   };
 
-  const handleFileUpload = (files: File[]) => {
-    if (mode === "evaluation") {
-      // Check if adding these files would exceed the 10-file limit
-      const remainingSlots = 10 - evaluationUploadedFilesCount;
+  const handleFileUpload = async (files: File[]) => {
+    if (mode !== "evaluation") return;
 
-      if (remainingSlots <= 0) {
+    if (processingStatus === "completed") {
+      setProcessingStatus("needs_reprocessing");
+      setMarksConfirmed(false);
+      resetMarkingSchemaState();
+    }
+
+    const MAX_ANSWER_SHEETS = 10;
+    const currentCount = selectedFiles.length;
+    const remainingSlots = isEvaluationStarted
+      ? MAX_ANSWER_SHEETS
+      : MAX_ANSWER_SHEETS - currentCount;
+
+    if (!isEvaluationStarted && remainingSlots <= 0) {
+      setToastMessage(
+        "You have already uploaded the maximum of 10 answer sheets for this evaluation chat.",
+      );
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    const filesToUpload = files.slice(0, remainingSlots);
+    if (filesToUpload.length < files.length) {
+      const msg = isEvaluationStarted
+        ? `You can upload a maximum of ${MAX_ANSWER_SHEETS} answer sheet(s). Only the first ${MAX_ANSWER_SHEETS} file(s) will be uploaded.`
+        : `You can only upload ${remainingSlots} more answer sheet(s). Only the first ${remainingSlots} file(s) will be uploaded.`;
+      setToastMessage(msg);
+      setToastType("warning");
+      setIsToastVisible(true);
+    }
+
+    // Ensure we have a real server session id to attach resources to.
+    const targetSessionId = activeSessionId ?? (await ensureSessionId());
+    if (!targetSessionId) {
+      setToastMessage("Please create an evaluation chat first.");
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress({ current: 0, total: filesToUpload.length });
+
+    try {
+      const acceptedFiles: File[] = [];
+      const acceptedIds: string[] = [];
+
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
+        try {
+          const uploads = await uploadEvaluationResources({
+            chatSessionId: targetSessionId,
+            resourceType: "answer_sheet",
+            files: [file],
+          });
+
+          const id = uploads[0]?.resource_id;
+          if (id) {
+            acceptedFiles.push(file);
+            acceptedIds.push(id);
+          }
+
+          setUploadProgress((prev) => ({ ...prev, current: i + 1 }));
+        } catch (err) {
+          console.error(`Failed to upload file ${file.name}`, err);
+          // Continue with next file
+        }
+      }
+
+      if (acceptedFiles.length === 0) {
         setToastMessage(
-          "You have already uploaded the maximum of 10 files for this evaluation chat."
+          "Answer sheet upload failed. Please check your connection or try again.",
         );
         setToastType("error");
         setIsToastVisible(true);
         return;
       }
 
-      // Only take files that fit within the limit
-      const filesToUpload = files.slice(0, remainingSlots);
-
-      if (filesToUpload.length < files.length) {
+      if (acceptedFiles.length < filesToUpload.length) {
         setToastMessage(
-          `You can only upload ${remainingSlots} more file(s). Only the first ${remainingSlots} file(s) will be uploaded.`
+          `Successfully uploaded ${acceptedFiles.length} of ${filesToUpload.length} files.`,
         );
-        setToastType("error");
+        setToastType("warning");
         setIsToastVisible(true);
       }
 
-      setSelectedFiles(filesToUpload);
-      setEvaluationUploadedFilesCount((prev) => prev + filesToUpload.length);
+      if (!isEvaluationStarted) {
+        setSelectedFiles((prev) => {
+          const next = [...prev, ...acceptedFiles];
+          setEvaluationUploadedFilesCount(next.length);
+          return next;
+        });
+        setAnswerResourceIds((prev) => [...prev, ...acceptedIds]);
+      } else {
+        // If evaluation already started, we treat this as a full replacement.
+        // Detach old answer scripts from the session and delete known old uploads.
+        try {
+          await detachAnswerScriptsFromSession({ sessionId: targetSessionId });
+        } catch (e) {
+          console.warn("Failed to detach previous answer scripts", e);
+          // Fallback: detach known ids individually.
+          const oldIds = [...answerResourceIds];
+          for (const oldId of oldIds) {
+            try {
+              await detachAnswerSheetFromSession({
+                sessionId: targetSessionId,
+                resourceId: oldId,
+              });
+            } catch (err) {
+              console.warn("Failed to detach previous answer sheet", err);
+            }
+          }
+        }
 
-      setEvaluationMessages((prev) => [
-        ...prev,
-        ...filesToUpload.map((file) => ({
-          role: "user" as const,
-          content: `📎 Uploaded file: ${file.name}`,
-          file,
-        })),
-      ]);
+        for (const oldId of answerResourceIds) {
+          try {
+            await deleteResource(oldId);
+          } catch (err) {
+            console.warn("Failed to delete previous answer sheet resource", err);
+          }
+        }
+
+        // If evaluation already started, replace the current batch.
+        setSelectedFiles(acceptedFiles);
+        setAnswerResourceIds(acceptedIds);
+        setEvaluationUploadedFilesCount(acceptedFiles.length);
+
+        setEvaluationMessages((prev) => [
+          ...prev,
+          ...acceptedFiles.map((file) => ({
+            role: "user" as const,
+            content: `📎 Uploaded file: ${file.name}`,
+            file,
+          })),
+        ]);
+      }
+    } catch (error) {
+      console.error("Failed to upload answer sheets", error);
+      setToastMessage(apiErrorMessage(error, "errors.upload_answer_sheets"));
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
     }
+  };
+
+  const handleRemoveEvaluationFile = async (index: number) => {
+    const resourceId = answerResourceIds[index];
+    if (!resourceId) {
+      setSelectedFiles((prev) => {
+        const next = prev.filter((_, i) => i !== index);
+        setEvaluationUploadedFilesCount(next.length);
+        return next;
+      });
+      setAnswerResourceIds((prev) => prev.filter((_, i) => i !== index));
+      if (processingStatus === "completed") {
+        setProcessingStatus("needs_reprocessing");
+        setMarksConfirmed(false);
+        resetMarkingSchemaState();
+      }
+      return;
+    }
+
+    try {
+      const targetSessionId = activeSessionId || evaluationSessionId;
+      await removeAnswerSheetResource(resourceId, targetSessionId);
+    } catch (e) {
+      console.error("Failed to delete answer sheet resource", e);
+      setToastMessage(apiErrorMessage(e, "errors.remove_answer_sheet"));
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    setSelectedFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      setEvaluationUploadedFilesCount(next.length);
+      return next;
+    });
+    setAnswerResourceIds((prev) => prev.filter((_, i) => i !== index));
+    setAnswerDocumentIds((prev) => {
+      const next = { ...prev };
+      delete next[resourceId];
+      return next;
+    });
+    if (processingStatus === "completed") {
+      setProcessingStatus("needs_reprocessing");
+      setMarksConfirmed(false);
+      resetMarkingSchemaState();
+    }
+  };
+
+  const handleReplaceEvaluationFile = async (index: number, file: File) => {
+    if (processingStatus === "completed") {
+      setProcessingStatus("needs_reprocessing");
+      setMarksConfirmed(false);
+      resetMarkingSchemaState();
+    }
+
+    const targetSessionId = activeSessionId ?? (await ensureSessionId());
+    if (!targetSessionId) {
+      setToastMessage("Please create an evaluation chat first.");
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress({ current: 0, total: 1 });
+    try {
+      const oldId = answerResourceIds[index];
+      const uploads = await uploadEvaluationResources({
+        chatSessionId: targetSessionId,
+        resourceType: "answer_sheet",
+        files: [file],
+      });
+      const newId = uploads[0]?.resource_id;
+      if (!newId) {
+        setToastMessage(
+          "Failed to replace answer sheet: no resource id returned.",
+        );
+        setToastType("error");
+        setIsToastVisible(true);
+        return;
+      }
+
+      if (oldId) {
+        try {
+          await removeAnswerSheetResource(oldId, targetSessionId);
+        } catch (e) {
+          console.warn("Failed to remove old answer sheet resource", e);
+        }
+      }
+
+      setUploadProgress({ current: 1, total: 1 });
+      setSelectedFiles((prev) => {
+        const next = [...prev];
+        next[index] = file;
+        setEvaluationUploadedFilesCount(next.length);
+        return next;
+      });
+      setAnswerResourceIds((prev) => {
+        const next = [...prev];
+        next[index] = newId;
+        return next;
+      });
+      if (oldId) {
+        setAnswerDocumentIds((prev) => {
+          const next = { ...prev };
+          delete next[oldId];
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error("Failed to replace answer sheet", error);
+      setToastMessage(apiErrorMessage(error, "errors.replace_answer_sheet"));
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const handleProcessEvaluation = async () => {
+    const targetSessionId = activeSessionId ?? (await ensureSessionId());
+    if (!targetSessionId) {
+      setToastMessage("Please create an evaluation chat first.");
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    if (answerResourceIds.length === 0) {
+      setToastMessage(
+        "No uploaded answer-sheet ids found. Please upload answer sheets again.",
+      );
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    setProcessingStatus("processing");
+    setProcessProgress({
+      current: answerResourceIds.length > 0 ? 1 : 0,
+      total: answerResourceIds.length,
+      percent: answerResourceIds.length > 0 ? 10 : 0,
+      message: "Starting document processing...",
+    });
+    setAnswerDocumentIds({});
+    // Re-processing invalidates any previous confirmation.
+    setMarksConfirmed(false);
+    resetMarkingSchemaState();
+    try {
+      const nextAnswerDocumentIds: Record<string, string> = {};
+
+      // Mobile parity: process one answer sheet at a time.
+      for (let i = 0; i < answerResourceIds.length; i++) {
+        const resourceId = answerResourceIds[i];
+        const totalToProcess = answerResourceIds.length;
+        setProcessProgress({
+          current: i + 1,
+          total: totalToProcess,
+          percent: Math.max(10, Math.round((i / totalToProcess) * 100)),
+          message: `Preparing document ${i + 1} of ${totalToProcess}...`,
+        });
+        const processResult = await processDocumentsStreamWithProgress({
+          body: {
+            chat_session_id: targetSessionId,
+            answer_resource_ids: [resourceId],
+          },
+          onEvent: (evt) => {
+            const data = parseStreamPayload(evt.raw);
+            const answerDocumentId = extractAnswerDocumentId(data, resourceId);
+            const streamPercent = getStreamProgressPercent(data);
+            const streamMessage = getStreamProgressMessage(data);
+
+            if (streamPercent !== null) {
+              const overallPercent = ((i + streamPercent / 100) / totalToProcess) * 100;
+              setProcessProgress({
+                current: i + 1,
+                total: totalToProcess,
+                percent: Math.max(10, Math.min(99, Math.round(overallPercent / 10) * 10)),
+                message: streamMessage,
+              });
+            } else if (streamMessage) {
+              setProcessProgress(prev => ({
+                ...prev,
+                current: i + 1,
+                total: totalToProcess,
+                message: streamMessage,
+              }));
+            }
+
+            if (answerDocumentId) {
+              nextAnswerDocumentIds[resourceId] = answerDocumentId;
+              setAnswerDocumentIds(prev => ({
+                ...prev,
+                [resourceId]: answerDocumentId
+              }));
+            }
+          },
+        });
+
+        const answerDocumentId = extractAnswerDocumentId(processResult, resourceId);
+        if (answerDocumentId) {
+          nextAnswerDocumentIds[resourceId] = answerDocumentId;
+          setAnswerDocumentIds(prev => ({
+            ...prev,
+            [resourceId]: answerDocumentId
+          }));
+        }
+
+        setProcessProgress({
+          current: i + 1,
+          total: totalToProcess,
+          percent: Math.round(((i + 1) / totalToProcess) * 100),
+          message: `Document ${i + 1} of ${totalToProcess} processed.`,
+        });
+      }
+
+      if (Object.keys(nextAnswerDocumentIds).length < answerResourceIds.length) {
+        try {
+          const fetchedMap = await fetchAnswerDocumentIdMap(targetSessionId, answerResourceIds);
+          Object.assign(nextAnswerDocumentIds, fetchedMap);
+        } catch (mapError) {
+          console.warn("Failed to fetch processed answer document ids", mapError);
+        }
+      }
+
+      setAnswerDocumentIds(nextAnswerDocumentIds);
+      setProcessingStatus("completed");
+      // After processing completes, marks must be (re)confirmed.
+      setMarksConfirmed(false);
+      resetMarkingSchemaState();
+      setToastMessage("Documents processed successfully.");
+      setToastType("success");
+      setIsToastVisible(true);
+    } catch (error) {
+      console.error("Failed to process documents", error);
+      setProcessingStatus("idle");
+      setToastMessage(apiErrorMessage(error, "errors.process_documents"));
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setProcessProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const handleReviewMappedAnswers = async (index: number) => {
+    if (processingStatus !== "completed") {
+      showToast("Process documents to view the mapped collection.", "warning");
+      return;
+    }
+
+    const resourceId = answerResourceIds[index];
+    let answerDocumentId = resourceId ? answerDocumentIds[resourceId] : undefined;
+
+    if (!answerDocumentId) {
+      const targetSessionId = activeSessionId || evaluationSessionId;
+
+      if (targetSessionId && resourceId) {
+        try {
+          const fetchedMap = await fetchAnswerDocumentIdMap(targetSessionId, answerResourceIds);
+          setAnswerDocumentIds((prev) => ({ ...prev, ...fetchedMap }));
+          answerDocumentId = fetchedMap[resourceId];
+        } catch (mapError) {
+          console.warn("Failed to resolve mapped answer document id", mapError);
+        }
+      }
+    }
+
+    if (!answerDocumentId) {
+      answerDocumentId = resourceId;
+    }
+
+    const fileName = selectedFiles[index]?.name;
+    const params = new URLSearchParams({ answerId: answerDocumentId });
+    if (fileName) {
+      params.set("fileName", fileName);
+    }
+    router.push(`/answer-mapping?${params.toString()}`);
   };
 
   // Handle adding files to pending queue in learning mode
@@ -479,20 +2371,71 @@ export default function ChatPage({
     setPendingFiles([]);
   };
 
+  const resetMarkingSchemaState = useCallback(() => {
+    setMarkingSchema(null);
+    setMarkingSchemaConfirmed(false);
+    setIsMarkingSchemaModalOpen(false);
+  }, []);
+
+  const handleOpenMarkingSchema = useCallback(async () => {
+    const sessionId = activeSessionId ?? (await ensureSessionId());
+    if (!sessionId) {
+      setToastMessage("Please create an evaluation chat first.");
+      setToastType("error");
+      setIsToastVisible(true);
+      return;
+    }
+
+    if (!marksConfirmed) {
+      setToastMessage(
+        "Confirm the paper config before reviewing the marking schema.",
+      );
+      setToastType("warning");
+      setIsToastVisible(true);
+      return;
+    }
+
+    try {
+      setIsMarkingSchemaLoading(true);
+      setIsMarkingSchemaModalOpen(true);
+      const schema = await getSessionMarkingSchema(sessionId);
+      setMarkingSchema(schema);
+      setMarkingSchemaConfirmed(Boolean(schema.isConfirmed));
+    } catch (error) {
+      console.error("Failed to load marking schema", error);
+      setToastMessage(apiErrorMessage(error, "errors.load_marking_schema"));
+      setToastType("error");
+      setIsToastVisible(true);
+    } finally {
+      setIsMarkingSchemaLoading(false);
+    }
+  }, [
+    activeSessionId,
+    ensureSessionId,
+    marksConfirmed,
+    setIsToastVisible,
+    setToastMessage,
+    setToastType,
+  ]);
+
   useEffect(() => {
     if (chatId) {
-      console.log("Loaded chat:", chatId);
-      // Reset file count when loading a new chat
       setEvaluationUploadedFilesCount(0);
+      setAnswerResourceIds([]);
+      setMarksConfirmed(false);
+      resetMarkingSchemaState();
     }
-  }, [chatId]);
+  }, [chatId, resetMarkingSchemaState]);
 
   // Reset file count when evaluation messages are cleared
   useEffect(() => {
     if (mode === "evaluation" && evaluationMessages.length === 0) {
       setEvaluationUploadedFilesCount(0);
+      setAnswerResourceIds([]);
+      setMarksConfirmed(false);
+      resetMarkingSchemaState();
     }
-  }, [mode, evaluationMessages.length]);
+  }, [mode, evaluationMessages.length, resetMarkingSchemaState]);
 
   const renderMessageArea = () => {
     if (isInitializing || isLoadingMessages) {
@@ -502,7 +2445,9 @@ export default function ChatPage({
     if (mode === "learning") {
       return (
         <div className="flex-1 overflow-y-auto p-6 space-y-4 w-full max-w-[320px] min-[350]:max-w-[380] min-[425]:max-w-[425] sm:max-w-full bg-gray-100 dark:bg-[#0C0C0C] custom-scrollbar">
-          {learningMessages.length === 0 ? (
+          {learningMessages.length === 0 &&
+          !isAutoProcessing &&
+          !isMessageGenerating ? (
             <EmptyState
               title={t("start_conversation")}
               subtitle={t("start_learning_conversation_sub")}
@@ -512,6 +2457,8 @@ export default function ChatPage({
               messages={learningMessages}
               mode="learning"
               endRef={endRef}
+              isProcessing={isAutoProcessing}
+              isMessageGenerating={isMessageGenerating}
             />
           )}
         </div>
@@ -521,16 +2468,169 @@ export default function ChatPage({
     // evaluation mode
     return (
       <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100 dark:bg-[#0C0C0C] custom-scrollbar">
-        {evaluationMessages.length === 0 ? (
-          <EmptyState
-            title={t("start_conversation")}
-            subtitle={t("start_evaluation_conversation_sub")}
+        {evaluationStatus === "setup" && (
+          <EvaluationStartScreen
+            onOpenRubric={() => setIsRubricOpen(true)}
+            onOpenSyllabus={() => setIsSyllabusOpen(true)}
+            onOpenQuestions={() => setIsQuestionsOpen(true)}
+            onOpenMarks={async () => {
+              const sessionId = await ensureSessionId();
+              if (!sessionId) {
+                setToastMessage("Please create an evaluation chat first.");
+                setToastType("error");
+                setIsToastVisible(true);
+                return;
+              }
+
+              // If already confirmed, allow editing without re-fetch.
+              // If not confirmed, refresh from backend so marks allocations are present.
+              if (marksConfirmed && paperConfig.length > 0) {
+                setIsEvaluationModalOpen(true);
+                return;
+              }
+
+              try {
+                setIsPaperConfigLoading(true);
+                const cfg = await getPaperConfigFromOCR({
+                  chatSessionId: sessionId,
+                });
+                const qs = await getPaperQuestionStructure({
+                  chatSessionId: sessionId,
+                  paperConfigParts: cfg,
+                });
+
+                const merged = mergePaperConfigWithQuestionStructure({
+                  paperConfigParts: cfg,
+                  questionStructureParts: qs,
+                });
+
+                if (merged && merged.length > 0) {
+                  setPaperConfig(merged);
+                } else if (cfg && cfg.length > 0) {
+                  setPaperConfig(cfg);
+                } else if (qs && qs.length > 0) {
+                  setPaperConfig(qs);
+                }
+              } catch (e) {
+                console.error(
+                  "Failed to fetch paper config/question structure",
+                  e,
+                );
+                setToastMessage(
+                  "Failed to fetch paper structure. You can still edit manually.",
+                );
+                setToastType("warning");
+                setIsToastVisible(true);
+              } finally {
+                setIsPaperConfigLoading(false);
+                setIsEvaluationModalOpen(true);
+              }
+            }}
+            onOpenMarkingSchema={handleOpenMarkingSchema}
+            onClearAnswerSheets={handleStartNewAnswerEvaluation}
+            onUploadAnswers={handleFileUpload}
+            onProcess={handleProcessEvaluation}
+            onStartEvaluation={handleStartEvaluationProcess}
+            onViewHistory={() => setEvaluationStatus("history")}
+            uploadedFiles={selectedFiles}
+            answerResourceIds={answerResourceIds}
+            onRemoveFile={handleRemoveEvaluationFile}
+            onReplaceFile={handleReplaceEvaluationFile}
+            onReviewMappedAnswers={handleReviewMappedAnswers}
+            isProcessing={isAutoProcessing}
+            isUploading={isUploading}
+            isPaperConfigLoading={isPaperConfigLoading}
+            isMarkingSchemaLoading={isMarkingSchemaLoading}
+            uploadProgress={uploadProgress}
+            processProgress={processProgress}
+            hasMarks={marksConfirmed}
+            hasMarkingSchema={markingSchemaConfirmed}
+            rubricSet={rubricSet}
+            syllabusSet={syllabusSet}
+            questionsSet={questionsSet}
+            processingStatus={processingStatus}
           />
-        ) : (
-          <MessagesList
-            messages={evaluationMessages}
-            mode="evaluation"
-            endRef={endRef}
+        )}
+
+        {evaluationStatus === "in_progress" ? (
+          evaluationSessionId && evaluationAnswerResourceIds.length > 0 ? (
+            <EvaluationProgressScreen
+              evaluationSessionId={evaluationSessionId}
+              answerResourceIds={evaluationAnswerResourceIds}
+              answerSheets={selectedFiles}
+              questionPaperName={questionPaperName}
+              syllabusCount={syllabusCount}
+              hasRubric={rubricSet}
+              onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
+              onViewResults={() => {
+                setEvaluationStatus("results");
+              }}
+              answerDocumentIdMap={answerDocumentIds}
+            />
+          ) : (
+            <div style={{ padding: 40, textAlign: "center" }}>
+              <div className="text-lg font-semibold mb-2">
+                Evaluation is starting...
+              </div>
+              <div className="text-gray-500">
+                Waiting for evaluation session and answer resources.
+                <br />
+                If this message persists, there may be a backend or data issue.
+              </div>
+            </div>
+          )
+        ) : null}
+
+        {evaluationStatus === "results" && (
+          <EvaluationResultsScreen
+            evaluationSessionId={evaluationSessionId || undefined}
+            answerSheets={selectedFiles}
+            answerResourceIds={evaluationAnswerResourceIds}
+            results={currentEvaluationResult}
+            onAnalysisClick={(results) => {
+              setAnalyticsResults(results);
+              setEvaluationStatus("analytics");
+            }}
+            onViewHistory={() => setEvaluationStatus("history")}
+            onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
+          />
+        )}
+
+        {evaluationStatus === "analytics" && (
+          <EvaluationAnalyticsScreen
+            evaluationSessionId={evaluationSessionId || undefined}
+            results={analyticsResults}
+            answerSheets={selectedFiles}
+            onBack={() => setEvaluationStatus("results")}
+            onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
+          />
+        )}
+
+        {evaluationStatus === "history" && (
+          <EvaluationHistoryScreen
+            history={evaluationHistory}
+            onSelectSession={(session) => {
+              setSelectedFiles(session.files);
+              setEvaluationAnswerResourceIds(session.resourceIds || []);
+              setCurrentEvaluationResult(session.results);
+              // Ensure we have a session ID to fetch from if not already set
+              if (!evaluationSessionId && activeSessionId) {
+                setEvaluationSessionId(activeSessionId);
+              }
+              setEvaluationStatus("results");
+            }}
+            onViewAnalytics={(session) => {
+              setSelectedFiles(session.files);
+              setEvaluationAnswerResourceIds(session.resourceIds || []);
+              setCurrentEvaluationResult(session.results);
+              setAnalyticsResults(session.results);
+              if (!evaluationSessionId && activeSessionId) {
+                setEvaluationSessionId(activeSessionId);
+              }
+              setEvaluationStatus("analytics");
+            }}
+            onBack={() => setEvaluationStatus("setup")}
+            onStartNewAnswerEvaluation={handleStartNewAnswerEvaluation}
           />
         )}
       </div>
@@ -539,13 +2639,55 @@ export default function ChatPage({
 
   const handleNewChat = async (mode: "learning" | "evaluation") => {
     if (creating) return;
+
+    // Keep the UI mode in sync immediately (important when staying on /chat and not remounting)
+    setChatType(mode);
+
+    if (mode === "evaluation") {
+      setCreating(true);
+      try {
+        const session = await createChatSession({
+          mode: "evaluation",
+          title: "New Evaluation Chat",
+        });
+
+        // Optimistically add the session so sidebar can highlight it instantly
+        setChats((prev) => {
+          const next = prev.filter((c) => c.id !== session.id);
+          const updated: SidebarChatItem[] = [
+            {
+              id: session.id,
+              title: session.title || "New Evaluation Chat",
+              type: "evaluation",
+              time: formatDistanceToNow(new Date(), { addSuffix: true }),
+            },
+            ...next,
+          ];
+          writeCachedSidebarChats(updated);
+          return updated;
+        });
+
+        router.push(`/chat/${session.id}`);
+      } catch (error) {
+        console.error("Failed to create evaluation chat", error);
+        setToastMessage(
+          apiErrorMessage(error, "errors.create_evaluation_chat"),
+        );
+        setToastType("error");
+        setIsToastVisible(true);
+      } finally {
+        setCreating(false);
+      }
+      return;
+    }
+
     // Don't create server session here. Open a local temporary chat UI.
     const tempId = `local-${Date.now()}-${mode}`;
     try {
       router.push(`/chat/${tempId}`);
     } catch (error) {
       console.error("Failed to open new chat UI", error);
-      setToastMessage("Failed to open a new chat. Please try again.");
+      setToastMessage(apiErrorMessage(error, "errors.open_new_chat"));
       setToastType("error");
       setIsToastVisible(true);
     }
@@ -569,11 +2711,13 @@ export default function ChatPage({
       try {
         await updateChatSession(editingChat.id, { title: nextTitle });
 
-        setChats((prev) =>
-          prev.map((item) =>
-            item.id === editingChat.id ? { ...item, title: nextTitle } : item
-          )
-        );
+        setChats((prev) => {
+          const updated = prev.map((item) =>
+            item.id === editingChat.id ? { ...item, title: nextTitle } : item,
+          );
+          writeCachedSidebarChats(updated);
+          return updated;
+        });
 
         setToastMessage("Chat title updated successfully");
         setToastType("success");
@@ -581,7 +2725,7 @@ export default function ChatPage({
         setIsEditModalOpen(false);
       } catch (error) {
         console.error("Failed to update chat title", error);
-        setToastMessage("Failed to update chat title. Please try again.");
+        setToastMessage(apiErrorMessage(error, "errors.update_chat_title"));
         setToastType("error");
         setIsToastVisible(true);
       }
@@ -608,8 +2752,13 @@ export default function ChatPage({
       setIsDeletingChat(true);
       try {
         await deleteChatSession(deletingChat.id);
+        removeCachedSessionMessages(deletingChat.id);
 
-        setChats((prev) => prev.filter((item) => item.id !== deletingChat.id));
+        setChats((prev) => {
+          const updated = prev.filter((item) => item.id !== deletingChat.id);
+          writeCachedSidebarChats(updated);
+          return updated;
+        });
 
         if (chatId === deletingChat.id) {
           router.push("/chat");
@@ -622,7 +2771,7 @@ export default function ChatPage({
         setDeletingChat(null);
       } catch (error) {
         console.error("Failed to delete chat", error);
-        setToastMessage("Failed to delete chat. Please try again.");
+        setToastMessage(apiErrorMessage(error, "errors.delete_chat"));
         setToastType("error");
         setIsToastVisible(true);
       } finally {
@@ -639,12 +2788,22 @@ export default function ChatPage({
     setIsDeletingChat(false);
   };
 
+  // Determine active step for header pulsing
+  const getActiveStep = () => {
+    if (evaluationStatus !== "setup") return undefined;
+    if (!rubricSet) return "rubric";
+    if (!syllabusSet) return "syllabus";
+    if (!questionsSet) return "questions";
+    return undefined;
+  };
+
   return (
     <main className="flex h-dvh bg-gray-100 dark:bg-[#0C0C0C] text-gray-900 dark:text-gray-200">
       <Sidebar
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         chats={chats}
+        activeChatId={chatId ?? activeSessionId}
         onNewLearningChat={() => handleNewChat("learning")}
         onNewEvaluationChat={() => handleNewChat("evaluation")}
         onEditChat={handleEditChat}
@@ -663,64 +2822,178 @@ export default function ChatPage({
           isRubricOpen={isRubricOpen}
           isSyllabusOpen={isSyllabusOpen}
           isQuestionsOpen={isQuestionsOpen}
+          isSessionResourcesOpen={isSessionResourcesModalOpen}
+          isSyncingMessages={isSyncingMessages}
+          isTemporal={
+            !chatId || chatId.startsWith("local-") || chatId.startsWith("new-")
+          }
+          backendConnectionStatus={connectionStatus}
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           toggleRubric={toggleRubric}
           toggleSyllabus={toggleSyllabus}
           toggleQuestions={toggleQuestions}
+          toggleSessionResources={toggleSessionResourcesModal}
+          activeStep={getActiveStep()}
         />
 
         {/* MESSAGE AREA */}
         {renderMessageArea()}
 
+        <EvaluationMarksModal
+          open={isEvaluationModalOpen}
+          onClose={() => setIsEvaluationModalOpen(false)}
+          onSubmit={async (config) => {
+            const sessionId = await ensureSessionId();
+            if (!sessionId) {
+              setToastMessage("Please create an evaluation chat first.");
+              setToastType("error");
+              setIsToastVisible(true);
+              throw new Error("No chat session");
+            }
+
+            try {
+              await confirmPaperConfig({ chatSessionId: sessionId, config });
+              setPaperConfig(config);
+              setMarksConfirmed(true);
+              resetMarkingSchemaState();
+              setToastMessage("Paper config confirmed.");
+              setToastType("success");
+              setIsToastVisible(true);
+            } catch (e) {
+              console.error("Failed to confirm paper config", e);
+              setToastMessage(
+                apiErrorMessage(e, "errors.confirm_paper_config"),
+              );
+              setToastType("error");
+              setIsToastVisible(true);
+              throw e;
+            }
+          }}
+          initialConfig={paperConfig}
+        />
+
+        <EvaluationMarkingSchemaModal
+          open={isMarkingSchemaModalOpen}
+          schema={markingSchema}
+          loading={isMarkingSchemaLoading}
+          saving={isMarkingSchemaSubmitting}
+          onClose={() => setIsMarkingSchemaModalOpen(false)}
+          onRefresh={handleOpenMarkingSchema}
+          onSave={async (questions) => {
+            const sessionId = await ensureSessionId();
+            if (!sessionId) {
+              setToastMessage("Please create an evaluation chat first.");
+              setToastType("error");
+              setIsToastVisible(true);
+              return;
+            }
+
+            try {
+              setIsMarkingSchemaSubmitting(true);
+              const savedSchema = await saveSessionMarkingSchema({
+                sessionId,
+                questions,
+              });
+              setMarkingSchema(savedSchema);
+              setMarkingSchemaConfirmed(false);
+              setToastMessage("Marking schema draft saved.");
+              setToastType("success");
+              setIsToastVisible(true);
+            } catch (error) {
+              console.error("Failed to save marking schema", error);
+              setToastMessage(
+                apiErrorMessage(error, "errors.save_marking_schema"),
+              );
+              setToastType("error");
+              setIsToastVisible(true);
+              throw error;
+            } finally {
+              setIsMarkingSchemaSubmitting(false);
+            }
+          }}
+          onConfirm={async (questions) => {
+            const sessionId = await ensureSessionId();
+            if (!sessionId) {
+              setToastMessage("Please create an evaluation chat first.");
+              setToastType("error");
+              setIsToastVisible(true);
+              return;
+            }
+
+            try {
+              setIsMarkingSchemaSubmitting(true);
+              const confirmedSchema = await confirmSessionMarkingSchema({
+                sessionId,
+                questions,
+              });
+              setMarkingSchema(confirmedSchema);
+              setMarkingSchemaConfirmed(true);
+              setIsMarkingSchemaModalOpen(false);
+              setToastMessage(
+                "Marking schema confirmed. You can now start grading.",
+              );
+              setToastType("success");
+              setIsToastVisible(true);
+            } catch (error) {
+              console.error("Failed to confirm marking schema", error);
+              setToastMessage(
+                apiErrorMessage(error, "errors.confirm_marking_schema"),
+              );
+              setToastType("error");
+              setIsToastVisible(true);
+              throw error;
+            } finally {
+              setIsMarkingSchemaSubmitting(false);
+            }
+          }}
+          onDelete={async () => {
+            const sessionId = await ensureSessionId();
+            if (!sessionId) {
+              setToastMessage("Please create an evaluation chat first.");
+              setToastType("error");
+              setIsToastVisible(true);
+              return;
+            }
+
+            try {
+              setIsMarkingSchemaSubmitting(true);
+              await deleteSessionMarkingSchema(sessionId);
+              setMarkingSchema(null);
+              setMarkingSchemaConfirmed(false);
+              setToastMessage(
+                "Marking schema deleted. Open the schema step to regenerate it.",
+              );
+              setToastType("success");
+              setIsToastVisible(true);
+            } catch (error) {
+              console.error("Failed to delete marking schema", error);
+              setToastMessage(
+                apiErrorMessage(error, "errors.delete_marking_schema"),
+              );
+              setToastType("error");
+              setIsToastVisible(true);
+              throw error;
+            } finally {
+              setIsMarkingSchemaSubmitting(false);
+            }
+          }}
+        />
+
         {/* INPUT AREA */}
-        <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
-          {mode === "evaluation" && (
-            <EvaluationInputs
-              totalMarks={totalMarks}
-              setTotalMarks={setTotalMarks}
-              mainQuestions={mainQuestions}
-              setMainQuestions={setMainQuestions}
-              requiredQuestions={requiredQuestions}
-              setRequiredQuestions={setRequiredQuestions}
-              onSend={handleSend}
-              onUpload={handleFileUpload}
-              onOpenMarks={() => setIsEvaluationModalOpen(true)}
-              uploadedFilesCount={evaluationUploadedFilesCount}
-            />
-          )}
-
-          <EvaluationMarksModal
-            open={isEvaluationModalOpen}
-            onClose={() => setIsEvaluationModalOpen(false)}
-            totalMarks={totalMarks}
-            setTotalMarks={setTotalMarks}
-            mainQuestions={mainQuestions}
-            setMainQuestions={setMainQuestions}
-            requiredQuestions={requiredQuestions}
-            setRequiredQuestions={setRequiredQuestions}
-            onAllocateMarks={() => {
-              // Existing logic for sub-questions
-              setIsSubMarksModalOpen(true);
-            }}
-            onViewMarks={() => {
-              // For now, toggle the sub marks modal to view
-              setIsSubMarksModalOpen(true);
-            }}
-            onSubmit={() => {
-              setIsEvaluationModalOpen(false);
-              handleSend();
-            }}
-          />
-
-          {isRecording && (
-            <RecordBar
-              onCancelRecording={handleCancelRecording}
-              onStopRecording={handleStopRecording}
-            />
-          )}
-
-          {mode === "learning" && (
-            <>
+        {mode === "learning" && (
+          <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#111111] dark:border-[#2a2a2a]">
+            {isRecording && (
+              <RecordBar
+                onCancelRecording={() => {
+                  setIsRecording(false);
+                }}
+                onStopRecording={(audioBlob) => {
+                  setIsRecording(false);
+                  setPendingVoice(audioBlob);
+                }}
+              />
+            )}
+            {!pendingVoice && (
               <div className="mb-3">
                 <label className="mr-2 text-sm">{t("response_level")}:</label>
                 <select
@@ -734,23 +3007,63 @@ export default function ChatPage({
                   <option value="university">University Level</option>
                 </select>
               </div>
+            )}
 
-              <InputBar
-                isRecording={isRecording}
-                setIsRecording={setIsRecording}
-                transcript={transcript}
-                message={message}
-                handleInputChange={handleInputChange}
-                onSend={handleSend}
-                onFilesSelected={handlePendingFilesAdd} // Previously onUpload
-                pendingFiles={pendingFiles}
-                onRemoveFile={handleRemovePendingFile}
-                onClearFiles={clearPendingFiles}
-                isUploading={isUploading}
-              />
-            </>
-          )}
-        </div>
+            {/* Processing progress banner */}
+            {isAutoProcessing && lastProgress && (
+              <div className="mb-2 px-1">
+                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  <span className="truncate font-medium">
+                    {lastProgress.stage}
+                  </span>
+                  <div className="flex items-center gap-2 ml-2 shrink-0">
+                    <span className="tabular-nums">
+                      {lastProgress.document_index}/
+                      {lastProgress.total_documents} ·{" "}
+                      {Math.round(lastProgress.progress)}%
+                    </span>
+                    <button
+                      onClick={() => setIsProgressLogModalOpen(true)}
+                      className="underline hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      Details
+                    </button>
+                  </div>
+                </div>
+                <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                    style={{ width: `${lastProgress.progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <ProcessingLogsModal
+              isOpen={isProgressLogModalOpen}
+              logs={progressLog}
+              filename="Document Processing"
+              onClose={() => setIsProgressLogModalOpen(false)}
+            />
+
+            <InputBar
+              isRecording={isRecording}
+              setIsRecording={setIsRecording}
+              transcript={transcript}
+              message={message}
+              handleInputChange={handleInputChange}
+              onSend={handleUnifiedSend}
+              onFilesSelected={handlePendingFilesAdd}
+              pendingFiles={pendingFiles}
+              onRemoveFile={handleRemovePendingFile}
+              onClearFiles={clearPendingFiles}
+              pendingVoice={pendingVoice}
+              onClearPendingVoice={() => setPendingVoice(null)}
+              isUploading={isUploading}
+              isFirstMessage={learningMessages.length === 0}
+            />
+          </div>
+        )}
       </div>
 
       <SubMarksModal
@@ -762,6 +3075,17 @@ export default function ChatPage({
         onCancel={handleSubMarksCancel}
       />
 
+      <SessionResourcesModal
+        isOpen={isSessionResourcesModalOpen}
+        isLoading={isSessionResourcesLoading}
+        resources={sessionResources}
+        errorMessage={sessionResourcesError}
+        onClose={closeSessionResourcesModal}
+        onRetry={() => {
+          void loadSessionResources();
+        }}
+      />
+
       {/* RUBRIC SIDEBAR */}
       <RubricSidebar
         isOpen={isRubricOpen}
@@ -769,6 +3093,8 @@ export default function ChatPage({
         onClose={() => setIsRubricOpen(false)}
         onSelectRubric={handleRubricSelect}
         onUpload={handleRubricUpload}
+        chatSessionId={activeSessionId}
+        onRequireSession={ensureSessionId}
       />
 
       {/* RIGHT SLIDE SIDEBARS */}
@@ -778,7 +3104,21 @@ export default function ChatPage({
           isSyllabusOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <SyllabusPanelpage onClose={toggleSyllabus} />
+        <SyllabusPanelpage
+          onClose={toggleSyllabus}
+          onSyllabusChange={useCallback(
+            (hasSyllabus: boolean, count: number) => {
+              setSyllabusSet(hasSyllabus);
+              setSyllabusCount(count);
+              if (processingStatusRef.current === "completed") {
+                setProcessingStatus("needs_reprocessing");
+              }
+            },
+            [],
+          )}
+          chatSessionId={activeSessionId}
+          onRequireSession={ensureSessionId}
+        />
       </div>
 
       {/* QUESTIONS PANEL */}
@@ -787,7 +3127,21 @@ export default function ChatPage({
           isQuestionsOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <QuestionsPanelpage onClose={toggleQuestions} />
+        <QuestionsPanelpage
+          onClose={toggleQuestions}
+          onQuestionsChange={useCallback(
+            (hasQuestions: boolean, questionName?: string) => {
+              setQuestionsSet(hasQuestions);
+              setQuestionPaperName(questionName);
+              if (processingStatusRef.current === "completed") {
+                setProcessingStatus("needs_reprocessing");
+              }
+            },
+            [],
+          )}
+          chatSessionId={activeSessionId}
+          onRequireSession={ensureSessionId}
+        />
       </div>
 
       <UpdatedToast
@@ -822,6 +3176,8 @@ export default function ChatPage({
         onCancel={handleCancelDelete}
         iconColor="red"
       />
+
+      <ChatResourcePreviewModal />
     </main>
   );
 }

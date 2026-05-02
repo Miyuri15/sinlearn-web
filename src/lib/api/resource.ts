@@ -1,20 +1,27 @@
 import { API_BASE_URL } from "../config";
 import { getAccessToken } from "../localStore";
+import { ApiError, OfflineError, apiFetch, assertOnline, isLikelyNetworkError } from "./client";
 
 // Fetch resource as blob for inline display (PDF, images, audio, video)
 export const viewResource = async (resourceId: string): Promise<Blob> => {
   const token = getAccessToken();
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/resources/${resourceId}/view`,
-    {
+  const url = `${API_BASE_URL}/api/v1/resources/${resourceId}/view`;
+  assertOnline(url);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
       method: "GET",
       headers: token
         ? {
-            Authorization: `Bearer ${token}`,
-          }
+          Authorization: `Bearer ${token}`,
+        }
         : undefined,
-    }
-  );
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
 
   if (!response.ok) throw new Error("Failed to fetch resource");
 
@@ -27,17 +34,23 @@ export const downloadResource = async (
   filename?: string
 ): Promise<void> => {
   const token = getAccessToken();
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/resources/${resourceId}/download`,
-    {
+  const url = `${API_BASE_URL}/api/v1/resources/${resourceId}/download`;
+  assertOnline(url);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
       method: "GET",
       headers: token
         ? {
-            Authorization: `Bearer ${token}`,
-          }
+          Authorization: `Bearer ${token}`,
+        }
         : undefined,
-    }
-  );
+    });
+  } catch (error) {
+    if (isLikelyNetworkError(error)) throw new OfflineError(undefined, url);
+    throw error;
+  }
 
   if (!response.ok) throw new Error("Failed to download resource");
 
@@ -62,4 +75,179 @@ export const downloadResource = async (
   a.remove();
 
   URL.revokeObjectURL(downloadUrl);
+};
+
+export const processMessageAttachments = (messageId: string) => {
+  return apiFetch<void>(
+    `${API_BASE_URL}/api/v1/messages/${messageId}/attachments/process`,
+    {
+      method: "POST",
+    }
+  );
+};
+
+export type ResourceExtractedTextResponse = {
+  resource_id: string;
+  status: string;
+  extracted_text: string;
+  chunks_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  returned_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+  language?: string | null;
+};
+
+export const getResourceExtractedText = async (
+  resourceId: string,
+  params: { page?: number; pageSize?: number } = {}
+): Promise<ResourceExtractedTextResponse> => {
+  const queryParams = new URLSearchParams();
+  if (params.page) queryParams.set("page", String(params.page));
+  if (params.pageSize) queryParams.set("page_size", String(params.pageSize));
+  const query = queryParams.toString();
+
+  return apiFetch<ResourceExtractedTextResponse>(
+    `${API_BASE_URL}/api/v1/resources/${encodeURIComponent(
+      resourceId
+    )}/extracted-text${query ? `?${query}` : ""}`,
+    { method: "GET" }
+  );
+};
+
+export type ResourceBatchProcessResponse = {
+  resource_id: string;
+  status: string;
+  chunks_created?: number;
+  message?: string;
+}[];
+
+export const processResourcesBatch = (resourceIds: string[]) => {
+  return apiFetch<ResourceBatchProcessResponse>(
+    `${API_BASE_URL}/api/v1/resources/process/batch`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        resource_ids: resourceIds,
+      }),
+    }
+  );
+};
+
+export const detachResourceFromSession = async (params: {
+  sessionId: string;
+  resourceId: string;
+}): Promise<void> => {
+  const { sessionId, resourceId } = params;
+  await apiFetch<void>(
+    `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(
+      sessionId
+    )}/resources/${encodeURIComponent(resourceId)}`,
+    { method: "DELETE" }
+  );
+};
+
+// Detach all answer scripts from a chat session (server keeps resources; session unlinks them)
+export const detachAnswerScriptsFromSession = async (params: {
+  sessionId: string;
+}): Promise<void> => {
+  const { sessionId } = params;
+  await apiFetch<void>(
+    `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(
+      sessionId
+    )}/resources/answer_script`,
+    { method: "DELETE" }
+  );
+};
+
+// Detach a single answer sheet from a chat session (server keeps the resource)
+export const detachAnswerSheetFromSession = async (params: {
+  sessionId: string;
+  resourceId: string;
+}): Promise<void> => {
+  const { sessionId, resourceId } = params;
+  const primaryUrl = `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(
+    sessionId
+  )}/answer-sheets/${encodeURIComponent(resourceId)}`;
+
+  try {
+    await apiFetch<void>(primaryUrl, { method: "DELETE" });
+    return;
+  } catch (e) {
+    // If the primary route isn't available, try common alternates.
+    if (!(e instanceof ApiError) || (e.status !== 404 && e.status !== 405)) {
+      throw e;
+    }
+  }
+
+  const alternates = [
+    // Some backends use answer-scripts naming
+    `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(
+      sessionId
+    )}/answer-scripts/${encodeURIComponent(resourceId)}`,
+    // Some backends nest it under resources/answer_script
+    `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(
+      sessionId
+    )}/resources/answer_script/${encodeURIComponent(resourceId)}`,
+    // The general resource detach endpoint
+    `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(
+      sessionId
+    )}/resources/${encodeURIComponent(resourceId)}`,
+    // Using "answer_sheet" instead of "answer_script"
+    `${API_BASE_URL}/api/v1/chat/sessions/${encodeURIComponent(
+      sessionId
+    )}/resources/answer_sheet/${encodeURIComponent(resourceId)}`,
+  ];
+
+  let lastError: unknown = null;
+  for (const url of alternates) {
+    try {
+      await apiFetch<void>(url, { method: "DELETE" });
+      return;
+    } catch (err) {
+      lastError = err;
+      if (!(err instanceof ApiError) || (err.status !== 404 && err.status !== 405)) {
+        throw err;
+      }
+    }
+  }
+
+  // Fallback to complete resource deletion if detach endpoints are not found
+  try {
+    await deleteResource(resourceId);
+  } catch (err) {
+    throw (lastError ?? err);
+  }
+};
+
+export const deleteResource = async (resourceId: string): Promise<void> => {
+  await apiFetch<void>(
+    `${API_BASE_URL}/api/v1/resources/${encodeURIComponent(resourceId)}`,
+    { method: "DELETE" }
+  );
+};
+
+// Best-effort removal: prefer detach-from-session when available, otherwise delete resource.
+export const removeResourceForSession = async (params: {
+  sessionId?: string | null;
+  resourceId: string;
+}): Promise<void> => {
+  const { sessionId, resourceId } = params;
+  if (sessionId) {
+    try {
+      await detachResourceFromSession({ sessionId, resourceId });
+      return;
+    } catch (e) {
+      // If detach endpoint isn't implemented, fall back to deleting the resource.
+      if (e instanceof ApiError && (e.status === 404 || e.status === 405)) {
+        // continue
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  await deleteResource(resourceId);
 };

@@ -11,12 +11,18 @@ import {
   Trash2,
   X,
   ClipboardCheck,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { signout } from "@/lib/api/auth";
-import { logout as logoutLocal, setSelectedChatType } from "@/lib/localStore";
+import {
+  isStoredAdmin,
+  logout as logoutLocal,
+  setSelectedChatType,
+} from "@/lib/localStore";
+import { clearCurrentUserCache, useCurrentUser } from "@/hooks/usePricing";
 import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
 import ActionButton from "@/components/sidebar/ActionButton";
 import FooterButton from "@/components/sidebar/FooterButton";
@@ -32,6 +38,7 @@ interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   chats: ChatItem[];
+  activeChatId?: string | null;
   onNewLearningChat: () => void;
   onNewEvaluationChat: () => void;
   onEditChat?: (chat: ChatItem) => void;
@@ -42,6 +49,9 @@ export default function Sidebar({
   chats = [],
   isOpen,
   onToggle,
+  activeChatId,
+  onNewLearningChat,
+  onNewEvaluationChat,
   onEditChat,
   onDeleteChat,
 }: Readonly<SidebarProps>) {
@@ -50,10 +60,19 @@ export default function Sidebar({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [loadingChatId, setLoadingChatId] = useState<string | null>(null);
   const router = useRouter();
-  const { t } = useTranslation("common");
+  const { t: tCommon } = useTranslation("common");
+  const { t: tChat } = useTranslation("chat");
+  const { user } = useCurrentUser();
+  const showAdminDashboard = user?.role === "admin" || isStoredAdmin();
+
+  const translateTitle = (title: string) => {
+    if (title === "New Evaluation Chat") return tChat("new_evaluation_chat");
+    if (title === "Untitled Chat") return tChat("untitled_chat");
+    return title;
+  };
 
   const filteredChats = chats.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase())
+    translateTitle(c.title).toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleChatClick = (chat: ChatItem) => {
@@ -76,6 +95,7 @@ export default function Sidebar({
     } finally {
       // Clear local storage and redirect
       logoutLocal();
+      clearCurrentUserCache();
       setIsLogoutModalOpen(false);
       setIsLoggingOut(false);
       router.push("/auth/sign-in");
@@ -96,7 +116,7 @@ export default function Sidebar({
       {/* SIDEBAR CONTAINER */}
       <aside
         className={`
-          fixed sm:static left-0 top-0 h-[100dvh] z-50
+          fixed sm:static left-0 top-0 h-dvh z-50
           flex flex-col 
           bg-white dark:bg-gray-950 
           border-r border-gray-200 dark:border-gray-800
@@ -124,7 +144,7 @@ export default function Sidebar({
 
             {isOpen && (
               <span className="font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap opacity-100 transition-opacity delay-100">
-                {t("chat_history")}
+                {tCommon("chat_history")}
               </span>
             )}
           </div>
@@ -148,7 +168,7 @@ export default function Sidebar({
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
               <input
                 type="text"
-                placeholder={t("chat_history") + "..."}
+                placeholder={tCommon("chat_history") + "..."}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-gray-400"
@@ -160,16 +180,18 @@ export default function Sidebar({
           <div className="space-y-2">
             <ActionButton
               icon={<BookOpen className="w-4 h-4" />}
-              label={t("new_learning_chat")}
+              label={tCommon("new_learning_chat")}
               isOpen={isOpen}
               chatType="learning"
+              onNewChat={onNewLearningChat}
               colorClass="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-800"
             />
             <ActionButton
               icon={<ClipboardCheck className="w-4 h-4" />}
-              label={t("new_evaluation_chat")}
+              label={tCommon("new_evaluation_chat")}
               isOpen={isOpen}
               chatType="evaluation"
+              onNewChat={onNewEvaluationChat}
               colorClass="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800"
             />
           </div>
@@ -180,6 +202,7 @@ export default function Sidebar({
           {filteredChats.length > 0
             ? filteredChats.map((chat) => {
                 const isLoading = loadingChatId === chat.id;
+                const isActive = activeChatId === chat.id;
                 return (
                   <Link
                     key={chat.id}
@@ -191,6 +214,11 @@ export default function Sidebar({
                     transition-all duration-200
                     ${!isOpen && "justify-center"}
                     ${isLoading ? "opacity-50 cursor-wait" : ""}
+                    ${
+                      isActive
+                        ? "bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200 dark:ring-blue-800"
+                        : ""
+                    }
                   `}
                   >
                     {/* Icon */}
@@ -213,8 +241,14 @@ export default function Sidebar({
                     {/* Content (Title + Date) */}
                     {isOpen && (
                       <div className="flex-1 min-w-0 flex flex-col">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
-                          {chat.title}
+                        <span
+                          className={`text-sm font-medium truncate group-hover:text-gray-900 dark:group-hover:text-white transition-colors ${
+                            isActive
+                              ? "text-gray-900 dark:text-white"
+                              : "text-gray-700 dark:text-gray-200"
+                          }`}
+                        >
+                          {translateTitle(chat.title)}
                         </span>
                         <span className="text-[10px] text-gray-400 dark:text-gray-500">
                           {chat.time}
@@ -222,24 +256,30 @@ export default function Sidebar({
                       </div>
                     )}
 
-                    {/* Action Buttons (Visible only on Group Hover when Open) */}
+                    {/* Action Buttons (Visible when Open) */}
                     {isOpen && !isLoading && (
-                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 gap-1">
+                      <div className="flex items-center gap-1">
+                        {/* Rename Button - Available for all */}
                         <button
                           onClick={(e) => {
                             e.preventDefault();
+                            e.stopPropagation();
                             onEditChat?.(chat);
                           }}
-                          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
+                          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                          title={tCommon("rename_chat")}
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
+
                         <button
                           onClick={(e) => {
                             e.preventDefault();
+                            e.stopPropagation();
                             onDeleteChat?.(chat);
                           }}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                          title={tCommon("delete_chat")}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -258,15 +298,23 @@ export default function Sidebar({
         {/* FOOTER */}
         <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
           <div className="space-y-1">
+            {showAdminDashboard && (
+              <FooterButton
+                icon={<Shield className="w-4 h-4" />}
+                label="Admin"
+                isOpen={isOpen}
+                onClick={() => router.push("/admin")}
+              />
+            )}
             <FooterButton
               icon={<Settings className="w-4 h-4" />}
-              label={t("settings_text")}
+              label={tCommon("settings_text")}
               isOpen={isOpen}
               onClick={() => router.push("/settings")}
             />
             <FooterButton
               icon={<LogOut className="w-4 h-4" />}
-              label={t("logout")}
+              label={tCommon("logout")}
               isOpen={isOpen}
               onClick={() => setIsLogoutModalOpen(true)}
               isDestructive

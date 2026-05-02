@@ -1,40 +1,54 @@
 "use client";
 
-import { FileText, Music, Video } from "lucide-react";
+import { FileText, Music, Video, WifiOff } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { viewResource } from "@/lib/api/resource";
-import FilePreviewModal from "../uploads/FilePreviewModal";
+import { getApiErrorMessage } from "@/lib/api/client";
+import { useTranslation } from "react-i18next";
 
 interface InlineAttachmentProps {
   resourceId?: string;
 }
 
-export function InlineAttachment({ resourceId }: InlineAttachmentProps) {
-  const [showModal, setShowModal] = useState(false);
+export function InlineAttachment({
+  resourceId,
+}: Readonly<InlineAttachmentProps>) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [mimeType, setMimeType] = useState<string | null>(null);
-
-  const id = resourceId;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { t } = useTranslation("chat");
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // Fetch blob URL if resourceId is provided
   useEffect(() => {
-    if (!id) return;
+    if (!resourceId) return;
 
     let isMounted = true;
+    let objectUrl: string | null = null;
+
     const fetchResource = async () => {
       try {
-        setLoading(true);
-        const blob = await viewResource(id); // fetch blob
+        const blob = await viewResource(resourceId);
         if (isMounted) {
-          const url = URL.createObjectURL(blob);
-          setBlobUrl(url);
-          setMimeType(blob.type); // save MIME type for rendering
+          objectUrl = URL.createObjectURL(blob);
+          setBlobUrl(objectUrl);
+          setMimeType(blob.type);
+          setPreviewError(null);
         }
       } catch (error) {
         console.error("Failed to fetch resource:", error);
-      } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setPreviewError(
+            getApiErrorMessage(
+              error,
+              t("attachment_preview_unavailable"),
+              t("attachment_preview_unavailable_offline"),
+            ),
+          );
+        }
       }
     };
 
@@ -42,9 +56,9 @@ export function InlineAttachment({ resourceId }: InlineAttachmentProps) {
 
     return () => {
       isMounted = false;
-      if (blobUrl) URL.revokeObjectURL(blobUrl); // cleanup
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [id]);
+  }, [resourceId]);
 
   // Determine file type from MIME type
   const fileType = useMemo(() => {
@@ -56,6 +70,10 @@ export function InlineAttachment({ resourceId }: InlineAttachmentProps) {
   }, [mimeType]);
 
   const icon = useMemo(() => {
+    if (previewError) {
+      return <WifiOff className="w-6 h-6 text-amber-600 dark:text-amber-300" />;
+    }
+
     switch (fileType) {
       case "image":
         return (
@@ -72,39 +90,28 @@ export function InlineAttachment({ resourceId }: InlineAttachmentProps) {
       default:
         return <FileText className="w-6 h-6 text-gray-500" />;
     }
-  }, [fileType, blobUrl]);
+  }, [fileType, blobUrl, previewError]);
 
-  const handleClick = () => setShowModal(true);
-  const handleCloseModal = () => setShowModal(false);
+  const handleClick = () => {
+    if (!resourceId) return;
 
-  if (loading) {
-    return (
-      <div className="w-20 h-20 flex items-center justify-center border rounded bg-gray-50 text-gray-400">
-        Loading...
-      </div>
-    );
-  }
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", resourceId);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   return (
-    <>
-      <div
-        onClick={handleClick}
-        className="w-20 h-20 flex items-center justify-center border rounded cursor-pointer overflow-hidden bg-gray-50 hover:bg-gray-100"
-      >
-        {icon}
-      </div>
-
-      {/* Optionally include modal preview if needed */}
-      {showModal && blobUrl && (
-        <FilePreviewModal
-          resourceId={id}
-          url={blobUrl}
-          type={
-            fileType === "file" && mimeType?.includes("pdf") ? "pdf" : fileType
-          }
-          onClose={handleCloseModal}
-        />
-      )}
-    </>
+    <button
+      type="button"
+      onClick={handleClick}
+      title={previewError || undefined}
+      className={`w-20 h-20 flex items-center justify-center border rounded overflow-hidden ${
+        previewError
+          ? "border-amber-200 bg-amber-50 hover:bg-amber-100 dark:border-amber-800/70 dark:bg-amber-900/20"
+          : "bg-gray-50 hover:bg-gray-100"
+      }`}
+    >
+      {icon}
+    </button>
   );
 }

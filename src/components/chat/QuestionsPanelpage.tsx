@@ -2,9 +2,18 @@ import Image from "next/image";
 import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Toast from "@/components/ui/updatedtoast";
-import PDFViewer from "@/components/ui/PDFViewer";
+import FilePreviewModal from "@/components/chat/uploads/FilePreviewModal";
 import HelpIcon from "@mui/icons-material/Help";
 import CloseIcon from "@mui/icons-material/Close";
+
+import {
+  getChatSessionDetails,
+  listChatSessionResources,
+  removeAttachedResourceFromSession,
+  uploadEvaluationResources,
+} from "@/lib/api/evaluation";
+import { getResourceExtractedText, viewResource } from "@/lib/api/resource";
+import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 
 type ToastState = {
   message: string;
@@ -14,17 +23,38 @@ type ToastState = {
 
 type QuestionsPanelProps = Readonly<{
   onClose: () => void;
+  onQuestionsChange?: (hasQuestions: boolean, questionName?: string) => void;
+  chatSessionId?: string | null;
+  onRequireSession?: () => Promise<string | null>;
 }>;
 
 type QuestionItemType = {
   id: number;
+  resourceId?: string;
   title: string;
   subject: string;
   uploaded: string;
   details: string;
   fileUrl?: string;
   fileType?: string;
+  mimeType?: string;
 };
+
+type SessionResourceSummary = {
+  resource_id?: string;
+  id?: string;
+  resource_type?: string;
+  type?: string;
+  filename?: string;
+  file_name?: string;
+  name?: string;
+  original_filename?: string;
+  originalFilename?: string;
+  mime_type?: string;
+  mimeType?: string;
+};
+
+type PreviewType = "image" | "video" | "audio" | "pdf" | "file";
 
 const QuestionItem = ({
   id,
@@ -83,27 +113,208 @@ const QuestionItem = ({
   </div>
 );
 
-const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
+const QuestionsPanelpage = ({
+  onClose,
+  onQuestionsChange,
+  chatSessionId,
+  onRequireSession,
+}: QuestionsPanelProps) => {
   const { t } = useTranslation("questions");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedQuestion, setUploadedQuestion] =
     useState<QuestionItemType | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [hydrationDone, setHydrationDone] = useState(false);
+
+  const normalizeResourceType = (value: unknown): string => {
+    const s = (value ?? "").toString().trim().toLowerCase();
+    return s.replace(/[\s-]+/g, "_");
+  };
+
+  const getResourceFilename = (r: SessionResourceSummary): string => {
+    return (
+      r.filename ||
+      r.file_name ||
+      r.name ||
+      r.original_filename ||
+      r.originalFilename ||
+      ""
+    ).toString();
+  };
+
+  // Hydrate previously uploaded question paper for this chat session (if any)
+  React.useEffect(() => {
+    if (!chatSessionId) return;
+    if (uploadedQuestion) return;
+
+    const run = async () => {
+      try {
+        const details = await getChatSessionDetails(chatSessionId);
+        const qp = details?.question_paper;
+        let filename: string | undefined =
+          qp?.filename || qp?.file_name || qp?.name;
+
+        // Prefer session resources list for stable resource_id + filename.
+        let resourceId: string | undefined = qp?.resource_id || qp?.id;
+        try {
+          const resources = (await listChatSessionResources(
+            chatSessionId,
+          )) as SessionResourceSummary[];
+          const fromList = (resources || []).find((r) => {
+            const type = normalizeResourceType(r.resource_type || r.type);
+            if (type) {
+              return (
+                type === "question_paper" ||
+                type === "questionpaper" ||
+                type === "question" ||
+                type === "questions"
+              );
+            }
+            const f = getResourceFilename(r).toLowerCase();
+            return /\bmodel\b|\bquestion\b|\bqp\b|\bquestion[_\s-]?paper\b|\bmodel[_\s-]?paper\b/.test(
+              f,
+            );
+          });
+          resourceId = resourceId || fromList?.resource_id || fromList?.id;
+          filename =
+            filename || (fromList ? getResourceFilename(fromList) : undefined);
+        } catch (e) {
+          console.warn(
+            "Failed to list session resources for question paper",
+            e,
+          );
+        }
+
+        if (!filename) return;
+
+        const ext = filename.split(".").pop()?.toLowerCase();
+        setUploadedQuestion({
+          id: 1,
+          resourceId,
+          title: filename.replace(ext ? `.${ext}` : "", ""),
+          subject: "N/A",
+          uploaded: new Date().toLocaleDateString("en-US"),
+          details: `File: ${(ext || "N/A").toUpperCase()} | (Previously uploaded)`,
+          fileType: ext,
+          mimeType: qp?.mime_type || qp?.mimeType,
+        });
+      } catch (e) {
+        // Non-fatal: don't block UI if hydration fails
+        console.warn("Failed to hydrate question paper", e);
+      } finally {
+        setHydrationDone(true);
+      }
+    };
+
+    void run();
+  }, [chatSessionId, uploadedQuestion]);
+
+  // Notify parent about questions status on mount and changes
+  React.useEffect(() => {
+    if (!hydrationDone) return;
+    onQuestionsChange?.(!!uploadedQuestion, uploadedQuestion?.title);
+  }, [uploadedQuestion, onQuestionsChange, hydrationDone]);
+
   const [toast, setToast] = useState<ToastState>({
     message: "",
     isVisible: false,
     type: "success",
   });
-  const [viewingPDF, setViewingPDF] = useState<{
-    fileName: string;
-    fileUrl: string;
+  const [previewQuestion, setPreviewQuestion] = useState<{
+    resourceId: string;
+    url: string;
+    type: PreviewType;
+    extractedText: string;
+    isExtracting: boolean;
+    extractedTextError: string | null;
+    extractedTextPage: number;
+    extractedTextPageSize: number;
+    extractedTextTotalPages: number;
+    extractedTextReturnedPages: number;
+    extractedTextHasNext: boolean;
+    extractedTextHasPrevious: boolean;
   } | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (previewQuestion?.url) {
+        URL.revokeObjectURL(previewQuestion.url);
+      }
+    };
+  }, [previewQuestion?.url]);
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, isVisible: true, type });
     setTimeout(() => setToast((prev) => ({ ...prev, isVisible: false })), 3000);
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const formatUploadError = (fileName: string, error: unknown): string => {
+    const basePrefix = `Validation error for ${fileName}: `;
+
+    if (error instanceof ApiError) {
+      const msg = error.message || "Upload failed";
+
+      const detailsText = (() => {
+        const details = error.details;
+        if (!details) return "";
+        if (typeof details === "string") return details.trim();
+        try {
+          return JSON.stringify(details);
+        } catch {
+          return "";
+        }
+      })();
+
+      if (error.status >= 500) {
+        const suffix =
+          detailsText && detailsText !== msg ? ` Details: ${detailsText}` : "";
+        return basePrefix + `Server error (${error.status}) from API.` + suffix;
+      }
+
+      if (/poppler|page count/i.test(msg)) {
+        return (
+          basePrefix +
+          "PDF text extraction failed on the API server (Poppler missing). Install Poppler and ensure it's in PATH, then retry. Details: " +
+          msg
+        );
+      }
+
+      if (detailsText && detailsText !== msg) {
+        return basePrefix + msg + ` Details: ${detailsText}`;
+      }
+
+      return basePrefix + msg;
+    }
+
+    if (error instanceof Error && error.message) {
+      return basePrefix + error.message;
+    }
+
+    return basePrefix + "Upload failed.";
+  };
+
+  const resolvePreviewType = (question: QuestionItemType): PreviewType => {
+    const mime = (question.mimeType || "").toLowerCase();
+    if (mime.startsWith("image/")) return "image";
+    if (mime.startsWith("video/")) return "video";
+    if (mime.startsWith("audio/")) return "audio";
+    if (mime.includes("pdf")) return "pdf";
+
+    const fileType = (question.fileType || "").toLowerCase();
+    if (fileType === "pdf") return "pdf";
+    if (["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(fileType))
+      return "image";
+    if (["mp4", "webm", "mov", "avi", "mkv"].includes(fileType))
+      return "video";
+    if (["mp3", "wav", "ogg", "m4a", "aac"].includes(fileType))
+      return "audio";
+    return "file";
+  };
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const files = event.target.files;
     if (files && files.length > 0) {
       const file = files[0];
@@ -112,6 +323,73 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
       const fileExt = fileName.split(".").pop()?.toLowerCase();
 
       if (fileExt && validExtensions.includes(fileExt)) {
+        let targetSessionId = chatSessionId;
+        if (!targetSessionId && onRequireSession) {
+          targetSessionId = await onRequireSession();
+        }
+
+        let uploadedResourceId: string | undefined;
+        let uploadedMimeType: string | undefined;
+
+        if (!targetSessionId) {
+          showToast("Please create an evaluation chat first.", "error");
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+        }
+
+        try {
+          setIsUploading(true);
+          setUploadProgress(15);
+
+          const progressInterval = setInterval(() => {
+            setUploadProgress((prev) => {
+              if (prev >= 85) {
+                clearInterval(progressInterval);
+                return prev;
+              }
+              return prev + 5;
+            });
+          }, 400);
+
+          // If there was an existing uploaded question paper (server-side), remove it first.
+          if (uploadedQuestion?.resourceId) {
+            try {
+              await removeAttachedResourceFromSession({
+                chatSessionId: targetSessionId,
+                resourceType: "question_paper",
+              });
+            } catch (e) {
+              console.warn("Failed to remove previous question paper", e);
+            }
+          }
+
+          const uploads = await uploadEvaluationResources({
+            chatSessionId: targetSessionId,
+            resourceType: "question_paper",
+            files: [file],
+          });
+
+          clearInterval(progressInterval);
+          setUploadProgress(100);
+
+          const newResourceId = uploads[0]?.resource_id;
+          if (!newResourceId) {
+            showToast("Upload succeeded but no resource id returned.", "error");
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+          }
+
+          uploadedResourceId = newResourceId;
+          uploadedMimeType = uploads[0]?.mime_type;
+        } catch (error) {
+          console.error("Failed to upload question paper", error);
+          showToast(formatUploadError(fileName, error), "error");
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+        } finally {
+          setIsUploading(false);
+        }
+
         if (uploadedQuestion?.fileUrl) {
           URL.revokeObjectURL(uploadedQuestion.fileUrl);
         }
@@ -119,6 +397,7 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
 
         const newQuestion: QuestionItemType = {
           id: 1,
+          resourceId: uploadedResourceId,
           title: fileName.replace(`.${fileExt}`, ""),
           subject: "N/A",
           uploaded: new Date().toLocaleDateString("en-US"),
@@ -129,10 +408,16 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
           ).toFixed(2)} MB`,
           fileUrl: fileUrl,
           fileType: fileExt,
+          mimeType: uploadedMimeType || file.type,
         };
 
         setUploadedQuestion(newQuestion);
         showToast(t("upload_success", { title: newQuestion.title }), "success");
+
+        // Auto-close panel after successful upload
+        setTimeout(() => {
+          onClose();
+        }, 1500);
       } else {
         showToast(t("invalid_file_type"), "error");
       }
@@ -143,33 +428,107 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
     }
   };
 
-  const handleDeleteQuestion = (id: number, title: string) => {
+  const handleDeleteQuestion = async (id: number, title: string) => {
     if (uploadedQuestion?.fileUrl) {
       URL.revokeObjectURL(uploadedQuestion.fileUrl);
     }
+
+    if (chatSessionId) {
+      try {
+        await removeAttachedResourceFromSession({
+          chatSessionId,
+          resourceType: "question_paper",
+        });
+      } catch (e) {
+        console.error("Failed to delete attached question paper", e);
+        showToast("Failed to remove question paper from server.", "error");
+        return;
+      }
+    }
+
     setUploadedQuestion(null);
     showToast(t("delete_success", { title }), "success");
   };
 
-  const handleViewQuestion = () => {
-    if (
-      uploadedQuestion &&
-      uploadedQuestion.fileType === "pdf" &&
-      uploadedQuestion.fileUrl
-    ) {
-      setViewingPDF({
-        fileName: `${uploadedQuestion.title}.pdf`,
-        fileUrl: uploadedQuestion.fileUrl,
-      });
-    } else if (uploadedQuestion && uploadedQuestion.fileType !== "pdf") {
-      showToast(
-        t("preview_not_available", {
-          fileType: uploadedQuestion.fileType?.toUpperCase(),
-        }),
-        "error"
-      );
-    } else {
+  const handleViewQuestion = async () => {
+    if (!uploadedQuestion) {
       showToast(t("preview_not_available"), "error");
+      return;
+    }
+
+    if (!uploadedQuestion.resourceId) {
+      showToast(t("preview_not_available"), "error");
+      return;
+    }
+
+    try {
+      const [blobResult, extractedTextResult] = await Promise.allSettled([
+        viewResource(uploadedQuestion.resourceId),
+        getResourceExtractedText(uploadedQuestion.resourceId, {
+          page: 1,
+          pageSize: 1,
+        }),
+      ]);
+
+      if (blobResult.status === "rejected") {
+        throw blobResult.reason;
+      }
+
+      let extractedText = "";
+      let extractedTextError: string | null = null;
+      let extractedTextMeta = {
+        page: 1,
+        pageSize: 1,
+        totalPages: 0,
+        returnedPages: 0,
+        hasNext: false,
+        hasPrevious: false,
+      };
+
+      if (extractedTextResult.status === "fulfilled") {
+        extractedText = extractedTextResult.value.extracted_text || "";
+        extractedTextMeta = {
+          page: extractedTextResult.value.page || 1,
+          pageSize: extractedTextResult.value.page_size || 1,
+          totalPages: extractedTextResult.value.total_pages || 0,
+          returnedPages: extractedTextResult.value.returned_pages || 0,
+          hasNext: extractedTextResult.value.has_next,
+          hasPrevious: extractedTextResult.value.has_previous,
+        };
+      } else {
+        console.error("Failed to load extracted text", extractedTextResult.reason);
+        extractedTextError = getApiErrorMessage(
+          extractedTextResult.reason,
+          "Failed to load extracted text.",
+        );
+      }
+
+      const url = URL.createObjectURL(blobResult.value);
+      setPreviewQuestion((prev) => {
+        if (prev?.url) {
+          URL.revokeObjectURL(prev.url);
+        }
+        return {
+          resourceId: uploadedQuestion.resourceId || "",
+          url,
+          type: resolvePreviewType(uploadedQuestion),
+          extractedText,
+          isExtracting: false,
+          extractedTextError,
+          extractedTextPage: extractedTextMeta.page,
+          extractedTextPageSize: extractedTextMeta.pageSize,
+          extractedTextTotalPages: extractedTextMeta.totalPages,
+          extractedTextReturnedPages: extractedTextMeta.returnedPages,
+          extractedTextHasNext: extractedTextMeta.hasNext,
+          extractedTextHasPrevious: extractedTextMeta.hasPrevious,
+        };
+      });
+    } catch (error) {
+      console.error("Failed to preview question paper", error);
+      showToast(
+        getApiErrorMessage(error, "Failed to preview question paper."),
+        "error",
+      );
     }
   };
 
@@ -216,8 +575,15 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
               {t("upload_section_subtitle")}
             </p>
             <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition duration-150"
+              onClick={() => {
+                if (isUploading) return;
+                fileInputRef.current?.click();
+              }}
+              className={`border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 sm:p-10 text-center transition duration-150 ${
+                isUploading
+                  ? "cursor-not-allowed opacity-70"
+                  : "cursor-pointer hover:border-blue-500 dark:hover:border-blue-500"
+              }`}
             >
               <div className="flex justify-center mb-2">
                 {/* Upload Icon */}
@@ -229,8 +595,27 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
                 />
               </div>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {t("click_to_upload")}
+                {isUploading ? "Uploading…" : t("click_to_upload")}
               </span>
+
+              {isUploading && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-blue-600 font-medium">
+                      Uploading document...
+                    </span>
+                    <span className="text-blue-600 font-bold">
+                      {uploadProgress}%
+                    </span>
+                  </div>
+                  <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -284,12 +669,25 @@ const QuestionsPanelpage = ({ onClose }: QuestionsPanelProps) => {
         </div>
       </div>
 
-      {/* PDF Viewer Modal */}
-      {viewingPDF && (
-        <PDFViewer
-          fileName={viewingPDF.fileName}
-          fileUrl={viewingPDF.fileUrl}
-          onClose={() => setViewingPDF(null)}
+      {/* Question Preview Modal */}
+      {previewQuestion && (
+        <FilePreviewModal
+          resourceId={previewQuestion.resourceId}
+          url={previewQuestion.url}
+          type={previewQuestion.type}
+          extractedText={previewQuestion.extractedText}
+          isExtracting={previewQuestion.isExtracting}
+          extractedTextError={previewQuestion.extractedTextError}
+          extractedTextPage={previewQuestion.extractedTextPage}
+          extractedTextPageSize={previewQuestion.extractedTextPageSize}
+          extractedTextTotalPages={previewQuestion.extractedTextTotalPages}
+          extractedTextReturnedPages={previewQuestion.extractedTextReturnedPages}
+          extractedTextHasNext={previewQuestion.extractedTextHasNext}
+          extractedTextHasPrevious={previewQuestion.extractedTextHasPrevious}
+          onClose={() => {
+            URL.revokeObjectURL(previewQuestion.url);
+            setPreviewQuestion(null);
+          }}
         />
       )}
     </>

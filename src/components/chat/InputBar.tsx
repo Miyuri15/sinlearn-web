@@ -1,23 +1,45 @@
 import "@/lib/i18n";
-import { Mic, Paperclip, Send, X, FileText, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Mic,
+  Paperclip,
+  Send,
+  X,
+  FileText,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { KeyboardEvent, useState, DragEvent, useRef, useEffect } from "react";
 import { formatBytes } from "@/lib/utils/format";
 import FilePreviewModal from "@/components/chat/FilePreviewModal";
+import { LimitWarning } from "@/components/pricing/LimitWarning";
+import { useUserUsage } from "@/hooks/usePricing";
+import { USAGE_POLL_INTERVAL } from "@/lib/constants";
+import { ReactTransliterate } from "react-transliterate";
+import "react-transliterate/dist/index.css";
 
 type InputBarProps = Readonly<{
   isRecording: boolean;
   setIsRecording: (value: boolean) => void;
+
   transcript: string;
   message: string;
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+
   onSend: () => void;
-  // Updated props to handle files internally
+
+  // files
   onFilesSelected: (files: File[]) => void;
   pendingFiles?: File[];
   onRemoveFile?: (index: number) => void;
   onClearFiles?: () => void;
+
+  pendingVoice?: Blob | null;
+  onClearPendingVoice?: () => void;
+
   isUploading?: boolean;
+  isFirstMessage?: boolean;
 }>;
 
 export default function InputBar({
@@ -31,9 +53,13 @@ export default function InputBar({
   pendingFiles = [],
   onRemoveFile,
   onClearFiles,
+  pendingVoice = null,
+  onClearPendingVoice,
   isUploading = false,
+  isFirstMessage = false,
 }: InputBarProps) {
   const { t } = useTranslation("chat");
+  const { usage } = useUserUsage(USAGE_POLL_INTERVAL);
   const [isDragging, setIsDragging] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
@@ -41,16 +67,19 @@ export default function InputBar({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (message === "" && textareaRef.current) {
+    if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
-  }, [message]);
+  }, [message, transcript]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && e.shiftKey) return;
     if (e.key === "Enter") {
       e.preventDefault();
-      onSend();
+      if (!isDisableSend) {
+        onSend();
+      }
     }
   };
 
@@ -81,7 +110,22 @@ export default function InputBar({
   };
 
   const isDisableSend =
-    (message.trim().length === 0 && pendingFiles.length === 0) || isUploading;
+    (!pendingVoice &&
+      message.trim().length === 0 &&
+      pendingFiles.length === 0) ||
+    isUploading ||
+    (isFirstMessage && !pendingVoice && pendingFiles.length === 0) ||
+    Boolean(
+      usage &&
+      usage.currentHour.limit > 0 &&
+      usage.currentHour.learningRequests >= usage.currentHour.limit,
+    );
+
+  const isLearningLimitReached = Boolean(
+    usage &&
+    usage.currentHour.limit > 0 &&
+    usage.currentHour.learningRequests >= usage.currentHour.limit,
+  );
 
   return (
     <div
@@ -97,6 +141,29 @@ export default function InputBar({
         }
       `}
     >
+      {isLearningLimitReached && usage && (
+        <div className="mx-3 mt-3 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
+          <AlertTriangle
+            className="mt-0.5 h-4 w-4 shrink-0"
+            aria-hidden="true"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">Learning limit reached</p>
+            <p>
+              You have used {usage.currentHour.learningRequests} of{" "}
+              {usage.currentHour.limit} requests. Resets at{" "}
+              {new Date(usage.currentHour.resetAt).toLocaleTimeString()}.
+            </p>
+          </div>
+          <Link
+            href="/settings/plan"
+            className="shrink-0 rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+          >
+            Upgrade
+          </Link>
+        </div>
+      )}
+
       {/* 1. PREVIEW AREA (Inside the box) */}
       {pendingFiles.length > 0 && (
         <div className="flex items-center justify-between px-3 pt-3">
@@ -197,21 +264,95 @@ export default function InputBar({
           <Paperclip className="w-5 h-5" />
         </button>
 
-        {/* TEXT AREA */}
-        <textarea
-          ref={textareaRef}
-          placeholder={t("typing_placeholder")}
-          value={isRecording ? transcript : message}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          disabled={isRecording}
-          className={`chat-input flex-1 bg-transparent outline-none px-3 resize-none overflow-y-auto hidden-scrollbar leading-relaxed max-h-40 break-words min-w-0 py-2 ${
-            isRecording
-              ? "text-gray-700 dark:text-gray-100 italic"
-              : "text-gray-800 dark:text-gray-200"
-          }`}
-        ></textarea>
+        {/* TEXT INPUT OR VOICE PREVIEW */}
+        <div className="flex-1 min-w-0 px-2 relative z-10">
+          {pendingVoice ? (
+            // 🎙️ VOICE PREVIEW
+            <div className="flex items-center gap-3 bg-white dark:bg-[#1A1A1A] rounded-lg px-3 py-2">
+              <audio
+                controls
+                src={URL.createObjectURL(pendingVoice)}
+                className="w-full"
+              />
+
+              <button
+                onClick={onClearPendingVoice}
+                className="text-red-500 hover:text-red-600"
+                title="Remove voice"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            // ✏️ MAIN TEXT INPUT WITH TRANSLITERATION
+            <div
+              className="
+                relative w-full
+                /* Suggestion list positioning overrides */
+                [&_ul]:!bottom-full
+                [&_ul]:!top-auto
+                [&_ul]:!mb-2
+                [&_ul]:!z-50
+                [&_ul]:shadow-lg
+                [&_ul]:rounded-lg
+                [&_ul]:!border-gray-200
+                dark:[&_ul]:!bg-[#1F1F1F]
+                dark:[&_ul]:!border-[#333]
+                dark:[&_ul]:!text-gray-200
+              "
+            >
+              <ReactTransliterate
+                value={isRecording ? transcript : message}
+                onChangeText={(text) => {
+                  const mockEvent = {
+                    target: { value: text },
+                  } as React.ChangeEvent<HTMLTextAreaElement>;
+                  handleInputChange(mockEvent);
+                }}
+                lang="si"
+                renderComponent={(props) => (
+                  <textarea
+                    {...props}
+                    ref={(element) => {
+                      if (props.ref) {
+                        if (typeof props.ref === "function") {
+                          props.ref(element);
+                        } else {
+                          (
+                            props.ref as React.MutableRefObject<HTMLTextAreaElement | null>
+                          ).current = element;
+                        }
+                      }
+                      textareaRef.current = element;
+                    }}
+                    placeholder={t("typing_placeholder")}
+                    onKeyDown={(e) => {
+                      // 1. Let the library handle navigation/selection first
+                      props.onKeyDown?.(e);
+
+                      // 2. Check if the library used the event (selected a word).
+                      // If it did, it usually calls preventDefault().
+                      // We ONLY call our send handler if default was NOT prevented.
+                      if (!e.defaultPrevented) {
+                        handleKeyDown(e);
+                      }
+                    }}
+                    rows={1}
+                    disabled={isRecording}
+                    className={`chat-input w-full bg-transparent outline-none resize-none
+                    overflow-y-auto hidden-scrollbar leading-relaxed max-h-40 py-2
+                    ${
+                      isRecording
+                        ? "text-gray-700 dark:text-gray-100 italic"
+                        : "text-gray-800 dark:text-gray-200"
+                    }`}
+                  />
+                )}
+                containerStyles={{ width: "100%", position: "relative" }}
+              />
+            </div>
+          )}
+        </div>
 
         {/* MIC BUTTON */}
         <button
