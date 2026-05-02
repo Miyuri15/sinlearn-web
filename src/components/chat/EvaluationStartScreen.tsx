@@ -15,13 +15,17 @@ import {
   History,
   File,
   Upload,
-  Eye
+  Eye,
+  AlertTriangle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
 import FilePreviewModal from "@/components/chat/uploads/FilePreviewModal";
 import { getResourceExtractedText, viewResource } from "@/lib/api/resource";
 import { getApiErrorMessage } from "@/lib/api/client";
+import { LimitWarning } from "@/components/pricing/LimitWarning";
+import { useUserUsage } from "@/hooks/usePricing";
+import { USAGE_POLL_INTERVAL } from "@/lib/constants";
 
 type PreviewType = "image" | "video" | "audio" | "pdf" | "file";
 
@@ -52,7 +56,12 @@ interface EvaluationStartScreenProps {
   questionsSet?: boolean;
   processingStatus?: "idle" | "processing" | "completed" | "needs_reprocessing";
   uploadProgress?: { current: number; total: number };
-  processProgress?: { current: number; total: number; percent?: number; message?: string };
+  processProgress?: {
+    current: number;
+    total: number;
+    percent?: number;
+    message?: string;
+  };
 }
 
 export default function EvaluationStartScreen({
@@ -85,6 +94,7 @@ export default function EvaluationStartScreen({
   processProgress,
 }: EvaluationStartScreenProps) {
   const { t } = useTranslation("chat");
+  const { usage } = useUserUsage(USAGE_POLL_INTERVAL);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const replaceInputRef = React.useRef<HTMLInputElement>(null);
   const [replacingIndex, setReplacingIndex] = React.useState<number | null>(
@@ -116,7 +126,14 @@ export default function EvaluationStartScreen({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      onUploadAnswers(Array.from(e.target.files));
+      const files = Array.from(e.target.files);
+      const allowedFiles =
+        remainingAnswerSlots === null
+          ? files
+          : files.slice(0, remainingAnswerSlots);
+      if (allowedFiles.length > 0) {
+        onUploadAnswers(allowedFiles);
+      }
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -138,6 +155,7 @@ export default function EvaluationStartScreen({
   };
 
   const triggerFileUpload = () => {
+    if (isAnswerUploadLimitReached) return;
     fileInputRef.current?.click();
   };
 
@@ -280,25 +298,41 @@ export default function EvaluationStartScreen({
     rubricSet && syllabusSet && questionsSet && uploadedFiles.length > 0;
   const isProcessingCompleted = processingStatus === "completed";
   const needsReprocessing = processingStatus === "needs_reprocessing";
-  const displayedProcessPercent = processProgress && processProgress.total > 0
-    ? Math.max(
-      0,
-      Math.min(
-        100,
-        Math.round(
-          typeof processProgress.percent === "number"
-            ? processProgress.percent
-            : (processProgress.current / processProgress.total) * 100
-        )
-      )
-    )
-    : 10;
-  const displayedProcessCurrent = processProgress && processProgress.total > 0
-    ? Math.min(processProgress.total, Math.max(1, processProgress.current || 1))
-    : 0;
 
-  // i need to console log uploadedFiles here to debug an issue where the state is not updating correctly after replacing a file
-  console.log("Uploaded Files:", uploadedFiles);
+  const dailySessionLimitReached = Boolean(
+    usage &&
+    usage.today.limit > 0 &&
+    usage.today.evaluationSessions >= usage.today.limit,
+  );
+  const evaluationsPerSessionLimit = usage?.limits.evaluationsPerSession ?? 10;
+  const hasEvaluationUploadLimit = evaluationsPerSessionLimit !== null;
+  const remainingAnswerSlots = hasEvaluationUploadLimit
+    ? Math.max(evaluationsPerSessionLimit - uploadedFiles.length, 0)
+    : null;
+  const isAnswerUploadLimitReached =
+    remainingAnswerSlots !== null && remainingAnswerSlots <= 0;
+
+  const displayedProcessPercent =
+    processProgress && processProgress.total > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round(
+              typeof processProgress.percent === "number"
+                ? processProgress.percent
+                : (processProgress.current / processProgress.total) * 100,
+            ),
+          ),
+        )
+      : 10;
+  const displayedProcessCurrent =
+    processProgress && processProgress.total > 0
+      ? Math.min(
+          processProgress.total,
+          Math.max(1, processProgress.current || 1),
+        )
+      : 0;
 
   const steps = [
     {
@@ -327,19 +361,19 @@ export default function EvaluationStartScreen({
       icon: FileInput,
       action: triggerFileUpload,
       status: uploadedFiles.length > 0 ? "completed" : "pending",
-      disabled: isUploading,
+      disabled: isUploading || isAnswerUploadLimitReached,
     },
     {
       labelKey: "evaluation_start_step_process",
       icon: Settings,
-      action: isReadyToProcess ? onProcess : () => { },
+      action: isReadyToProcess ? onProcess : () => {},
       status: isProcessingCompleted ? "completed" : "pending",
       disabled: !isReadyToProcess || isUploading,
     },
     {
       labelKey: "evaluation_start_step_marks",
       icon: Edit3,
-      action: isProcessingCompleted ? onOpenMarks : () => { },
+      action: isProcessingCompleted ? onOpenMarks : () => {},
       status: isPaperConfigLoading
         ? "loading"
         : hasMarks
@@ -351,7 +385,7 @@ export default function EvaluationStartScreen({
       labelKey: "evaluation_start_step_schema",
       icon: ScrollText,
       action:
-        isProcessingCompleted && hasMarks ? onOpenMarkingSchema : () => { },
+        isProcessingCompleted && hasMarks ? onOpenMarkingSchema : () => {},
       status: isMarkingSchemaLoading
         ? "loading"
         : hasMarkingSchema
@@ -369,7 +403,11 @@ export default function EvaluationStartScreen({
       action: onStartEvaluation,
       status: "pending",
       disabled:
-        !isProcessingCompleted || !hasMarks || !hasMarkingSchema || isUploading,
+        !isProcessingCompleted ||
+        !hasMarks ||
+        !hasMarkingSchema ||
+        isUploading ||
+        dailySessionLimitReached,
     },
   ];
 
@@ -394,6 +432,43 @@ export default function EvaluationStartScreen({
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
           {t("evaluation_start_title")}
         </h1>
+
+        <div className="w-full">
+          <LimitWarning usage={usage} type="evaluation" />
+          {dailySessionLimitReached && usage && (
+            <div className="mb-3 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
+              <AlertTriangle
+                className="mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+              <div>
+                <p className="font-medium">
+                  Daily evaluation session limit reached
+                </p>
+                <p>
+                  You have used {usage.today.evaluationSessions} of{" "}
+                  {usage.today.limit} sessions. Resets at{" "}
+                  {new Date(usage.today.resetAt).toLocaleString()}.
+                </p>
+              </div>
+            </div>
+          )}
+          {isAnswerUploadLimitReached && (
+            <div className="mb-3 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
+              <AlertTriangle
+                className="mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+              <div>
+                <p className="font-medium">Evaluation upload limit reached</p>
+                <p>
+                  Your current plan allows {evaluationsPerSessionLimit} answer
+                  sheets per evaluation session.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Uploading Banner - Only show for real answer sheet uploads, not background config loading */}
         {isUploading && !isPaperConfigLoading && (
@@ -468,14 +543,16 @@ export default function EvaluationStartScreen({
                 <div
                   className="h-full bg-blue-600 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(37,99,235,0.5)]"
                   style={{
-                    width: processProgress && processProgress.total > 0
-                      ? `${displayedProcessPercent}%`
-                      : "10%"
+                    width:
+                      processProgress && processProgress.total > 0
+                        ? `${displayedProcessPercent}%`
+                        : "10%",
                   }}
                 />
               </div>
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                {processProgress?.message || "Analyzing student answers and mapping to the rubric. This may take a few moments."}
+                {processProgress?.message ||
+                  "Analyzing student answers and mapping to the rubric. This may take a few moments."}
               </p>
             </div>
           </div>
@@ -496,10 +573,11 @@ export default function EvaluationStartScreen({
                 {/* Connecting Line */}
                 {index > 0 && (
                   <div
-                    className={`flex-1 h-0.5 mx-2 transition-all duration-500 ${steps[index - 1].status === "completed"
+                    className={`flex-1 h-0.5 mx-2 transition-all duration-500 ${
+                      steps[index - 1].status === "completed"
                         ? "bg-blue-600"
                         : "bg-gray-200 dark:bg-gray-700"
-                      }`}
+                    }`}
                   />
                 )}
 
@@ -509,25 +587,31 @@ export default function EvaluationStartScreen({
                     disabled={step.disabled}
                     className={`
                     w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 z-10 active:scale-95
-                    ${step.status === "completed"
+                    ${
+                      step.status === "completed"
                         ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-blue-900/20 scale-105"
                         : step.disabled
                           ? "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed"
                           : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 hover:border-blue-400 hover:text-blue-400 hover:shadow-md"
-                      }
+                    }
                     ${isNext ? "ring-4 ring-blue-100 dark:ring-blue-900/30 border-blue-500 text-blue-500 animate-pulse" : ""}
                   `}
                   >
-                    {step.status === 'completed' ? (
+                    {step.status === "completed" ? (
                       <Check size={22} />
                     ) : (
                       <step.icon size={22} />
                     )}
                   </button>
-                  <span className={`absolute -bottom-8 text-xs font-medium whitespace-nowrap transition-colors duration-300 ${step.status === 'completed' ? 'text-blue-600 dark:text-blue-400' :
-                      isNext ? 'text-blue-500 dark:text-blue-400 font-bold' :
-                        'text-gray-400 dark:text-gray-500'
-                    }`}>
+                  <span
+                    className={`absolute -bottom-8 text-xs font-medium whitespace-nowrap transition-colors duration-300 ${
+                      step.status === "completed"
+                        ? "text-blue-600 dark:text-blue-400"
+                        : isNext
+                          ? "text-blue-500 dark:text-blue-400 font-bold"
+                          : "text-gray-400 dark:text-gray-500"
+                    }`}
+                  >
                     {t(step.labelKey)}
                   </span>
                 </div>
@@ -617,7 +701,7 @@ export default function EvaluationStartScreen({
                   </div>
                 </div>
               ))}
-              {uploadedFiles.length < 10 && (
+              {!isAnswerUploadLimitReached && (
                 <button
                   onClick={triggerFileUpload}
                   disabled={isUploading}
@@ -625,9 +709,11 @@ export default function EvaluationStartScreen({
                 >
                   <Upload size={18} />
                   <span>
-                    {t("evaluation_start_upload_more_answer_sheets", {
-                      remaining: 10 - uploadedFiles.length,
-                    })}
+                    {hasEvaluationUploadLimit
+                      ? t("evaluation_start_upload_more_answer_sheets", {
+                          remaining: remainingAnswerSlots,
+                        })
+                      : t("evaluation_start_upload_answer_sheets")}
                   </span>
                 </button>
               )}
@@ -657,13 +743,15 @@ export default function EvaluationStartScreen({
             disabled={
               !isReadyToProcess ||
               processingStatus === "processing" ||
-              isUploading
+              isUploading ||
+              dailySessionLimitReached
             }
             className={`w-full h-12 rounded-full text-lg font-medium flex items-center justify-center gap-2
-            ${!isReadyToProcess || processingStatus === "processing"
+            ${
+              !isReadyToProcess || processingStatus === "processing"
                 ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-500 dark:text-gray-400"
                 : "bg-blue-700 hover:bg-blue-800 text-white"
-              }
+            }
           `}
           >
             <Sparkles size={20} />
@@ -780,12 +868,13 @@ function StatusItem({
       </div>
       <span
         className={`px-3 py-1 rounded-full text-xs font-medium transition-colors duration-300
-        ${isCompleted
+        ${
+          isCompleted
             ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
             : isActive
               ? "bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400"
               : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-          }
+        }
       `}
       >
         {status}

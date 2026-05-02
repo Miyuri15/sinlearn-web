@@ -11,12 +11,18 @@ import {
   Trash2,
   X,
   ClipboardCheck,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { signout } from "@/lib/api/auth";
-import { logout as logoutLocal, setSelectedChatType } from "@/lib/localStore";
+import {
+  isStoredAdmin,
+  logout as logoutLocal,
+  setSelectedChatType,
+} from "@/lib/localStore";
+import { clearCurrentUserCache, useCurrentUser } from "@/hooks/usePricing";
 import LogoutConfirmModal from "@/components/ui/LogoutConfirmModal";
 import ActionButton from "@/components/sidebar/ActionButton";
 import FooterButton from "@/components/sidebar/FooterButton";
@@ -56,6 +62,8 @@ export default function Sidebar({
   const router = useRouter();
   const { t: tCommon } = useTranslation("common");
   const { t: tChat } = useTranslation("chat");
+  const { user } = useCurrentUser();
+  const showAdminDashboard = user?.role === "admin" || isStoredAdmin();
 
   const translateTitle = (title: string) => {
     if (title === "New Evaluation Chat") return tChat("new_evaluation_chat");
@@ -87,6 +95,7 @@ export default function Sidebar({
     } finally {
       // Clear local storage and redirect
       logoutLocal();
+      clearCurrentUserCache();
       setIsLogoutModalOpen(false);
       setIsLoggingOut(false);
       router.push("/auth/sign-in");
@@ -289,6 +298,14 @@ export default function Sidebar({
         {/* FOOTER */}
         <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
           <div className="space-y-1">
+            {showAdminDashboard && (
+              <FooterButton
+                icon={<Shield className="w-4 h-4" />}
+                label="Admin"
+                isOpen={isOpen}
+                onClick={() => router.push("/admin")}
+              />
+            )}
             <FooterButton
               icon={<Settings className="w-4 h-4" />}
               label={tCommon("settings_text")}

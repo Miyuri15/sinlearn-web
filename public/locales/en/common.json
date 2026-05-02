@@ -96,7 +96,16 @@
     "terms": "Terms and Conditions",
     "privacy_policy": "Privacy Policy",
     
-    "save_changes": "Save Changes"
+    "save_changes": "Save Changes",
+    "saved": "Changes saved!",
+    "plan_desc": "Manage your subscription plan",
+    "current_plan": "Current Plan",
+    "usage": "Current Usage",
+    "plan_limits": "Your Limits",
+    "plan_features": "Included Features",
+    "not_found": "Settings page not found",
+    "plan": "Plan",
+    "admin": "Admin"
   }, 
   "rubric": {
     "action_teachers": "Action Teachers",

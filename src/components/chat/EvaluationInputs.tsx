@@ -2,6 +2,7 @@
 
 import { Send, Paperclip, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useUserUsage } from "@/hooks/usePricing";
 
 type EvaluationInputsProps = Readonly<{
   totalMarks: number;
@@ -26,8 +27,11 @@ export default function EvaluationInputs({
   uploadedFilesCount = 0,
 }: EvaluationInputsProps) {
   const { t } = useTranslation("chat");
-  const remainingSlots = 10 - uploadedFilesCount;
-  const isUploadDisabled = remainingSlots <= 0;
+  const { usage } = useUserUsage();
+  const evaluationLimit = usage?.limits.evaluationsPerSession ?? 10;
+  const remainingSlots =
+    evaluationLimit === null ? null : evaluationLimit - uploadedFilesCount;
+  const isUploadDisabled = remainingSlots !== null && remainingSlots <= 0;
 
   return (
     <div className="flex flex-wrap sm:flex-nowrap items-center justify-center sm:justify-start gap-2 sm:gap-3 w-full">
@@ -40,7 +44,10 @@ export default function EvaluationInputs({
           className="hidden"
           id="eval-upload-input"
           onChange={(e) => {
-            const selectedFiles = Array.from(e.target.files ?? []).slice(0, 10);
+            const selectedFiles =
+              remainingSlots === null
+                ? Array.from(e.target.files ?? [])
+                : Array.from(e.target.files ?? []).slice(0, remainingSlots);
             if (selectedFiles.length > 0) onUpload?.(selectedFiles);
           }}
         />
@@ -60,10 +67,16 @@ export default function EvaluationInputs({
             text-sm sm:text-base
             whitespace-nowrap
           "
-          title={isUploadDisabled ? "Maximum 10 files reached" : `${remainingSlots} file(s) remaining`}
+          title={
+            isUploadDisabled
+              ? "Maximum files reached"
+              : remainingSlots === null
+                ? "Unlimited files allowed"
+                : `${remainingSlots} file(s) remaining`
+          }
         >
           <Paperclip className="w-5 h-5" />
-          {t("attach")} ({uploadedFilesCount}/10)
+          {t("attach")} ({uploadedFilesCount}/{evaluationLimit ?? "Unlimited"})
         </button>
       </div>
 

@@ -1,9 +1,21 @@
 import "@/lib/i18n";
-import { Mic, Paperclip, Send, X, FileText, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Mic,
+  Paperclip,
+  Send,
+  X,
+  FileText,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { KeyboardEvent, useState, DragEvent, useRef, useEffect } from "react";
 import { formatBytes } from "@/lib/utils/format";
 import FilePreviewModal from "@/components/chat/FilePreviewModal";
+import { LimitWarning } from "@/components/pricing/LimitWarning";
+import { useUserUsage } from "@/hooks/usePricing";
+import { USAGE_POLL_INTERVAL } from "@/lib/constants";
 import { ReactTransliterate } from "react-transliterate";
 import "react-transliterate/dist/index.css";
 
@@ -47,6 +59,7 @@ export default function InputBar({
   isFirstMessage = false,
 }: InputBarProps) {
   const { t } = useTranslation("chat");
+  const { usage } = useUserUsage(USAGE_POLL_INTERVAL);
   const [isDragging, setIsDragging] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
@@ -101,7 +114,18 @@ export default function InputBar({
       message.trim().length === 0 &&
       pendingFiles.length === 0) ||
     isUploading ||
-    (isFirstMessage && !pendingVoice && pendingFiles.length === 0);
+    (isFirstMessage && !pendingVoice && pendingFiles.length === 0) ||
+    Boolean(
+      usage &&
+      usage.currentHour.limit > 0 &&
+      usage.currentHour.learningRequests >= usage.currentHour.limit,
+    );
+
+  const isLearningLimitReached = Boolean(
+    usage &&
+    usage.currentHour.limit > 0 &&
+    usage.currentHour.learningRequests >= usage.currentHour.limit,
+  );
 
   return (
     <div
@@ -117,6 +141,29 @@ export default function InputBar({
         }
       `}
     >
+      {isLearningLimitReached && usage && (
+        <div className="mx-3 mt-3 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
+          <AlertTriangle
+            className="mt-0.5 h-4 w-4 shrink-0"
+            aria-hidden="true"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">Learning limit reached</p>
+            <p>
+              You have used {usage.currentHour.learningRequests} of{" "}
+              {usage.currentHour.limit} requests. Resets at{" "}
+              {new Date(usage.currentHour.resetAt).toLocaleTimeString()}.
+            </p>
+          </div>
+          <Link
+            href="/settings/plan"
+            className="shrink-0 rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+          >
+            Upgrade
+          </Link>
+        </div>
+      )}
+
       {/* 1. PREVIEW AREA (Inside the box) */}
       {pendingFiles.length > 0 && (
         <div className="flex items-center justify-between px-3 pt-3">
