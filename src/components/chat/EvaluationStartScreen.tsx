@@ -757,7 +757,7 @@ export default function EvaluationStartScreen({
             <Sparkles size={20} />
             {processingStatus === "processing"
               ? t("evaluation_start_processing")
-              : needsReprocessing
+              : needsReprocessing || isProcessingCompleted
                 ? t("evaluation_start_reprocess_documents")
                 : t("evaluation_start_process_documents")}
           </Button>

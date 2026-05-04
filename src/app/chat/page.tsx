@@ -751,7 +751,7 @@ export default function ChatPage({
       }
     }
 
-    await deleteResource(resourceId);
+    await deleteResource(resourceId, { ignoreNotFound: true });
   }, []);
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
@@ -2242,6 +2242,9 @@ export default function ChatPage({
           body: {
             chat_session_id: targetSessionId,
             answer_resource_ids: [resourceId],
+            force_reprocess:
+              processingStatus === "completed" ||
+              processingStatus === "needs_reprocessing",
           },
           onEvent: (evt) => {
             const data = parseStreamPayload(evt.raw);
