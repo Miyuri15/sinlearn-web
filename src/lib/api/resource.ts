@@ -214,19 +214,30 @@ export const detachAnswerSheetFromSession = async (params: {
     }
   }
 
-  // Fallback to complete resource deletion if detach endpoints are not found
-  try {
-    await deleteResource(resourceId);
-  } catch (err) {
-    throw (lastError ?? err);
+  // Some backend versions do not have a session-level detach route for answer
+  // sheets. In that case the caller can still delete the resource directly.
+  if (lastError instanceof ApiError && (lastError.status === 404 || lastError.status === 405)) {
+    return;
   }
+
+  if (lastError) throw lastError;
 };
 
-export const deleteResource = async (resourceId: string): Promise<void> => {
-  await apiFetch<void>(
-    `${API_BASE_URL}/api/v1/resources/${encodeURIComponent(resourceId)}`,
-    { method: "DELETE" }
-  );
+export const deleteResource = async (
+  resourceId: string,
+  options: { ignoreNotFound?: boolean } = {}
+): Promise<void> => {
+  try {
+    await apiFetch<void>(
+      `${API_BASE_URL}/api/v1/resources/${encodeURIComponent(resourceId)}`,
+      { method: "DELETE" }
+    );
+  } catch (error) {
+    if (options.ignoreNotFound && error instanceof ApiError && error.status === 404) {
+      return;
+    }
+    throw error;
+  }
 };
 
 // Best-effort removal: prefer detach-from-session when available, otherwise delete resource.
