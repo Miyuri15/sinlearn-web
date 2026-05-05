@@ -9,7 +9,10 @@ import {
   AlertCircle,
   XCircle,
   Clock,
-  Loader2
+  Loader2,
+  BookOpen,
+  ListChecks,
+  X
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
@@ -84,8 +87,16 @@ interface DetailedResult {
   improvement_points: string[];
   question_feedback?: any[];
   marks_summary?: Record<string, Array<{ label: string; awarded: number; max: number; is_selected?: boolean }>>;
+  marking_schema?: any;
+  answer_mapping?: any;
   isHydratedFromProps?: boolean;
 }
+
+type ReviewModalState = {
+  type: "schema" | "mapping";
+  result: DetailedResult;
+  title: string;
+} | null;
 
 type NormalizedQuestionFeedback = {
   id: string;
@@ -256,6 +267,7 @@ export default function EvaluationResultsScreen({
   const [detailedResults, setDetailedResults] = useState<Map<string, DetailedResult>>(new Map());
   const [loadingDetails, setLoadingDetails] = useState<Set<string>>(new Set());
   const [generatingFeedback, setGeneratingFeedback] = useState<Set<string>>(new Set());
+  const [reviewModal, setReviewModal] = useState<ReviewModalState>(null);
 
   const { t, i18n } = useTranslation("chat");
   const contentLanguage: "en" | "si" = i18n.language?.startsWith("si") ? "si" : "en";
@@ -307,6 +319,8 @@ export default function EvaluationResultsScreen({
           improvement_points: r.improvement_points || [],
           question_feedback: questionFeedback,
           marks_summary: r.marks_summary || {},
+          marking_schema: r.marking_schema || null,
+          answer_mapping: r.answer_mapping || null,
           isHydratedFromProps: true,
         });
       });
@@ -449,6 +463,8 @@ export default function EvaluationResultsScreen({
         improvement_points: feedbackData.improvement_points || [],
         question_feedback: resultData.question_feedbacks || [],
         marks_summary: resultData.marks_summary || {},
+        marking_schema: resultData.marking_schema || null,
+        answer_mapping: resultData.answer_mapping || null,
         isHydratedFromProps: false,
       };
 
@@ -464,6 +480,66 @@ export default function EvaluationResultsScreen({
         return next;
       });
     }
+  };
+
+  const loadDetailedResultForReview = async (summary: ResultSummary): Promise<DetailedResult | null> => {
+    const rowId = summary.answer_document_id;
+    const backendAnswerId = summary.backend_answer_document_id || summary.answer_document_id;
+    const existing = detailedResults.get(rowId);
+
+    if (existing && !existing.isHydratedFromProps && (existing.marking_schema || existing.answer_mapping)) {
+      return existing;
+    }
+
+    if (!backendAnswerId) {
+      setError("Result details are still syncing. Please wait a moment and try again.");
+      return null;
+    }
+
+    setError(null);
+    setLoadingDetails(prev => new Set(prev).add(rowId));
+    try {
+      const resultData = await getEvaluationResult(backendAnswerId);
+      const hydrated: DetailedResult = {
+        answer_document_id: rowId,
+        backend_answer_document_id: backendAnswerId,
+        total_score: resultData.total_score || 0,
+        percentage_score: resultData.percentage_score ?? null,
+        overall_feedback: resultData.overall_feedback || existing?.overall_feedback || null,
+        improvement_points: resultData.improvement_points || existing?.improvement_points || [],
+        question_feedback: resultData.question_feedbacks || existing?.question_feedback || [],
+        marks_summary: resultData.marks_summary || existing?.marks_summary || {},
+        marking_schema: resultData.marking_schema || existing?.marking_schema || null,
+        answer_mapping: resultData.answer_mapping || existing?.answer_mapping || null,
+        isHydratedFromProps: false,
+      };
+
+      setDetailedResults(prev => new Map(prev).set(rowId, hydrated));
+      return hydrated;
+    } catch (err) {
+      console.error(`Failed to fetch review details for answer ${backendAnswerId}:`, err);
+      setError(formatEvaluationError(err, "Failed to load review details"));
+      return null;
+    } finally {
+      setLoadingDetails(prev => {
+        const next = new Set(prev);
+        next.delete(rowId);
+        return next;
+      });
+    }
+  };
+
+  const handleOpenReview = async (
+    summary: ResultSummary,
+    type: "schema" | "mapping",
+  ) => {
+    const detail = await loadDetailedResultForReview(summary);
+    if (!detail) return;
+    setReviewModal({
+      type,
+      result: detail,
+      title: type === "schema" ? "Generated Marking Schema" : "Mapped Answers",
+    });
   };
 
 
@@ -535,41 +611,62 @@ export default function EvaluationResultsScreen({
   return (
     <div className="w-full max-w-7xl mx-auto p-4 space-y-6 pb-20">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-[#111111] p-6 rounded-xl border border-gray-200 dark:border-[#2a2a2a]">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-            {t("evaluation_results_title")}
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            {t("evaluation_results_subtitle", { count: resultsSummary.length })}
-          </p>
+      <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-[#2a2a2a] overflow-hidden">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-5 p-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+              <CheckCircle className="h-3.5 w-3.5" />
+              Evaluation complete
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                {t("evaluation_results_title")}
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                {t("evaluation_results_subtitle", { count: resultsSummary.length })}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto">
+            <Button
+              onClick={onStartNewAnswerEvaluation}
+              className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white"
+            >
+              <FileText className="w-4 h-4" />
+              {t("evaluation_start_new_answer_evaluation")}
+            </Button>
+
+            <Button
+              onClick={onViewHistory}
+              className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              <Clock className="w-4 h-4" />
+              {t("evaluation_results_history")}
+            </Button>
+
+            <Button
+              onClick={() => onAnalysisClick(resultsSummary)}
+              className="flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+            >
+              <BarChart2 className="w-4 h-4" />
+              {t("evaluation_results_evaluation_analysis")}
+            </Button>
+          </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={onStartNewAnswerEvaluation}
-            variant="secondary"
-            className="flex items-center gap-2"
-          >
-            {t("evaluation_start_new_answer_evaluation")}
-          </Button>
-
-          <Button
-            onClick={onViewHistory}
-            variant="secondary"
-            className="flex items-center gap-2"
-          >
-            <Clock className="w-4 h-4" />
-            {t("evaluation_results_history")}
-          </Button>
-
-          <Button
-            onClick={() => onAnalysisClick(resultsSummary)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-          >
-            <BarChart2 className="w-4 h-4" />
-            {t("evaluation_results_evaluation_analysis")}
-          </Button>
+        <div className="grid grid-cols-1 divide-y divide-gray-200 border-t border-gray-200 bg-gray-50 dark:divide-[#2a2a2a] dark:border-[#2a2a2a] dark:bg-[#161616] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="px-6 py-3">
+            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Sheets</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{resultsSummary.length}</p>
+          </div>
+          <div className="px-6 py-3">
+            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Review Tools</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Schema and mapped answers</p>
+          </div>
+          <div className="px-6 py-3">
+            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Feedback</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Generated on demand</p>
+          </div>
         </div>
       </div>
 
@@ -586,18 +683,18 @@ export default function EvaluationResultsScreen({
             >
               {/* Card Header / Summary */}
               <div
-                className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#1a1a1a]/50 transition-colors"
+                className="p-5 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#1a1a1a]/50 transition-colors"
                 onClick={() => toggleExpand(result.answer_document_id)}
               >
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400 shrink-0">
                     <FileText className="w-6 h-6" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg truncate">
                       {getStudentDisplayName(result.answer_document_id, result.student_identifier)}
                     </h3>
-                    <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-gray-500 dark:text-gray-400">
                       <span className="flex items-center gap-1">
                         <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                         {t("evaluation_results_completed")}
@@ -608,8 +705,8 @@ export default function EvaluationResultsScreen({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
-                  <div className="text-right">
+                <div className="flex w-full flex-col gap-4 xl:w-auto xl:flex-row xl:items-center xl:justify-end">
+                  <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 text-left dark:border-blue-900/40 dark:bg-blue-900/20 xl:text-right">
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">{t("evaluation_results_score")}</p>
                     <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                       {result.percentage_score !== null && result.percentage_score !== undefined
@@ -618,14 +715,44 @@ export default function EvaluationResultsScreen({
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3 border-l border-gray-200 dark:border-[#333] pl-6">
+                  <div className="flex flex-wrap items-center gap-2 xl:justify-end xl:border-l xl:border-gray-200 xl:pl-6 dark:xl:border-[#333]">
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenReview(result, "schema");
+                      }}
+                      disabled={isLoadingDetail}
+                      className="flex items-center gap-2 whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {isLoadingDetail ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <BookOpen className="w-4 h-4" />
+                      )}
+                      Schema
+                    </Button>
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenReview(result, "mapping");
+                      }}
+                      disabled={isLoadingDetail}
+                      className="flex items-center gap-2 whitespace-nowrap bg-cyan-600 hover:bg-cyan-700 text-white"
+                    >
+                      {isLoadingDetail ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <ListChecks className="w-4 h-4" />
+                      )}
+                      Mapped Answers
+                    </Button>
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleViewFeedback(result);
                       }}
                       disabled={generatingFeedback.has(result.answer_document_id)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap min-w-[120px]"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 whitespace-nowrap min-w-[120px]"
                     >
                       {generatingFeedback.has(result.answer_document_id) ? (
                         <>
@@ -641,7 +768,7 @@ export default function EvaluationResultsScreen({
                     </Button>
                   </div>
 
-                  <div className="pl-2">
+                  <div className="hidden xl:block pl-2">
                     {expandedId === result.answer_document_id ? (
                       <ChevronUp className="w-5 h-5 text-gray-400" />
                     ) : (
@@ -924,6 +1051,153 @@ export default function EvaluationResultsScreen({
           );
         })}
       </div>
+
+      {reviewModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setReviewModal(null)}
+        >
+          <div
+            className="w-full max-w-6xl max-h-[85vh] overflow-hidden rounded-xl border border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#111111] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-4 border-b border-gray-200 dark:border-[#2a2a2a] px-5 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {reviewModal.title}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {getStudentDisplayName(
+                    reviewModal.result.answer_document_id,
+                    resultsSummary.find(r => r.answer_document_id === reviewModal.result.answer_document_id)?.student_identifier || "Student"
+                  )}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReviewModal(null)}
+                className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-[#1f1f1f] dark:hover:text-gray-100"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="max-h-[calc(85vh-82px)] overflow-auto p-5">
+              {reviewModal.type === "schema" ? (
+                <div className="space-y-5">
+                  {(() => {
+                    const items = reviewModal.result.marking_schema?.items || [];
+                    if (!items.length) {
+                      return (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          No generated marking schema is available for this result.
+                        </p>
+                      );
+                    }
+
+                    const grouped = items.reduce((acc: Record<string, any[]>, item: any) => {
+                      const key = item.part_display || item.part_name || "Other";
+                      if (!acc[key]) acc[key] = [];
+                      acc[key].push(item);
+                      return acc;
+                    }, {});
+
+                    return (Object.entries(grouped) as Array<[string, any[]]>).map(([part, partItems]) => (
+                      <section key={part} className="space-y-3">
+                        <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+                          {part}
+                        </h4>
+                        <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-[#2a2a2a]">
+                          <table className="w-full min-w-[760px] text-left text-sm">
+                            <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-[#1c1c1c] dark:text-gray-400">
+                              <tr>
+                                <th className="px-4 py-3 font-medium">Question</th>
+                                <th className="px-4 py-3 font-medium">Marks</th>
+                                <th className="px-4 py-3 font-medium">Question Text</th>
+                                <th className="px-4 py-3 font-medium">Covering Points</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
+                              {partItems.map((item: any) => (
+                                <tr key={String(item.id || item.question_id || item.question_number)}>
+                                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
+                                    {item.question_number || "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                                    {item.max_marks ?? "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                                    {item.question_text || "-"}
+                                  </td>
+                                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                    {item.reference_text || "-"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </section>
+                    ));
+                  })()}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {(() => {
+                    const details = reviewModal.result.answer_mapping?.details || [];
+                    if (!details.length) {
+                      return (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          No mapped answers are available for this result.
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-[#2a2a2a]">
+                        <table className="w-full min-w-[760px] text-left text-sm">
+                          <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-[#1c1c1c] dark:text-gray-400">
+                            <tr>
+                              <th className="px-4 py-3 font-medium">Mapped Question</th>
+                              <th className="px-4 py-3 font-medium">Marks</th>
+                              <th className="px-4 py-3 font-medium">Question Text</th>
+                              <th className="px-4 py-3 font-medium">Student Answer</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
+                            {details.map((item: any) => (
+                              <tr key={String(item.question_id || item.display_label)}>
+                                <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
+                                  {item.display_label || item.question_number || "-"}
+                                  {!item.is_mapped_to_current_question && (
+                                    <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                      unresolved
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                                  {item.max_marks ?? "-"}
+                                </td>
+                                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                                  {item.question_text || "-"}
+                                </td>
+                                <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                  {item.student_answer || "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

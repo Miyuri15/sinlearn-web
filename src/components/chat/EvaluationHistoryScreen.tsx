@@ -40,6 +40,7 @@ function formatRelativeTime(timestampMs: number, language: string) {
 
 export interface EvaluationSession {
   id: string;
+  evaluationSessionId?: string;
   timestamp: number;
   files: File[];
   resourceIds?: string[];

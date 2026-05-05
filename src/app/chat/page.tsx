@@ -340,6 +340,7 @@ export default function ChatPage({
           if (raw) {
             const parsed = JSON.parse(raw) as Array<{
               id: string;
+              evaluationSessionId?: string;
               timestamp: number;
               fileNames: string[];
               resourceIds?: string[];
@@ -352,6 +353,7 @@ export default function ChatPage({
                 .filter((s) => s && typeof s.id === "string")
                 .map((s) => ({
                   id: s.id,
+                  evaluationSessionId: s.evaluationSessionId,
                   timestamp: Number(s.timestamp) || Date.now(),
                   files: (s.fileNames || []).map((name) => new File([], name)),
                   resourceIds: Array.isArray(s.resourceIds)
@@ -546,6 +548,7 @@ export default function ChatPage({
     try {
       const toStore = (evaluationHistory || []).map((s) => ({
         id: s.id,
+        evaluationSessionId: s.evaluationSessionId,
         timestamp: s.timestamp,
         fileNames: (s.files || []).map((f) => f.name),
         resourceIds: s.resourceIds || [],
@@ -1632,9 +1635,10 @@ export default function ChatPage({
 
       const newSession: EvaluationSession = {
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        evaluationSessionId: capturedEvaluationSessionId,
         timestamp: Date.now(),
         files: [...selectedFiles],
-        resourceIds: [...evaluationAnswerResourceIds],
+        resourceIds: [...answerResourceIds],
         results,
         averageScore: avgScore,
       };
@@ -2586,6 +2590,7 @@ export default function ChatPage({
 
         {evaluationStatus === "results" && (
           <EvaluationResultsScreen
+            key={`${evaluationSessionId || "history-props"}:${evaluationAnswerResourceIds.join("|")}`}
             evaluationSessionId={evaluationSessionId || undefined}
             answerSheets={selectedFiles}
             answerResourceIds={evaluationAnswerResourceIds}
@@ -2616,10 +2621,7 @@ export default function ChatPage({
               setSelectedFiles(session.files);
               setEvaluationAnswerResourceIds(session.resourceIds || []);
               setCurrentEvaluationResult(session.results);
-              // Ensure we have a session ID to fetch from if not already set
-              if (!evaluationSessionId && activeSessionId) {
-                setEvaluationSessionId(activeSessionId);
-              }
+              setEvaluationSessionId(session.evaluationSessionId || null);
               setEvaluationStatus("results");
             }}
             onViewAnalytics={(session) => {
@@ -2627,9 +2629,7 @@ export default function ChatPage({
               setEvaluationAnswerResourceIds(session.resourceIds || []);
               setCurrentEvaluationResult(session.results);
               setAnalyticsResults(session.results);
-              if (!evaluationSessionId && activeSessionId) {
-                setEvaluationSessionId(activeSessionId);
-              }
+              setEvaluationSessionId(session.evaluationSessionId || null);
               setEvaluationStatus("analytics");
             }}
             onBack={() => setEvaluationStatus("setup")}
