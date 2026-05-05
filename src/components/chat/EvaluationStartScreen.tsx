@@ -333,6 +333,9 @@ export default function EvaluationStartScreen({
           Math.max(1, processProgress.current || 1),
         )
       : 0;
+  const processingMessage =
+    processProgress?.message ||
+    "Reading Sinhala text, mapping answers, and preparing the marking view.";
 
   const steps = [
     {
@@ -519,41 +522,92 @@ export default function EvaluationStartScreen({
         {/* Processing Banner */}
         {processingStatus === "processing" && (
           <div
-            className="w-full bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/30 rounded-xl p-5 flex items-center gap-4 shadow-sm"
+            className="w-full overflow-hidden rounded-xl border border-blue-200 bg-blue-50 shadow-sm dark:border-blue-900/30 dark:bg-blue-950/20"
             aria-live="polite"
             aria-busy="true"
           >
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-full text-blue-600">
-              <Sparkles size={20} className="animate-pulse" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                  {processProgress && processProgress.total > 0
-                    ? `Processing ${displayedProcessCurrent} of ${processProgress.total} documents...`
-                    : t("evaluation_start_processing")}
-                </p>
-                {processProgress && processProgress.total > 0 && (
-                  <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                    {displayedProcessPercent}%
-                  </span>
-                )}
+            <div className="relative min-h-[190px] bg-gradient-to-br from-blue-50 via-white to-emerald-50 px-5 py-5 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/30">
+              <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="eval-loader-grid" />
+                <div className="eval-loader-sheet" aria-hidden="true">
+                  <div className="eval-loader-sheet-header">
+                    <FileText size={20} />
+                    <span />
+                  </div>
+                  <div className="eval-loader-answer-row">
+                    <span>01</span>
+                    <i />
+                  </div>
+                  <div className="eval-loader-answer-row">
+                    <span>02</span>
+                    <i />
+                  </div>
+                  <div className="eval-loader-answer-row">
+                    <span>03</span>
+                    <i />
+                  </div>
+                  <div className="eval-loader-scan-line" />
+                </div>
+                <div className="eval-loader-rubric" aria-hidden="true">
+                  <div>
+                    <Check size={16} />
+                    <span />
+                  </div>
+                  <div>
+                    <Check size={16} />
+                    <span />
+                  </div>
+                  <div>
+                    <Sparkles size={16} />
+                    <span />
+                  </div>
+                </div>
+                <div className="eval-loader-score" aria-hidden="true">
+                  <span>8.5</span>
+                  <small>/10</small>
+                </div>
               </div>
-              <div className="h-2.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-600 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(37,99,235,0.5)]"
-                  style={{
-                    width:
-                      processProgress && processProgress.total > 0
-                        ? `${displayedProcessPercent}%`
-                        : "10%",
-                  }}
-                />
+
+              <div className="relative z-10 flex h-full flex-col justify-between gap-8">
+                <div className="max-w-xl">
+                  <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/50 dark:text-blue-200">
+                    <Sparkles size={14} className="animate-pulse" />
+                    {t("evaluation_start_processing")}
+                  </div>
+                  <p className="text-lg font-semibold text-slate-900 dark:text-white">
+                    {processProgress && processProgress.total > 0
+                      ? `Processing ${displayedProcessCurrent} of ${processProgress.total} documents`
+                      : "Preparing your documents"}
+                  </p>
+                  <p className="mt-1 max-w-lg text-sm text-slate-600 dark:text-slate-300">
+                    {processingMessage}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-white/80 bg-white/80 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/50">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                      Checking answers against the marking schema
+                    </span>
+                    {processProgress && processProgress.total > 0 && (
+                      <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                        {displayedProcessPercent}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-blue-700 shadow-[0_0_12px_rgba(29,78,216,0.5)] transition-all duration-500 ease-out"
+                      style={{
+                        width:
+                          processProgress && processProgress.total > 0
+                            ? `${displayedProcessPercent}%`
+                            : "38%",
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                {processProgress?.message ||
-                  "Analyzing student answers and mapping to the rubric. This may take a few moments."}
-              </p>
             </div>
           </div>
         )}
