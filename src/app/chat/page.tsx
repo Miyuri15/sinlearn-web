@@ -751,7 +751,7 @@ export default function ChatPage({
       }
     }
 
-    await deleteResource(resourceId);
+    await deleteResource(resourceId, { ignoreNotFound: true });
   }, []);
 
   // ✅ LOAD MESSAGES WHEN A SESSION IS OPENED
@@ -1461,7 +1461,8 @@ export default function ChatPage({
       // Step 3: Transcribe the audio (ONCE)
       let transcribedText = "";
       try {
-        const transcriptionResult = await postVoiceTranscribe(audioBlob);
+
+        const transcriptionResult = await postVoiceTranscribe(audioBlob, activeSessionId);
         transcribedText = transcriptionResult.standard;
 
         // Update the message with transcribed text - THIS IS THE FINAL USER QUESTION
@@ -2246,6 +2247,9 @@ export default function ChatPage({
           body: {
             chat_session_id: targetSessionId,
             answer_resource_ids: [resourceId],
+            force_reprocess:
+              processingStatus === "completed" ||
+              processingStatus === "needs_reprocessing",
           },
           onEvent: (evt) => {
             const data = parseStreamPayload(evt.raw);

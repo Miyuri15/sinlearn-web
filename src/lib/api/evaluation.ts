@@ -936,6 +936,7 @@ export async function deleteSessionMarkingSchema(sessionId: string): Promise<voi
 export type ProcessDocumentsRequest = {
   chat_session_id: string;
   answer_resource_ids: string[];
+  force_reprocess?: boolean;
 };
 
 export type StartEvaluationRequest = {
