@@ -211,7 +211,7 @@ export async function postVoiceQAFromText(params: {
 // service
 export async function postVoiceTranscribe(
   audioBlob: Blob, 
-  resourceIds: string[] // Add this parameter
+  sessionId: string | null // Add this parameter
 ): Promise<{
   raw: string;
   normalized: string;
@@ -221,7 +221,9 @@ export async function postVoiceTranscribe(
   formData.append("audio", audioBlob, "voice.wav");
   
   // Append as a comma-separated string to match your backend logic
-  formData.append("resource_ids", resourceIds.join(","));
+  if (sessionId) {
+    formData.append("session_id", sessionId);
+  }
 
   const response = await apiFetch<{
     raw: string;

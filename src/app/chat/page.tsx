@@ -1461,9 +1461,8 @@ export default function ChatPage({
       // Step 3: Transcribe the audio (ONCE)
       let transcribedText = "";
       try {
-        const resourceIds = uploadedResources.map((r) => r.resource_id);
 
-        const transcriptionResult = await postVoiceTranscribe(audioBlob, resourceIds);
+        const transcriptionResult = await postVoiceTranscribe(audioBlob, activeSessionId);
         transcribedText = transcriptionResult.standard;
 
         // Update the message with transcribed text - THIS IS THE FINAL USER QUESTION
