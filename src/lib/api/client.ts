@@ -12,7 +12,10 @@ export class ApiError extends Error {
   url: string;
   details: unknown;
 
-  constructor(message: string, params: { status: number; url: string; details?: unknown }) {
+  constructor(
+    message: string,
+    params: { status: number; url: string; details?: unknown },
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = params.status;
@@ -24,7 +27,10 @@ export class ApiError extends Error {
 export class OfflineError extends Error {
   url?: string;
 
-  constructor(message = "You are offline. Please reconnect and try again.", url?: string) {
+  constructor(
+    message = "You are offline. Please reconnect and try again.",
+    url?: string,
+  ) {
     super(message);
     this.name = "OfflineError";
     this.url = url;
@@ -40,7 +46,6 @@ export function isOfflineError(error: unknown): error is OfflineError {
 }
 
 export function isLikelyNetworkError(error: unknown): boolean {
-  if (isBrowserOffline()) return true;
   if (error instanceof OfflineError) return true;
   if (
     typeof DOMException !== "undefined" &&
@@ -61,7 +66,7 @@ export function assertOnline(url?: string): void {
 export function getApiErrorMessage(
   error: unknown,
   fallback: string,
-  offlineMessage = "You are offline. Please reconnect and try again."
+  offlineMessage = "You are offline. Please reconnect and try again.",
 ): string {
   if (error instanceof OfflineError) return offlineMessage;
   if (error instanceof Error && error.message.trim()) return error.message;
@@ -179,7 +184,7 @@ async function refreshAccessToken(): Promise<void> {
 export async function apiFetch<T>(
   url: string,
   options: RequestInit = {},
-  isRetry = false
+  isRetry = false,
 ): Promise<T> {
   const canUseCache = isGetRequest(options);
 
@@ -250,7 +255,11 @@ export async function apiFetch<T>(
         errorMessage = maybe.detail || maybe.message || errorMessage;
       }
 
-      throw new ApiError(errorMessage, { status: res.status, url, details: errorBody });
+      throw new ApiError(errorMessage, {
+        status: res.status,
+        url,
+        details: errorBody,
+      });
     }
 
     // Handle empty responses (204 No Content, etc.)
@@ -272,7 +281,9 @@ export async function apiFetch<T>(
         if (cached !== null) return cached;
       }
 
-      throw error instanceof OfflineError ? error : new OfflineError(undefined, url);
+      throw error instanceof OfflineError
+        ? error
+        : new OfflineError(undefined, url);
     }
 
     // Re-throw Error instances as-is
@@ -283,7 +294,7 @@ export async function apiFetch<T>(
     throw new Error(
       `Network request failed: ${
         error instanceof Object ? JSON.stringify(error) : String(error)
-      }`
+      }`,
     );
   }
 }

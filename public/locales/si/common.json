@@ -35,7 +35,9 @@
   "logging_out": "පිටවෙමින් පවතී...",
   "errors": {
     "offline": "ඔබ අන්තර්ජාලයට සම්බන්ධ වී නැත. කරුණාකර නැවත සම්බන්ධ වී උත්සාහ කරන්න.",
-    "authentication_failed": "සත්‍යාපනය (Authentication) අසාර්ථක විය"
+    "authentication_failed": "සත්‍යාපනය (Authentication) අසාර්ථක විය",
+    "invalid_credentials": "වලංගු නොවන විද්‍යුත් තැපෑල හෝ මුරපදය.",
+    "server_error": "සේවාදායක දෝෂයක් ඇතිවිය. කරුණාකර ටික වේලාවකින් නැවත උත්සාහ කරන්න."
   },
   
   "settings": {

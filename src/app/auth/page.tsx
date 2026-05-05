@@ -10,7 +10,7 @@ import { getLanguage, setAuthTokens, setUser } from "@/lib/localStore";
 import { GraduationCap } from "lucide-react";
 import { signup, signin } from "@/lib/api/auth";
 import { fetchCurrentUser } from "@/lib/api";
-import { getApiErrorMessage } from "@/lib/api/client";
+import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 
 interface AuthPageProps {
   readonly defaultTab?: "signin" | "signup";
@@ -32,12 +32,30 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
-    {}
+    {},
   );
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const { t, i18n } = useTranslation("common");
   const router = useRouter();
+
+  const getAuthErrorMessage = (err: unknown): string => {
+    if (err instanceof ApiError) {
+      if (err.status === 400 || err.status === 401) {
+        return t("errors.invalid_credentials");
+      }
+
+      if (err.status >= 500) {
+        return t("errors.server_error");
+      }
+    }
+
+    return getApiErrorMessage(
+      err,
+      t("errors.authentication_failed"),
+      t("errors.offline"),
+    );
+  };
 
   useEffect(() => {
     i18n.changeLanguage(getLanguage());
@@ -169,13 +187,7 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
 
       router.push(isAdmin ? "/admin" : "/chat");
     } catch (err: unknown) {
-      setError(
-        getApiErrorMessage(
-          err,
-          t("errors.authentication_failed"),
-          t("errors.offline"),
-        ),
-      );
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -355,8 +367,8 @@ export default function AuthPage({ defaultTab = "signin" }: AuthPageProps) {
             {loading
               ? "Please wait..."
               : tab === "signin"
-              ? t("button_signin")
-              : t("button_signup")}
+                ? t("button_signin")
+                : t("button_signup")}
           </Button>
 
           {/* Footer links */}

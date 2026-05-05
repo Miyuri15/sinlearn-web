@@ -35,7 +35,9 @@
   "logging_out": "Logging out...",
   "errors": {
     "offline": "You are offline. Please reconnect and try again.",
-    "authentication_failed": "Authentication failed"
+    "authentication_failed": "Authentication failed",
+    "invalid_credentials": "Invalid email or password.",
+    "server_error": "Server error. Please try again shortly."
   },
 
   "settings": {
