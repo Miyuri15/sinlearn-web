@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { ArrowLeft, RefreshCw, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/config";
 import { ApiError, apiFetch } from "@/lib/api/client";
@@ -18,6 +18,7 @@ export default function AnswerMappingPage() {
   const [fileName, setFileName] = useState("");
   const [mapping, setMapping] = useState<MappingResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [remapping, setRemapping] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -77,6 +78,45 @@ export default function AnswerMappingPage() {
     }
   };
 
+  const remapAnswers = async (id: string) => {
+    if (!id) return;
+
+    setRemapping(true);
+    setError("");
+
+    try {
+      const encodedId = encodeURIComponent(id);
+      const endpoints = [
+        `${API_BASE_URL}/api/v1/evaluation/answers/${encodedId}/remap`,
+        `${API_BASE_URL}/api/v1/evaluation/answers/${encodedId}/parse?force_remap=true`,
+      ];
+
+      let lastError: unknown = null;
+
+      for (const endpoint of endpoints) {
+        try {
+          const data = await apiFetch<MappingResponse>(endpoint, { method: "POST" });
+          setMapping(data);
+          return;
+        } catch (err) {
+          lastError = err;
+          if (!(err instanceof ApiError) || (err.status !== 404 && err.status !== 405)) {
+            throw err;
+          }
+        }
+      }
+
+      throw lastError instanceof Error
+        ? lastError
+        : new Error("Failed to remap answers for this document.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to remap answers";
+      setError(message);
+    } finally {
+      setRemapping(false);
+    }
+  };
+
   useEffect(() => {
     fetchMapping(answerId);
   }, [answerId]);
@@ -92,14 +132,25 @@ export default function AnswerMappingPage() {
           Back
         </button>
 
-        <button
-          onClick={() => fetchMapping(answerId)}
-          disabled={loading || !answerId}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          {loading ? "Loading..." : "Refresh"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => fetchMapping(answerId)}
+            disabled={loading || remapping || !answerId}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#333] dark:text-gray-200 dark:hover:bg-[#1a1a1a]"
+          >
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+            {loading ? "Loading..." : "Refresh"}
+          </button>
+
+          <button
+            onClick={() => remapAnswers(answerId)}
+            disabled={loading || remapping || !answerId}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RotateCcw size={16} className={remapping ? "animate-spin" : ""} />
+            {remapping ? "Remapping..." : "Remap answers"}
+          </button>
+        </div>
       </div>
 
       <div className="mb-6">
