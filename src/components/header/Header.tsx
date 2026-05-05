@@ -39,7 +39,6 @@ export default function Header({
   isQuestionsOpen,
   isSessionResourcesOpen = false,
   isSyncingMessages = false,
-  toggleRubric,
   toggleSyllabus,
   toggleQuestions,
   toggleSessionResources,
@@ -156,22 +155,13 @@ export default function Header({
           {/* Evaluation Mode: "Extra One Button" (Dropdown) */}
           {mode === "evaluation" && (
             <div className="flex items-center gap-1 ml-1">
-              <button
-                onClick={toggleRubric}
-                className={`p-2 rounded-lg transition-all duration-300 relative ${
-                  isRubricOpen
-                    ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-                    : activeStep === "rubric"
-                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-[#111] animate-pulse"
-                      : "hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
-                }`}
-                title={t("evaluation_start_step_rubric")}
+              <div
+                className="p-2 rounded-lg text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20"
+                title={t("evaluation_start_fixed_rubric_helper")}
+                aria-label={t("evaluation_start_fixed_rubric_helper")}
               >
                 <FileText className="w-5 h-5" />
-                {activeStep === "rubric" && (
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
-                )}
-              </button>
+              </div>
               <button
                 onClick={toggleSyllabus}
                 className={`p-2 rounded-lg transition-all duration-300 relative ${
@@ -276,20 +266,15 @@ export default function Header({
           {/* Show action buttons only in evaluation mode */}
           {mode === "evaluation" && (
             <div className="flex items-center gap-2 mr-2">
-              <button
-                onClick={toggleRubric}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
-                  isRubricOpen
-                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800"
-                    : "hover:bg-gray-50 dark:hover:bg-[#222] text-gray-600 dark:text-gray-400 border border-transparent hover:border-gray-200 dark:hover:border-[#333]"
-                }`}
-                title={t("evaluation_start_step_rubric")}
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900/40"
+                title={t("evaluation_start_fixed_rubric_helper")}
               >
                 <FileText className="w-5 h-5" />
                 <span className="text-sm font-medium">
-                  {t("evaluation_start_step_rubric")}
+                  {t("evaluation_start_fixed_rubric_label")}
                 </span>
-              </button>
+              </div>
 
               <button
                 onClick={toggleSyllabus}

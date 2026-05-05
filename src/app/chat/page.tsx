@@ -257,7 +257,7 @@ export default function ChatPage({
     any[] | undefined
   >(undefined);
   const [analyticsResults, setAnalyticsResults] = useState<any[]>([]);
-  const [rubricSet, setRubricSet] = useState(false);
+  const [rubricSet, setRubricSet] = useState(true);
   const [attachedRubricId, setAttachedRubricId] = useState<string | null>(null);
   // Add state for evaluation session and answer resource ids
   const [evaluationSessionId, setEvaluationSessionId] = useState<string | null>(
@@ -410,7 +410,7 @@ export default function ChatPage({
 
         const rubricId = details?.rubric_id ?? null;
         setAttachedRubricId(rubricId);
-        setRubricSet(!!rubricId);
+        setRubricSet(true);
 
         const qp = details?.question_paper;
         const qpFilenameFromDetails: string | undefined =
@@ -1594,9 +1594,7 @@ export default function ChatPage({
     }
 
     if (!marksConfirmed) {
-      setToastMessage(
-        "Please confirm the paper config (marks) before sending.",
-      );
+      setToastMessage(t("evaluation_start_confirm_marks_before_sending"));
       setToastType("warning");
       setIsToastVisible(true);
       return;
@@ -1604,7 +1602,7 @@ export default function ChatPage({
 
     if (!markingSchemaConfirmed) {
       await handleOpenMarkingSchema();
-      setToastMessage("Review and confirm the marking schema before grading.");
+      setToastMessage(t("evaluation_start_confirm_schema_before_grading"));
       setToastType("warning");
       setIsToastVisible(true);
       return;
@@ -2399,9 +2397,7 @@ export default function ChatPage({
     }
 
     if (!marksConfirmed) {
-      setToastMessage(
-        "Confirm the paper config before reviewing the marking schema.",
-      );
+      setToastMessage(t("evaluation_start_confirm_marks_before_schema"));
       setToastType("warning");
       setIsToastVisible(true);
       return;
@@ -2799,7 +2795,6 @@ export default function ChatPage({
   // Determine active step for header pulsing
   const getActiveStep = () => {
     if (evaluationStatus !== "setup") return undefined;
-    if (!rubricSet) return "rubric";
     if (!syllabusSet) return "syllabus";
     if (!questionsSet) return "questions";
     return undefined;

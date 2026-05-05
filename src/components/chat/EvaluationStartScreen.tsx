@@ -65,7 +65,6 @@ interface EvaluationStartScreenProps {
 }
 
 export default function EvaluationStartScreen({
-  onOpenRubric,
   onOpenSyllabus,
   onOpenQuestions,
   onOpenMarks,
@@ -213,10 +212,6 @@ export default function EvaluationStartScreen({
         getResourceExtractedText(resourceId, { page: 1, pageSize: 1 }),
       ]);
 
-      if (blobResult.status === "rejected") {
-        throw blobResult.reason;
-      }
-
       let extractedText = "";
       let extractedTextError: string | null = null;
       let extractedTextMeta = {
@@ -249,13 +244,21 @@ export default function EvaluationStartScreen({
         );
       }
 
-      const url = URL.createObjectURL(blobResult.value);
+      const hasFilePreview = blobResult.status === "fulfilled";
+      const url = hasFilePreview ? URL.createObjectURL(blobResult.value) : "";
+      const previewError =
+        blobResult.status === "rejected"
+          ? getApiErrorMessage(
+              blobResult.reason,
+              t("evaluation_start_original_file_unavailable"),
+            )
+          : null;
       setPreviewAnswerSheet((prev) => {
         if (prev?.url) URL.revokeObjectURL(prev.url);
         return {
           resourceId,
           url,
-          type: resolvePreviewType(file, blobResult.value.type),
+          type: hasFilePreview ? resolvePreviewType(file, blobResult.value.type) : "file",
           extractedText,
           isExtracting: false,
           extractedTextError,
@@ -265,7 +268,7 @@ export default function EvaluationStartScreen({
           extractedTextReturnedPages: extractedTextMeta.returnedPages,
           extractedTextHasNext: extractedTextMeta.hasNext,
           extractedTextHasPrevious: extractedTextMeta.hasPrevious,
-          previewError: null,
+          previewError,
         };
       });
     } catch (error) {
@@ -295,7 +298,7 @@ export default function EvaluationStartScreen({
   };
 
   const isReadyToProcess =
-    rubricSet && syllabusSet && questionsSet && uploadedFiles.length > 0;
+    syllabusSet && questionsSet && uploadedFiles.length > 0;
   const isProcessingCompleted = processingStatus === "completed";
   const needsReprocessing = processingStatus === "needs_reprocessing";
 
@@ -335,15 +338,16 @@ export default function EvaluationStartScreen({
       : 0;
   const processingMessage =
     processProgress?.message ||
-    "Reading Sinhala text, mapping answers, and preparing the marking view.";
+    t("evaluation_start_processing_message");
 
   const steps = [
     {
       labelKey: "evaluation_start_step_rubric",
       icon: FileText,
-      action: onOpenRubric,
-      status: rubricSet ? "completed" : "pending",
-      disabled: isUploading,
+      action: () => {},
+      status: "completed",
+      disabled: false,
+      helperText: t("evaluation_start_fixed_rubric_helper"),
     },
     {
       labelKey: "evaluation_start_step_syllabus",
@@ -438,6 +442,17 @@ export default function EvaluationStartScreen({
 
         <div className="w-full">
           <LimitWarning usage={usage} type="evaluation" />
+          <div className="mb-3 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/15 dark:text-emerald-200">
+            <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <div>
+              <p className="font-medium">
+                {t("evaluation_start_fixed_rubric_title")}
+              </p>
+              <p>
+                {t("evaluation_start_fixed_rubric_desc")}
+              </p>
+            </div>
+          </div>
           {dailySessionLimitReached && usage && (
             <div className="mb-3 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
               <AlertTriangle
@@ -577,7 +592,7 @@ export default function EvaluationStartScreen({
                   <p className="text-lg font-semibold text-slate-900 dark:text-white">
                     {processProgress && processProgress.total > 0
                       ? `Processing ${displayedProcessCurrent} of ${processProgress.total} documents`
-                      : "Preparing your documents"}
+                      : t("evaluation_start_preparing_documents")}
                   </p>
                   <p className="mt-1 max-w-lg text-sm text-slate-600 dark:text-slate-300">
                     {processingMessage}
@@ -587,7 +602,7 @@ export default function EvaluationStartScreen({
                 <div className="rounded-lg border border-white/80 bg-white/80 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/50">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                      Checking answers against the marking schema
+                      {t("evaluation_start_checking_marking_schema")}
                     </span>
                     {processProgress && processProgress.total > 0 && (
                       <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
@@ -639,6 +654,7 @@ export default function EvaluationStartScreen({
                   <button
                     onClick={step.action}
                     disabled={step.disabled}
+                    title={step.helperText}
                     className={`
                     w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 z-10 active:scale-95
                     ${
@@ -668,6 +684,11 @@ export default function EvaluationStartScreen({
                   >
                     {t(step.labelKey)}
                   </span>
+                  {step.helperText && (
+                    <span className="pointer-events-none absolute top-14 hidden w-56 rounded-md border border-gray-200 bg-white px-3 py-2 text-center text-xs text-gray-600 shadow-lg group-hover:block dark:border-gray-700 dark:bg-[#111111] dark:text-gray-300">
+                      {step.helperText}
+                    </span>
+                  )}
                 </div>
               </React.Fragment>
             );

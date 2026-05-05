@@ -399,7 +399,7 @@ export default function EvaluationResultsScreen({
       } catch (err) {
         console.error("Failed to fetch evaluation results:", err);
         if (!propResults || propResults.length === 0) {
-          setError(formatEvaluationError(err, "Failed to load results"));
+          setError(formatEvaluationError(err, t("evaluation_results_failed_load")));
         }
       } finally {
         setIsLoading(false);
@@ -438,7 +438,7 @@ export default function EvaluationResultsScreen({
     }
 
     if (!summary.backend_answer_document_id) {
-      setError("Detailed feedback is still syncing. Please wait a moment and try again.");
+      setError(t("evaluation_results_detail_syncing"));
       return;
     }
 
@@ -472,7 +472,7 @@ export default function EvaluationResultsScreen({
       setExpandedId(rowId);
     } catch (err) {
       console.error(`Failed to generate/fetch feedback for answer ${backendAnswerId}:`, err);
-      setError(formatEvaluationError(err, "Failed to generate feedback"));
+      setError(formatEvaluationError(err, t("evaluation_results_failed_feedback")));
     } finally {
       setGeneratingFeedback(prev => {
         const next = new Set(prev);
@@ -492,7 +492,7 @@ export default function EvaluationResultsScreen({
     }
 
     if (!backendAnswerId) {
-      setError("Result details are still syncing. Please wait a moment and try again.");
+      setError(t("evaluation_results_review_syncing"));
       return null;
     }
 
@@ -518,7 +518,7 @@ export default function EvaluationResultsScreen({
       return hydrated;
     } catch (err) {
       console.error(`Failed to fetch review details for answer ${backendAnswerId}:`, err);
-      setError(formatEvaluationError(err, "Failed to load review details"));
+      setError(formatEvaluationError(err, t("evaluation_results_failed_review")));
       return null;
     } finally {
       setLoadingDetails(prev => {
@@ -538,7 +538,10 @@ export default function EvaluationResultsScreen({
     setReviewModal({
       type,
       result: detail,
-      title: type === "schema" ? "Generated Marking Schema" : "Mapped Answers",
+      title:
+        type === "schema"
+          ? t("evaluation_results_generated_schema")
+          : t("evaluation_results_mapped_answers"),
     });
   };
 
@@ -573,7 +576,7 @@ export default function EvaluationResultsScreen({
     }
 
     // 3. Last fallback
-    return identifier || "Unknown Student";
+    return identifier || t("evaluation_results_unknown_student");
   };
 
 
@@ -616,7 +619,7 @@ export default function EvaluationResultsScreen({
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
               <CheckCircle className="h-3.5 w-3.5" />
-              Evaluation complete
+              {t("evaluation_results_complete_badge")}
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
@@ -656,16 +659,26 @@ export default function EvaluationResultsScreen({
         </div>
         <div className="grid grid-cols-1 divide-y divide-gray-200 border-t border-gray-200 bg-gray-50 dark:divide-[#2a2a2a] dark:border-[#2a2a2a] dark:bg-[#161616] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           <div className="px-6 py-3">
-            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Sheets</p>
+            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {t("evaluation_results_sheets")}
+            </p>
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{resultsSummary.length}</p>
           </div>
           <div className="px-6 py-3">
-            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Review Tools</p>
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Schema and mapped answers</p>
+            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {t("evaluation_results_review_tools")}
+            </p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              {t("evaluation_results_review_tools_value")}
+            </p>
           </div>
           <div className="px-6 py-3">
-            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Feedback</p>
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Generated on demand</p>
+            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {t("evaluation_results_feedback")}
+            </p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              {t("evaluation_results_feedback_value")}
+            </p>
           </div>
         </div>
       </div>
@@ -729,7 +742,7 @@ export default function EvaluationResultsScreen({
                       ) : (
                         <BookOpen className="w-4 h-4" />
                       )}
-                      Schema
+                      {t("evaluation_results_schema")}
                     </Button>
                     <Button
                       onClick={(e) => {
@@ -744,7 +757,7 @@ export default function EvaluationResultsScreen({
                       ) : (
                         <ListChecks className="w-4 h-4" />
                       )}
-                      Mapped Answers
+                      {t("evaluation_results_mapped_answers")}
                     </Button>
                     <Button
                       onClick={(e) => {
@@ -757,12 +770,12 @@ export default function EvaluationResultsScreen({
                       {generatingFeedback.has(result.answer_document_id) ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          {t("generating...") || "Generating..."}
+                          {t("evaluation_results_generating")}
                         </>
                       ) : (
                         <>
                           <MessageSquare className="w-4 h-4" />
-                          {t("view_feedback") || "View Feedback"}
+                          {t("view_feedback")}
                         </>
                       )}
                     </Button>
@@ -789,7 +802,7 @@ export default function EvaluationResultsScreen({
                       <section>
                         <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-4 flex items-center gap-2">
                           <CheckCircle className="w-4 h-4 text-green-500" />
-                          {t("marks_summary") || "Marks Summary"}
+                          {t("marks_summary")}
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {Object.entries(detailedResult.marks_summary).map(([part, questions]) => {
@@ -804,7 +817,12 @@ export default function EvaluationResultsScreen({
                                 <div className="bg-gray-50 dark:bg-[#222] px-4 py-2 border-b border-gray-200 dark:border-[#2a2a2a] flex justify-between items-center">
                                   <h5 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">{part}</h5>
                                   {hasSelection && (
-                                    <span className="text-xs text-gray-400 dark:text-gray-500 italic">* best {selectedQuestions.length / 3} of {Math.round(questions.length / 3)} questions selected</span>
+                                    <span className="text-xs text-gray-400 dark:text-gray-500 italic">
+                                      {t("evaluation_results_best_selected", {
+                                        selected: selectedQuestions.length / 3,
+                                        total: Math.round(questions.length / 3),
+                                      })}
+                                    </span>
                                   )}
 
                                 </div>
@@ -812,8 +830,8 @@ export default function EvaluationResultsScreen({
                                   <table className="w-full text-sm text-left">
                                     <thead>
                                       <tr className="border-b border-gray-100 dark:border-[#2a2a2a] text-gray-500 dark:text-gray-400">
-                                        <th className="px-4 py-2 font-medium">{t("question") || "Question"}</th>
-                                        <th className="px-4 py-2 font-medium text-right">{t("marks") || "Marks"}</th>
+                                        <th className="px-4 py-2 font-medium">{t("question")}</th>
+                                        <th className="px-4 py-2 font-medium text-right">{t("marks")}</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50 dark:divide-[#2a2a2a]">
@@ -824,7 +842,7 @@ export default function EvaluationResultsScreen({
                                             key={qIdx}
                                             className={`text-gray-700 dark:text-gray-300 ${isNotSelected ? 'opacity-40' : ''
                                               }`}
-                                            title={isNotSelected ? 'Not counted (not in best selection)' : ''}
+                                            title={isNotSelected ? t("evaluation_results_not_counted") : ""}
                                           >
                                             <td className="px-4 py-2">
                                               {q.label}
@@ -842,8 +860,12 @@ export default function EvaluationResultsScreen({
                                       })}
                                       <tr className="bg-blue-50/30 dark:bg-blue-900/10 font-bold text-blue-700 dark:text-blue-300">
                                         <td className="px-4 py-2">
-                                          {t("total") || "Total"}
-                                          {hasSelection && <span className="font-normal text-xs text-blue-400 ml-1">(selected)</span>}
+                                          {t("total")}
+                                          {hasSelection && (
+                                            <span className="font-normal text-xs text-blue-400 ml-1">
+                                              {t("evaluation_results_selected_suffix")}
+                                            </span>
+                                          )}
                                         </td>
                                         <td className="px-4 py-2 text-right">
                                           {Math.round(totalAwarded * 100) / 100}
@@ -894,7 +916,7 @@ export default function EvaluationResultsScreen({
                           };
 
                           const paperGroups = normalized.reduce((acc, item) => {
-                            const key = item.paperPart || "Other";
+                            const key = item.paperPart || t("evaluation_results_other");
                             if (!acc[key]) acc[key] = [];
                             acc[key].push(item);
                             return acc;
@@ -994,7 +1016,9 @@ export default function EvaluationResultsScreen({
                                         <details open className="group">
                                           <summary className="px-4 py-3 border-b border-gray-100 dark:border-[#2a2a2a] bg-gray-50 dark:bg-[#1c1c1c] cursor-pointer list-none flex items-center justify-between">
                                             <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                              Question {group.mainQuestion}
+                                              {t("evaluation_results_question", {
+                                                id: group.mainQuestion,
+                                              })}
                                             </span>
                                             <ChevronDown className="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180" />
                                           </summary>
@@ -1069,7 +1093,8 @@ export default function EvaluationResultsScreen({
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {getStudentDisplayName(
                     reviewModal.result.answer_document_id,
-                    resultsSummary.find(r => r.answer_document_id === reviewModal.result.answer_document_id)?.student_identifier || "Student"
+                    resultsSummary.find(r => r.answer_document_id === reviewModal.result.answer_document_id)?.student_identifier ||
+                      t("evaluation_results_student")
                   )}
                 </p>
               </div>
@@ -1077,7 +1102,7 @@ export default function EvaluationResultsScreen({
                 type="button"
                 onClick={() => setReviewModal(null)}
                 className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-[#1f1f1f] dark:hover:text-gray-100"
-                aria-label="Close"
+                aria-label={t("evaluation_results_close")}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1091,13 +1116,13 @@ export default function EvaluationResultsScreen({
                     if (!items.length) {
                       return (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          No generated marking schema is available for this result.
+                          {t("evaluation_results_no_schema")}
                         </p>
                       );
                     }
 
                     const grouped = items.reduce((acc: Record<string, any[]>, item: any) => {
-                      const key = item.part_display || item.part_name || "Other";
+                      const key = item.part_display || item.part_name || t("evaluation_results_other");
                       if (!acc[key]) acc[key] = [];
                       acc[key].push(item);
                       return acc;
@@ -1112,10 +1137,10 @@ export default function EvaluationResultsScreen({
                           <table className="w-full min-w-[760px] text-left text-sm">
                             <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-[#1c1c1c] dark:text-gray-400">
                               <tr>
-                                <th className="px-4 py-3 font-medium">Question</th>
-                                <th className="px-4 py-3 font-medium">Marks</th>
-                                <th className="px-4 py-3 font-medium">Question Text</th>
-                                <th className="px-4 py-3 font-medium">Covering Points</th>
+                                <th className="px-4 py-3 font-medium">{t("question")}</th>
+                                <th className="px-4 py-3 font-medium">{t("marks")}</th>
+                                <th className="px-4 py-3 font-medium">{t("evaluation_results_question_text")}</th>
+                                <th className="px-4 py-3 font-medium">{t("evaluation_results_covering_points")}</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
@@ -1149,7 +1174,7 @@ export default function EvaluationResultsScreen({
                     if (!details.length) {
                       return (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          No mapped answers are available for this result.
+                          {t("evaluation_results_no_mapped_answers")}
                         </p>
                       );
                     }
@@ -1159,10 +1184,10 @@ export default function EvaluationResultsScreen({
                         <table className="w-full min-w-[760px] text-left text-sm">
                           <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-[#1c1c1c] dark:text-gray-400">
                             <tr>
-                              <th className="px-4 py-3 font-medium">Mapped Question</th>
-                              <th className="px-4 py-3 font-medium">Marks</th>
-                              <th className="px-4 py-3 font-medium">Question Text</th>
-                              <th className="px-4 py-3 font-medium">Student Answer</th>
+                              <th className="px-4 py-3 font-medium">{t("evaluation_results_mapped_question")}</th>
+                              <th className="px-4 py-3 font-medium">{t("marks")}</th>
+                              <th className="px-4 py-3 font-medium">{t("evaluation_results_question_text")}</th>
+                              <th className="px-4 py-3 font-medium">{t("evaluation_results_student_answer")}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
@@ -1172,7 +1197,7 @@ export default function EvaluationResultsScreen({
                                   {item.display_label || item.question_number || "-"}
                                   {!item.is_mapped_to_current_question && (
                                     <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                      unresolved
+                                      {t("evaluation_results_unresolved")}
                                     </span>
                                   )}
                                 </td>
